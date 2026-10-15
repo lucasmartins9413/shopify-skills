@@ -1,0 +1,67 @@
+{
+  "id": "seo-headless",
+  "title": "SEO em storefronts headless (Hydrogen)",
+  "desc": "Fora do Liquid, nada de SEO vem de graça — implemente title, meta tags e JSON-LD manualmente com os utilitários do Hydrogen.",
+  "plan": {
+    "objetivo": "Entender por que uma storefront headless (Hydrogen) não herda nenhuma das automações de SEO do Liquid, e implementar metadata e dados estruturados manualmente com os utilitários oficiais.",
+    "prereq": "Dados estruturados e rich snippets",
+    "tempo": "3h",
+    "doc": "https://shopify.dev/docs/api/hydrogen/latest/utilities/getseometa",
+    "steps": [
+      {
+        "title": "Entenda a mudança de paradigma: sem tema, sem automação.",
+        "detail": "Tudo visto até aqui na trilha — `page_title`, `page_description`, `canonical_url`, hreflang automático via Markets — é automação que existe especificamente porque a página é renderizada em **Liquid**, dentro do modelo de tema da Shopify. Uma storefront **headless**, construída com **Hydrogen** (o framework React oficial da Shopify pra isso, sobre Remix/React Router) ou qualquer outro framework consumindo a Storefront API diretamente, não usa Liquid — e, portanto, **não herda nenhuma dessa automação**. Cada elemento de SEO precisa ser implementado manualmente, buscando o dado certo via GraphQL e montando as tags você mesmo.",
+        "advanced": "Essa é uma das razões pelas quais escolher headless é uma decisão de trade-off real, não só técnica: você ganha controle total sobre performance e experiência, mas perde as automações de SEO/acessibilidade que o modelo de tema dá de graça — o custo de engenharia pra SEO em headless é bem mais alto."
+      },
+      {
+        "title": "Use `getSeoMeta` pra gerar as tags de metadata de forma padronizada.",
+        "detail": "O Hydrogen expõe o utilitário `getSeoMeta`, que recebe dados do recurso (produto, coleção, página) e gera o conjunto de meta tags correspondente (título, description, Open Graph, Twitter Card) de forma consistente, integrado ao sistema de `meta` do Remix/React Router.",
+        "code": "import { getSeoMeta } from '@shopify/hydrogen';\n\nexport const meta = ({ data }) => {\n  return getSeoMeta({\n    title: data.product.title,\n    description: data.product.description,\n    titleTemplate: '%s | Minha Loja',\n  });\n};"
+      },
+      {
+        "title": "Busque os dados de SEO explicitamente na query GraphQL — eles não vêm de graça.",
+        "detail": "Diferente do Liquid (onde `page_title`/`page_description` já vêm resolvidos), em Hydrogen você precisa **pedir explicitamente** os campos de SEO na sua query da Storefront API, incluindo o campo `seo` que a maioria dos recursos expõe (com `title` e `description` já considerando o que o merchant configurou no admin).",
+        "code": "query ProductSeo($handle: String!) {\n  product(handle: $handle) {\n    title\n    description\n    seo {\n      title\n      description\n    }\n  }\n}"
+      },
+      {
+        "title": "Implemente o canonical manualmente, a partir da URL da requisição.",
+        "detail": "Sem `canonical_url` automático, você monta a tag canonical você mesmo, a partir do domínio configurado e do handle do recurso atual — com atenção redobrada a normalizar barras finais e parâmetros de query, exatamente os detalhes que o Liquid resolvia sozinho.",
+        "code": "export const meta = ({ data, location }) => {\n  const canonicalUrl = `https://minha-loja.com${location.pathname}`;\n  return [\n    ...getSeoMeta({ title: data.product.title }),\n    { tagName: 'link', rel: 'canonical', href: canonicalUrl },\n  ];\n};"
+      },
+      {
+        "title": "Gere dados estruturados manualmente com a propriedade `jsonLd`.",
+        "detail": "O equivalente ao filtro `structured_data` do Liquid, em Hydrogen, é montar o objeto JSON-LD você mesmo (seguindo o vocabulário schema.org) e declará-lo através da propriedade `jsonLd` retornada junto com o restante da metadata — o valor final ainda precisa ser válido conforme a especificação schema.org, exatamente como no Liquid, só que sem o filtro pronto fazendo o trabalho.",
+        "code": "export const meta = ({ data }) => {\n  return [\n    ...getSeoMeta({ title: data.product.title }),\n    {\n      'script:ld+json': {\n        '@context': 'https://schema.org',\n        '@type': 'Product',\n        name: data.product.title,\n        description: data.product.description,\n        offers: {\n          '@type': 'Offer',\n          price: data.product.selectedVariant.price.amount,\n          priceCurrency: data.product.selectedVariant.price.currencyCode,\n        },\n      },\n    },\n  ];\n};"
+      },
+      {
+        "title": "Implemente sitemap, robots.txt e hreflang manualmente também.",
+        "detail": "A mesma lógica se aplica ao resto da trilha: sitemap.xml precisa ser gerado como uma rota própria consultando o catálogo via API; robots.txt vira um arquivo estático ou rota própria; hreflang (se a loja for multi-idioma) precisa ser montado manualmente a partir dos mercados configurados, sem o comportamento automático do Markets no contexto Liquid.",
+        "advanced": "Times migrando de um tema Liquid pra Hydrogen costumam subestimar esse trabalho — é comum um relançamento headless perder ranking temporariamente justamente porque alguma dessas peças (mais frequentemente sitemap ou canonical) não foi replicada com o mesmo rigor que o Liquid tinha por padrão."
+      },
+      {
+        "title": "Projeto — implemente metadata completa de uma rota de produto em Hydrogen.",
+        "detail": "Vamos montar, do zero, o equivalente Hydrogen de tudo que os tópicos de Metadata e Dados estruturados implementaram em Liquid — title, description, canonical e JSON-LD de produto."
+      },
+      {
+        "title": "Projeto — passo 1: adicione o campo `seo` à query de produto da rota.",
+        "detail": "Edite a query GraphQL da rota de produto pra incluir explicitamente `seo { title description }`, além dos campos já usados pra renderizar a página.",
+        "code": "query ProductRoute($handle: String!) {\n  product(handle: $handle) {\n    title\n    seo { title description }\n    selectedVariant { price { amount currencyCode } }\n  }\n}"
+      },
+      {
+        "title": "Projeto — passo 2: implemente a função `meta` usando `getSeoMeta`.",
+        "detail": "Adicione a exportação `meta` na rota, retornando o resultado de `getSeoMeta` com título e descrição vindos do campo `seo` buscado no passo anterior."
+      },
+      {
+        "title": "Projeto — passo 3: adicione o canonical e o JSON-LD de produto.",
+        "detail": "Complete a função `meta` com a tag canonical (a partir de `location.pathname`) e o bloco `script:ld+json` do tipo `Product`, seguindo os exemplos desta trilha."
+      },
+      {
+        "title": "Projeto — passo 4: valide o HTML renderizado e o schema no Rich Results Test.",
+        "detail": "Rode a rota localmente, confira o código-fonte renderizado (título, meta description, link canonical, script JSON-LD todos presentes), e valide o schema no Rich Results Test do Google — o mesmo processo de validação usado no tópico de dados estruturados, agora aplicado a uma stack completamente diferente.",
+        "advanced": "Se algum elemento não aparecer no HTML renderizado, confirme primeiro se a rota está usando **server-side rendering** pra esse conteúdo — meta tags injetadas só no client-side (depois da hidratação) podem não ser vistas por crawlers que não executam JavaScript completo, dependendo de como o crawler específico funciona."
+      }
+    ]
+  },
+  "categoryId": "seo",
+  "categoryLabel": "SEO"
+}

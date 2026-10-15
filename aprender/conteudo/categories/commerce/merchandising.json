@@ -1,0 +1,70 @@
+{
+  "id": "merchandising",
+  "title": "Product merchandising",
+  "desc": "Gerencie produtos, coleções, variantes e precificação.",
+  "plan": {
+    "objetivo": "Entender o modelo de dados de produto (produto, variante, opção) e gerenciar produtos, coleções e preços via Admin API em lote.",
+    "prereq": "GraphQL",
+    "tempo": "3h",
+    "doc": "https://shopify.dev/docs/apps/build/product-merchandising",
+    "steps": [
+      {
+        "title": "Entenda o modelo de dados: produto, opções e variantes.",
+        "detail": "Um **produto** na Shopify raramente representa \"uma coisa vendável\" sozinho — ele representa um conceito (\"Camiseta Básica\"), que pode ter **opções** (Cor, Tamanho) e, pra cada combinação dessas opções, uma **variante** (\"Camiseta Básica — Azul, M\"), que é a unidade real vendida, com seu próprio preço, SKU e estoque.\n\nEsse modelo de três camadas (produto → opções → variantes) é fundamental: quase todo código que lida com preço, estoque ou SKU trabalha no nível de **variante**, não de produto — um erro comum de quem começa é tentar, por exemplo, definir um único preço \"do produto\" quando na verdade cada variante pode ter seu próprio preço.",
+        "advanced": "Um produto sem opções explícitas ainda tem uma variante — a chamada variante \"Default Title\", criada automaticamente. Isso explica por que `productCreate` sem informar `variants` não gera um produto \"sem nenhuma variante\", como visto no tópico \"Build an app\"."
+      },
+      {
+        "title": "Crie um produto com variantes via `productCreate`.",
+        "detail": "`productCreate` aceita variantes inline na própria mutation de criação, útil pra casos simples; pra catálogos maiores ou criação incremental, é comum criar o produto primeiro e adicionar variantes depois.",
+        "code": "mutation {\n  productCreate(input: {\n    title: \"Camiseta\",\n    variants: [{price: \"49.90\"}]\n  }) { product { id } }\n}"
+      },
+      {
+        "title": "Crie múltiplas variantes em lote com `productVariantsBulkCreate`.",
+        "detail": "Pra produtos com várias combinações de opções (cor × tamanho, por exemplo), `productVariantsBulkCreate` cria todas de uma vez, numa única chamada — muito mais eficiente que uma mutation por variante.",
+        "code": "mutation {\n  productVariantsBulkCreate(\n    productId: \"gid://shopify/Product/1\",\n    variants: [\n      { price: \"49.90\", optionValues: [{ name: \"Azul\", optionName: \"Cor\" }] },\n      { price: \"49.90\", optionValues: [{ name: \"Vermelho\", optionName: \"Cor\" }] }\n    ]\n  ) { productVariants { id } userErrors { field message } }\n}",
+        "advanced": "`productVariantsBulkCreate` é preferível a criar variante por variante em qualquer cenário com mais de uma ou duas variantes — além de mais rápido, evita estourar o rate limit em catálogos grandes com muitas combinações de opções."
+      },
+      {
+        "title": "Organize produtos numa coleção, manual ou automática.",
+        "detail": "`collectionCreate` pode gerar uma coleção **manual** (você lista explicitamente quais produtos entram) ou **automática** (você define regras, como \"todos os produtos com a tag `promo`\", e a Shopify mantém a lista atualizada sozinha conforme produtos mudam).",
+        "code": "mutation {\n  collectionCreate(input: {\n    title: \"Promoções\",\n    ruleSet: {\n      appliedDisjunctively: false,\n      rules: [{ column: TAG, relation: EQUALS, condition: \"promo\" }]\n    }\n  }) { collection { id } }\n}",
+        "advanced": "Coleções automáticas recalculam a lista de membros (*membership*) de forma **assíncrona** — não espere o produto aparecer instantaneamente na coleção logo após adicionar a tag correspondente; pode levar alguns instantes até a Shopify reprocessar a regra."
+      },
+      {
+        "title": "Ajuste preços em lote e confirme as mudanças com uma query.",
+        "detail": "Assim como a criação, atualizações de preço em várias variantes se beneficiam de mutations em lote (`productVariantsBulkUpdate`). Depois de qualquer mudança, rode uma query de confirmação — não assuma que a mutation funcionou só porque não lançou exceção; sempre confira `userErrors` e, quando possível, releia o dado gravado.",
+        "code": "query {\n  product(id: \"gid://shopify/Product/1\") {\n    title\n    variants(first: 10) {\n      nodes { id price compareAtPrice }\n    }\n  }\n}"
+      },
+      {
+        "title": "Entenda os GIDs (Global IDs) usados em toda a API.",
+        "detail": "IDs no GraphQL da Shopify são **GIDs completos** — strings no formato `gid://shopify/Product/123`, não só o número `123`. Isso vale pra todo tipo de recurso, e é diferente do formato de ID numérico simples usado pela REST API legada.",
+        "advanced": "Normalize isso explicitamente ao integrar com sistemas externos que só guardam o ID numérico (por exemplo, um ERP legado) — extrair o número final do GID (`.split('/').pop()`) e reconstruir o GID completo quando precisar (`` `gid://shopify/Product/${id}` ``) é um padrão comum de integração."
+      },
+      {
+        "title": "Projeto — cadastre um produto completo com variantes, coleção e preços promocionais.",
+        "detail": "Vamos criar, do zero, um produto com duas opções de cor, organizá-lo numa coleção automática de promoções, e aplicar um preço \"de/por\" numa das variantes."
+      },
+      {
+        "title": "Projeto — passo 1: crie o produto base.",
+        "detail": "Rode `productCreate` com o título do produto, sem variantes ainda (vamos adicionar no próximo passo).",
+        "code": "mutation {\n  productCreate(input: { title: \"Caneca Personalizada\", tags: [\"promo\"] }) {\n    product { id }\n  }\n}"
+      },
+      {
+        "title": "Projeto — passo 2: adicione duas variantes de cor em lote.",
+        "detail": "Use `productVariantsBulkCreate` pra criar as variantes \"Branca\" e \"Preta\", cada uma com um preço.",
+        "code": "mutation {\n  productVariantsBulkCreate(\n    productId: \"gid://shopify/Product/<id>\",\n    variants: [\n      { price: \"29.90\", compareAtPrice: \"39.90\", optionValues: [{ name: \"Branca\", optionName: \"Cor\" }] },\n      { price: \"29.90\", optionValues: [{ name: \"Preta\", optionName: \"Cor\" }] }\n    ]\n  ) { productVariants { id } userErrors { field message } }\n}"
+      },
+      {
+        "title": "Projeto — passo 3: crie a coleção automática de promoções (ou confirme a existente).",
+        "detail": "Como o produto já tem a tag `promo`, ele deve aparecer automaticamente numa coleção com a regra correspondente — crie essa coleção se ainda não existir."
+      },
+      {
+        "title": "Projeto — passo 4: confirme tudo com uma única query de verificação.",
+        "detail": "Escreva uma query que traga o produto, suas variantes com preço e `compareAtPrice`, e confirme (numa segunda query, sobre a coleção) que ele está listado como membro.",
+        "code": "query {\n  product(id: \"gid://shopify/Product/<id>\") {\n    title\n    variants(first: 5) { nodes { price compareAtPrice } }\n  }\n}"
+      }
+    ]
+  },
+  "categoryId": "commerce",
+  "categoryLabel": "Commerce"
+}

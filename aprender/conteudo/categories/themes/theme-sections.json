@@ -1,0 +1,68 @@
+{
+  "id": "theme-sections",
+  "title": "Sections",
+  "desc": "Crie módulos de conteúdo reutilizáveis e customizáveis pelo merchant.",
+  "plan": {
+    "objetivo": "Criar uma section customizada completa — com HTML, schema, tipos de setting variados e regras de disponibilidade — do zero até funcionar no theme editor.",
+    "prereq": "Templates",
+    "tempo": "4h",
+    "doc": "https://shopify.dev/docs/storefronts/themes/architecture/sections",
+    "steps": [
+      {
+        "title": "Entenda a anatomia de um arquivo de section.",
+        "detail": "Um arquivo em `sections/` tem, tipicamente, três partes:\n\n1. **HTML + Liquid** — a marcação e a lógica de apresentação, usando `section.settings.*` pra ler valores configuráveis.\n2. **`{% schema %}`** — um bloco JSON no fim do arquivo que declara nome, settings, blocks aceitos e outras regras. É esse schema que faz a section aparecer no editor de temas como algo editável.\n3. (opcional) **`{% stylesheet %}` / `{% javascript %}`** — CSS e JS que pertencem só a essa section, carregados apenas quando ela está presente na página.\n\nO ponto-chave: o `{% schema %}` roda em **tempo de parse** do arquivo, não em tempo de render da página — não é possível gerar conteúdo do schema dinamicamente com lógica Liquid dentro dele. O schema é sempre estático.",
+        "code": "<div class=\"banner\" style=\"background: {{ section.settings.bg_color }};\">\n  <h2>{{ section.settings.heading }}</h2>\n</div>\n\n{% schema %}\n{\n  \"name\": \"Banner\",\n  \"settings\": [\n    { \"type\": \"text\", \"id\": \"heading\", \"label\": \"Título\", \"default\": \"Bem-vindo\" },\n    { \"type\": \"color\", \"id\": \"bg_color\", \"label\": \"Cor de fundo\", \"default\": \"#f4f4f4\" }\n  ]\n}\n{% endschema %}",
+        "advanced": "Como o schema é estático, qualquer coisa que precise variar de verdade (baseada em dados da loja) tem que ser resolvida no HTML/Liquid da section, lendo `section.settings.*`, nunca tentando montar o JSON do schema condicionalmente."
+      },
+      {
+        "title": "Conheça os tipos de setting mais usados e quando usar cada um.",
+        "detail": "A [referência completa de input settings](https://shopify.dev/docs/storefronts/themes/architecture/settings/input-settings) lista cerca de vinte tipos — os que você vai usar quase todo dia são:\n\n- `text` / `textarea` — strings curtas ou longas, sem formatação.\n- `richtext` — texto com formatação básica (negrito, itálico, links), editado com um mini-editor visual.\n- `image_picker` — seleção de uma imagem da biblioteca de mídia da loja.\n- `color` / `color_scheme` — um seletor de cor, ou (mais moderno) referência a um esquema de cores inteiro definido nas configurações do tema.\n- `range` — um slider numérico, com `min`, `max`, `step` e `unit`.\n- `select` / `radio` — uma escolha entre opções fixas que você define.\n- `checkbox` — booleano simples.\n- `url` — um link, com um seletor visual pra produtos/coleções/páginas internas ou URL externa.",
+        "code": "{\n  \"type\": \"range\",\n  \"id\": \"padding_top\",\n  \"label\": \"Espaçamento superior\",\n  \"min\": 0,\n  \"max\": 100,\n  \"step\": 4,\n  \"unit\": \"px\",\n  \"default\": 32\n}",
+        "advanced": "Settings do tipo `range` têm `min`/`max`/`step` obrigatórios — esquecer algum desses três campos quebra o schema **silenciosamente**: a section some do editor sem nenhuma mensagem de erro clara, e o único jeito de descobrir por quê é rodar o Theme Check ou revisar o JSON com atenção."
+      },
+      {
+        "title": "Organize settings em grupos com `header`.",
+        "detail": "Em schemas com muitos settings, um objeto do tipo `header` (sem `id`, sem valor real) cria um separador visual com título no painel do editor — puramente organizacional, não afeta o Liquid em nada.",
+        "code": "{ \"type\": \"header\", \"content\": \"Aparência\" },\n{ \"type\": \"color\", \"id\": \"bg_color\", \"label\": \"Cor de fundo\" },\n{ \"type\": \"header\", \"content\": \"Conteúdo\" },\n{ \"type\": \"text\", \"id\": \"heading\", \"label\": \"Título\" }"
+      },
+      {
+        "title": "Controle onde a section pode ser usada com `enabled_on`/`disabled_on`.",
+        "detail": "Por padrão, qualquer section pode ser adicionada a qualquer template pelo merchant. Se uma section só faz sentido em contexto específico (ex: uma section que depende de `product` só funciona em templates de produto), declare isso explicitamente no schema — evita que o merchant a adicione num lugar onde ela quebra ou não renderiza nada.",
+        "code": "{\n  \"enabled_on\": {\n    \"templates\": [\"product\"]\n  }\n}",
+        "advanced": "`enabled_on`/`disabled_on` também aceitam a chave `groups`, pra restringir a section group específicos (header, footer) em vez de templates — útil pra sections desenhadas só pra viver dentro de um header customizado, por exemplo."
+      },
+      {
+        "title": "Diferencie section \"estática\" de section \"seccionável/reordenável\" num template.",
+        "detail": "Toda section colocada num template JSON aparece automaticamente no editor como um bloco que o merchant pode reordenar dentro daquele template (arrastando no painel lateral) — isso é comportamento padrão, não precisa de configuração extra. O que você controla é se ela pode ser **removida** (`\"presets\"` no schema define os padrões de quando adicionada via \"Adicionar section\") e via de quais templates ela é elegível.",
+        "advanced": "Um bloco `\"presets\"` no schema é o que permite o merchant adicionar essa section a **qualquer** template compatível pelo botão \"Adicionar section\" no editor — sem `presets`, a section só pode ser inserida manualmente editando o JSON do template."
+      },
+      {
+        "title": "Projeto — construa uma section \"Banner com destaque\" completa.",
+        "detail": "Vamos criar uma section de banner promocional configurável, dos settings básicos até aparecer de fato no editor de temas, pronta pro merchant usar na home."
+      },
+      {
+        "title": "Projeto — passo 1: crie o arquivo com o HTML base e dois settings de texto.",
+        "detail": "Crie `sections/promo-banner.liquid` com um título e um subtítulo configuráveis.",
+        "code": "<div class=\"promo-banner\">\n  <h2>{{ section.settings.heading }}</h2>\n  <p>{{ section.settings.subheading }}</p>\n</div>\n\n{% schema %}\n{\n  \"name\": \"Banner promocional\",\n  \"settings\": [\n    { \"type\": \"text\", \"id\": \"heading\", \"label\": \"Título\", \"default\": \"Promoção especial\" },\n    { \"type\": \"text\", \"id\": \"subheading\", \"label\": \"Subtítulo\", \"default\": \"Só até domingo\" }\n  ]\n}\n{% endschema %}"
+      },
+      {
+        "title": "Projeto — passo 2: adicione imagem de fundo, cor e um link de call-to-action.",
+        "detail": "Expanda o schema com `image_picker`, `color` e `url`, e use os três no HTML.",
+        "code": "<div class=\"promo-banner\" style=\"background-color: {{ section.settings.bg_color }};\">\n  {% if section.settings.bg_image %}\n    <img src=\"{{ section.settings.bg_image | image_url: width: 1600 }}\" alt=\"\" class=\"promo-banner__bg\">\n  {% endif %}\n  <h2>{{ section.settings.heading }}</h2>\n  <p>{{ section.settings.subheading }}</p>\n  {% if section.settings.button_link != blank %}\n    <a href=\"{{ section.settings.button_link }}\" class=\"button\">Ver ofertas</a>\n  {% endif %}\n</div>\n\n{% schema %}\n{\n  \"name\": \"Banner promocional\",\n  \"settings\": [\n    { \"type\": \"text\", \"id\": \"heading\", \"label\": \"Título\", \"default\": \"Promoção especial\" },\n    { \"type\": \"text\", \"id\": \"subheading\", \"label\": \"Subtítulo\", \"default\": \"Só até domingo\" },\n    { \"type\": \"image_picker\", \"id\": \"bg_image\", \"label\": \"Imagem de fundo\" },\n    { \"type\": \"color\", \"id\": \"bg_color\", \"label\": \"Cor de fundo\", \"default\": \"#111111\" },\n    { \"type\": \"url\", \"id\": \"button_link\", \"label\": \"Link do botão\" }\n  ],\n  \"presets\": [{ \"name\": \"Banner promocional\" }]\n}\n{% endschema %}"
+      },
+      {
+        "title": "Projeto — passo 3: adicione a section à home pelo editor de temas.",
+        "detail": "Suba o tema, abra o editor de temas na home, clique em \"Adicionar section\" e confirme que \"Banner promocional\" aparece na lista (graças ao `presets` adicionado). Adicione e configure os campos pelo painel.",
+        "code": "shopify theme dev --store=sua-loja-dev.myshopify.com"
+      },
+      {
+        "title": "Projeto — passo 4: restrinja a section só à home com `enabled_on`.",
+        "detail": "Adicione a regra pra impedir que essa section específica seja usada, por exemplo, numa página de produto — nesse banner promocional, isso não faz muito sentido fora da home.",
+        "code": "\"enabled_on\": {\n  \"templates\": [\"index\"]\n}",
+        "advanced": "Depois de adicionar `enabled_on`, confirme no editor que a section deixou de aparecer como opção em outros templates — é um erro comum esquecer de validar essa restrição depois de escrevê-la."
+      }
+    ]
+  },
+  "categoryId": "themes",
+  "categoryLabel": "Temas (Storefronts)"
+}

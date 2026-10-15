@@ -1,0 +1,100 @@
+{
+  "id": "graphql-avancado",
+  "title": "GraphQL avançado",
+  "desc": "Paginação por cursor, fragments, aliases, busca com filtros, IDs globais, erros e o modelo completo de custo — o que separa quem escreve queries de quem domina a API.",
+  "plan": {
+    "objetivo": "Sair do básico de queries/mutations e dominar o que uma integração real exige: paginar coleções grandes, filtrar no servidor, reaproveitar campos com fragments, entender os dois tipos de erro e planejar o custo de cada chamada.",
+    "prereq": "GraphQL",
+    "tempo": "6h",
+    "doc": "https://shopify.dev/docs/api/usage/pagination-graphql",
+    "steps": [
+      {
+        "title": "Entenda o modelo de grafo: nodes, edges e connections.",
+        "detail": "Na Admin API, listas não são arrays simples: são **connections**. Uma connection expõe `nodes` (os itens), `edges` (item + `cursor` daquela posição) e `pageInfo` (se há mais páginas). Esse formato existe pra paginar de forma estável mesmo enquanto a loja muda.\n\nPra a maioria dos casos você usa `nodes`. Use `edges { cursor node { … } }` só quando precisar do cursor de cada item.",
+        "code": "query {\n  products(first: 3) {\n    nodes { id title }\n    pageInfo { hasNextPage endCursor }\n  }\n}",
+        "advanced": "Cursor é um texto opaco. Não tente decodificar nem montar cursores à mão: guarde o `endCursor` que a API devolveu e passe de volta em `after`."
+      },
+      {
+        "title": "Pagine uma coleção inteira com first, after e endCursor.",
+        "detail": "`first` aceita no máximo **250**. Pra ler tudo, faça um laço: busque uma página, leia `pageInfo.endCursor` e repita com `after: <cursor>` enquanto `hasNextPage` for verdadeiro.",
+        "code": "query Products($cursor: String) {\n  products(first: 100, after: $cursor) {\n    nodes { id title }\n    pageInfo { hasNextPage endCursor }\n  }\n}\n\n// laço em JS\nlet cursor = null, all = [];\ndo {\n  const res = await admin.graphql(QUERY, { variables: { cursor } });\n  const { data } = await res.json();\n  all.push(...data.products.nodes);\n  cursor = data.products.pageInfo.hasNextPage\n    ? data.products.pageInfo.endCursor\n    : null;\n} while (cursor);",
+        "advanced": "Paginar 100.000 produtos numa fila de requisições é caro e lento. Se você precisa de **tudo**, o caminho certo é Bulk Operations (tópico seguinte). Paginação normal é pra telas e leituras pequenas."
+      },
+      {
+        "title": "Filtre no servidor com o argumento query.",
+        "detail": "Não baixe tudo pra filtrar no seu código. A maioria das connections aceita `query:` com a sintaxe de busca da Shopify: `campo:valor`, operadores `AND`/`OR`, negação com `-`, comparação com `>` `<` e curinga `*`.",
+        "code": "query {\n  products(first: 20, query: \"status:active AND vendor:Nike AND inventory_total:>0\") {\n    nodes { id title vendor totalInventory }\n  }\n}\n\n# pedidos recentes ainda não enviados\norders(first: 50, query: \"created_at:>=2025-01-01 fulfillment_status:unfulfilled\", sortKey: CREATED_AT, reverse: true) {\n  nodes { id name }\n}",
+        "advanced": "Os campos válidos em `query` variam por recurso (produtos, pedidos, clientes…) e estão listados na doc de cada connection, em \"Search syntax\". Teste no GraphiQL antes de colocar no código."
+      },
+      {
+        "title": "Use aliases pra pedir o mesmo campo duas vezes.",
+        "detail": "Se você precisa do mesmo campo com argumentos diferentes na mesma requisição, dê um **alias** a cada um. Sem alias, os dois colidiriam no mesmo nome de chave da resposta.",
+        "code": "query {\n  ativos: productsCount(query: \"status:active\") { count }\n  rascunhos: productsCount(query: \"status:draft\") { count }\n  recentes: products(first: 3, sortKey: CREATED_AT, reverse: true) { nodes { title } }\n}"
+      },
+      {
+        "title": "Reaproveite campos com fragments.",
+        "detail": "Quando a mesma seleção de campos aparece em várias queries, extraia num **fragment**. Isso mantém as telas consistentes e centraliza a mudança quando você precisar de um campo a mais.",
+        "code": "fragment ProductCard on Product {\n  id\n  title\n  handle\n  priceRangeV2 { minVariantPrice { amount currencyCode } }\n}\n\nquery {\n  products(first: 12) {\n    nodes { ...ProductCard }\n  }\n}"
+      },
+      {
+        "title": "Busque por ID global e trate tipos diferentes com inline fragments.",
+        "detail": "Todo objeto tem um **GID** (`gid://shopify/Product/123`). `node(id:)` e `nodes(ids:)` buscam qualquer objeto por GID, mas devolvem uma interface — use `... on Tipo` pra pedir os campos específicos de cada tipo.",
+        "code": "query {\n  nodes(ids: [\"gid://shopify/Product/1\", \"gid://shopify/Collection/2\"]) {\n    id\n    __typename\n    ... on Product { title totalInventory }\n    ... on Collection { title }\n  }\n}",
+        "advanced": "`__typename` funciona em qualquer objeto e diz o tipo real. É a forma certa de distinguir os resultados no código em vez de adivinhar pelo formato."
+      },
+      {
+        "title": "Inclua ou pule campos com @include e @skip.",
+        "detail": "Diretivas permitem uma mesma query servir vários casos: você passa uma variável booleana e o campo condicional nem é calculado. Isso também reduz o custo.",
+        "code": "query Product($id: ID!, $withVariants: Boolean!) {\n  product(id: $id) {\n    title\n    variants(first: 50) @include(if: $withVariants) {\n      nodes { id sku price }\n    }\n  }\n}"
+      },
+      {
+        "title": "Ordene, inverta e leia metafields em uma única consulta.",
+        "detail": "`sortKey` e `reverse` ordenam no servidor. Metafields se leem com `metafield(namespace:, key:)` — junte dados da loja com seus campos customizados sem uma segunda chamada.",
+        "code": "query {\n  products(first: 10, sortKey: UPDATED_AT, reverse: true) {\n    nodes {\n      title\n      guia: metafield(namespace: \"custom\", key: \"guia_tamanho\") { value type }\n    }\n  }\n}",
+        "advanced": "Pra ler vários metafields do mesmo objeto existe a connection `metafields(first:, namespace:)`. Prefira `metafield(...)` singular quando você sabe a chave — é mais barato."
+      },
+      {
+        "title": "Diferencie os dois tipos de erro: errors e userErrors.",
+        "detail": "Uma resposta GraphQL da Shopify costuma voltar com **HTTP 200** mesmo quando algo deu errado. Existem dois lugares onde olhar:\n\n- **`errors` (topo da resposta)** — problema com a requisição: sintaxe inválida, campo inexistente, escopo faltando (`ACCESS_DENIED`), limite estourado (`THROTTLED`).\n- **`userErrors` (dentro da mutation)** — erro de regra de negócio: título vazio, SKU duplicado, valor inválido.",
+        "code": "const json = await response.json();\n\nif (json.errors?.length) {\n  // problema técnico: log + eventual retry\n  throw new Error(json.errors.map((e) => e.message).join(\"; \"));\n}\n\nconst { userErrors } = json.data.productUpdate;\nif (userErrors.length) {\n  // problema de negócio: devolva pro lojista ver\n  return { fieldErrors: userErrors };\n}",
+        "advanced": "Uma resposta pode trazer `data` **parcial** junto com `errors` (alguns campos resolvem, outros não). Não presuma que `errors` presente significa `data: null`."
+      },
+      {
+        "title": "Domine o custo: solicitado × real e o balde de pontos.",
+        "detail": "Cada requisição tem um custo em pontos calculado **antes** de rodar (`requestedQueryCost`), estimado pelo pior caso (o `first:` que você pediu). Depois de rodar, o custo real (`actualQueryCost`) é o que fica cobrado. Você tem um **balde** que enche a uma taxa fixa por segundo (no plano padrão: balde de 1.000 pontos, recarga de 50/s; planos maiores têm mais).\n\nA regra geral: cada objeto custa ~1 ponto, connections multiplicam pelo `first` pedido e mutations custam mais. Uma única query não pode passar de 1.000 pontos.",
+        "code": "{\n  \"extensions\": {\n    \"cost\": {\n      \"requestedQueryCost\": 152,\n      \"actualQueryCost\": 12,\n      \"throttleStatus\": {\n        \"maximumAvailable\": 1000,\n        \"currentlyAvailable\": 988,\n        \"restoreRate\": 50\n      }\n    }\n  }\n}",
+        "advanced": "Reduzir o `first:` pro que você realmente precisa é a forma mais eficaz de baixar o custo solicitado. Pedir `first: 250` aninhado dentro de outro `first: 250` estoura o limite antes mesmo de rodar."
+      },
+      {
+        "title": "Trate throttling com retry e espera calculada.",
+        "detail": "Quando o balde esvazia, a API responde com erro `THROTTLED`. Em vez de falhar, espere o tempo que o balde leva pra recarregar e tente de novo. Leia `throttleStatus` pra calcular a espera.",
+        "code": "async function gql(admin, query, variables, tries = 4) {\n  for (let i = 0; i < tries; i++) {\n    const res = await admin.graphql(query, { variables });\n    const json = await res.json();\n\n    const throttled = json.errors?.some((e) => e.extensions?.code === \"THROTTLED\");\n    if (!throttled) return json;\n\n    const { requestedQueryCost, throttleStatus } = json.extensions.cost;\n    const missing = requestedQueryCost - throttleStatus.currentlyAvailable;\n    const waitMs = Math.ceil((missing / throttleStatus.restoreRate) * 1000) + 100;\n    await new Promise((r) => setTimeout(r, waitMs));\n  }\n  throw new Error(\"Throttled demais\");\n}",
+        "advanced": "O limite é **por app e por loja**: uma loja gastando o balde dela não afeta as outras. Mas um laço agressivo dentro de uma única loja derruba todas as suas próprias telas nessa loja."
+      },
+      {
+        "title": "Entenda o versionamento da API.",
+        "detail": "A Admin API é versionada por trimestre (`2025-01`, `2025-04`…). O número entra na URL: `/admin/api/2025-01/graphql.json`. Cada versão é suportada por cerca de 12 meses; depois a Shopify passa a atendê-la pela versão suportada mais antiga, e campos removidos passam a falhar.",
+        "advanced": "Fixe a versão no config do app e planeje uma revisão a cada trimestre. A versão `unstable` serve pra testar features em desenvolvimento e **não** deve ir pra produção."
+      },
+      {
+        "title": "Projeto — construa um leitor de catálogo completo e resiliente.",
+        "detail": "Vai juntar paginação, filtro, fragment, tratamento de erro e retry num único helper reutilizável."
+      },
+      {
+        "title": "Projeto — passo 1: escreva o fragment e a query paginada com filtro.",
+        "detail": "Crie um fragment `ProductRow` (id, title, status, totalInventory) e uma query com `$cursor` e `$search`, filtrando por `status:active` e `inventory_total:>0`.",
+        "code": "fragment ProductRow on Product {\n  id title status totalInventory\n}\n\nquery Catalog($cursor: String, $search: String) {\n  products(first: 100, after: $cursor, query: $search) {\n    nodes { ...ProductRow }\n    pageInfo { hasNextPage endCursor }\n  }\n}"
+      },
+      {
+        "title": "Projeto — passo 2: escreva o laço de paginação com retry.",
+        "detail": "Use o helper `gql` do passo de throttling dentro do laço de paginação. A função deve devolver todos os produtos e lançar um erro claro se `errors` aparecerem."
+      },
+      {
+        "title": "Projeto — passo 3: meça e otimize o custo.",
+        "detail": "Registre no console o `requestedQueryCost` e o `actualQueryCost` de cada página. Troque `first: 100` por `first: 250` e depois por `first: 30` e compare: quanto o custo muda, quantas páginas você precisa e qual combinação termina mais rápido sem tomar throttling."
+      }
+    ]
+  },
+  "categoryId": "data",
+  "categoryLabel": "Data and logic"
+}

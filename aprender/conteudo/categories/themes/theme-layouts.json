@@ -1,0 +1,65 @@
+{
+  "id": "theme-layouts",
+  "title": "Layouts",
+  "desc": "Use o layout do tema para hospedar elementos repetidos como header e footer.",
+  "plan": {
+    "objetivo": "Entender profundamente o papel do `theme.liquid`, como layouts alternativos funcionam, e como usar `content_for_header` e `content_for_layout` corretamente.",
+    "prereq": "Key concepts (Architecture)",
+    "tempo": "2h",
+    "doc": "https://shopify.dev/docs/storefronts/themes/architecture/layouts",
+    "steps": [
+      {
+        "title": "Entenda o papel do layout como \"casca\" da loja inteira.",
+        "detail": "`layout/theme.liquid` é o único arquivo estritamente obrigatório de um tema. Ele contém a estrutura HTML de mais alto nível — `<html>`, `<head>`, `<body>` — e tudo que se repete em **toda página da loja**, independente do que está sendo exibido: tags de analytics, favicon, fontes carregadas globalmente, e as áreas de header/footer.\n\nDiferente de template e section, o layout não muda de arquivo dependendo do tipo de conteúdo (produto, coleção, página) — a mesma casca serve pra tudo, a menos que você defina explicitamente um layout alternativo.",
+        "advanced": "Mudanças em `theme.liquid` afetam a loja inteira de uma vez, instantaneamente após o deploy — é a área de maior raio de impacto do tema inteiro. Teste com bastante cautela, mesmo em ajustes que parecem pequenos."
+      },
+      {
+        "title": "Diferencie `content_for_header` de `content_for_layout`.",
+        "detail": "São duas tags fáceis de confundir pelo nome parecido, mas com papéis bem diferentes:\n\n- **`content_for_header`** vai dentro do `<head>`, e é onde a Shopify injeta automaticamente scripts essenciais da plataforma: pixels de analytics, scripts de apps instalados que se registram no head, meta tags de tracking. Você não controla o que entra aqui — só declara onde deve entrar.\n- **`content_for_layout`** vai dentro do `<body>`, e é onde o conteúdo do **template atual** é injetado — o HTML gerado pelas sections daquela página específica.\n\nRemover `content_for_header` por engano quebra apps instalados na loja de formas sutis (pixels de conversão parando de disparar, por exemplo) sem nenhum erro visível no preview.",
+        "code": "<head>\n  {{ content_for_header }}\n  <title>{{ page_title }}</title>\n  {{ content_for_header }} <!-- NÃO duplique -->\n</head>\n<body>\n  {{ content_for_layout }}\n</body>",
+        "advanced": "`content_for_header` deve aparecer **exatamente uma vez** no `<head>` — nunca duplique pensando em \"garantir\" que scripts carreguem; isso costuma disparar pixels de analytics em dobro, inflando métricas de conversão de apps de terceiros."
+      },
+      {
+        "title": "Identifique os section groups do header e do footer.",
+        "detail": "Em temas Online Store 2.0, header e footer normalmente **não são HTML fixo dentro de `theme.liquid`** — são section groups, chamados de dentro do layout com a tag `{% sections %}`. Isso é o que permite ao merchant reordenar, adicionar e remover blocos do header pelo editor visual, sem tocar em código.",
+        "code": "<body>\n  {% sections 'header-group' %}\n  {{ content_for_layout }}\n  {% sections 'footer-group' %}\n</body>",
+        "advanced": "Scripts de terceiros colocados direto no layout (fora de uma section) carregam em **toda página**, sempre — meça o impacto real de performance antes de adicionar algo globalmente, em vez de assumir que \"é só um script pequeno\"."
+      },
+      {
+        "title": "Crie um layout alternativo pra um fluxo específico (ex: página de impressão).",
+        "detail": "Assim como templates alternativos, é possível ter mais de um arquivo de layout — por exemplo, `layout/impressao.liquid`, sem header/footer completos, pra uma página de \"imprimir orçamento\". Um template escolhe qual layout usar através do front matter Liquid, ou o merchant escolhe pelo admin quando o template suporta essa opção.",
+        "code": "{% layout 'impressao' %}\n<!-- resto do conteúdo do template normalmente -->",
+        "advanced": "`{% layout none %}` no topo de um template renderiza sem nenhum layout — útil pra endpoints que devem retornar HTML \"nu\", sem header/footer/scripts globais."
+      },
+      {
+        "title": "Adicione um elemento de teste e confirme o alcance da mudança.",
+        "detail": "A forma mais rápida de confirmar que você está de fato editando o layout certo é adicionar algo bem visível e temporário no `<head>` ou logo no início do `<body>`, e verificar que ele aparece em **qualquer página** da loja — produto, coleção, home, página institucional — sem exceção.",
+        "code": "<!-- temporário, só pra teste -->\n<div style=\"background: red; color: white; padding: 8px;\">TESTE LAYOUT</div>"
+      },
+      {
+        "title": "Projeto — audite e ajuste o `theme.liquid` do seu tema de trabalho.",
+        "detail": "Vamos revisar o layout do tema que você vem construindo desde o tópico \"Build a new theme\", garantindo que ele segue os padrões vistos aqui antes de avançar pra templates e sections."
+      },
+      {
+        "title": "Projeto — passo 1: confirme a posição de `content_for_header`.",
+        "detail": "Abra `layout/theme.liquid` do seu projeto e confirme que `{{ content_for_header }}` aparece exatamente uma vez, dentro do `<head>`, o mais no topo possível (antes de outros scripts que você mesmo adicionar)."
+      },
+      {
+        "title": "Projeto — passo 2: confirme que header/footer usam section groups.",
+        "detail": "Verifique se existe `{% sections 'header-group' %}` e `{% sections 'footer-group' %}` (ou nomes equivalentes) no `<body>`, em vez de HTML de header/footer escrito direto no layout.",
+        "advanced": "Se o seu tema partiu do Skeleton, ele já vem assim por padrão — esse passo é mais relevante em migrações de temas legados (tópico \"Migrar para Online Store 2.0\" logo mais na trilha)."
+      },
+      {
+        "title": "Projeto — passo 3: adicione uma tag de teste global e valide em 3 páginas diferentes.",
+        "detail": "Insira o `<div>` de teste do passo anterior, suba o `theme dev`, e confira a home, uma página de produto e uma página de coleção — a marca deve aparecer nas três.",
+        "code": "shopify theme dev --store=sua-loja-dev.myshopify.com"
+      },
+      {
+        "title": "Projeto — passo 4: remova a tag de teste antes de continuar a trilha.",
+        "detail": "Delete o `<div>` de teste assim que a validação for concluída — é comum esquecer marcações de debug no layout, e como vimos, qualquer coisa deixada ali afeta a loja inteira."
+      }
+    ]
+  },
+  "categoryId": "themes",
+  "categoryLabel": "Temas (Storefronts)"
+}

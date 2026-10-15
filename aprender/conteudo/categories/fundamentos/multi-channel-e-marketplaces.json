@@ -1,0 +1,29 @@
+{
+  "id": "multi-channel-e-marketplaces",
+  "title": "Venda multi-canal e marketplaces",
+  "desc": "Como uma mesma loja vende ao mesmo tempo pelo site, redes sociais, marketplaces e PDV — todos puxando do mesmo catálogo central.",
+  "plan": {
+    "objetivo": "Entender o conceito de canal de venda, a diferença entre vender no site próprio e vender num marketplace, e por que 'estar em vários lugares' não significa manter vários catálogos.",
+    "prereq": "O que é PDV",
+    "tempo": "20min",
+    "doc": "https://help.shopify.com/en/manual/online-sales-channels",
+    "steps": [
+      {
+        "title": "Entenda o que é um canal de venda (sales channel) como conceito único.",
+        "detail": "Um **canal de venda** é qualquer lugar onde um cliente pode efetivamente comprar um produto do merchant: a loja online (o site com o tema), o PDV (visto no tópico anterior), uma rede social com botão de compra, ou um marketplace. A Shopify trata todos esses lugares como \"canais\" conectados a um catálogo central — ativar um canal novo não duplica produto nenhum, só expõe o catálogo existente num lugar a mais, com as regras específicas daquele canal.",
+        "advanced": "Cada canal pode ter suas próprias regras de exibição — nem todo produto do catálogo precisa estar disponível em todos os canais ao mesmo tempo (ex: um produto só vendido no PDV, nunca no site). Isso é configurado por canal, produto a produto."
+      },
+      {
+        "title": "Diferencie vender no site próprio de vender num marketplace.",
+        "detail": "No **site próprio**, o merchant controla toda a experiência — layout, marca, dados do cliente — e normalmente paga só as taxas de processamento de pagamento. Num **marketplace** (um site de terceiros com catálogo de vários vendedores diferentes ao mesmo tempo), o merchant ganha acesso a tráfego que já existe naquele marketplace, mas abre mão de controle sobre a experiência de compra e geralmente paga uma comissão maior sobre cada venda, além de seguir regras de catálogo definidas pelo marketplace, não pelo merchant.\n\nAmbos os modelos coexistem na prática: é comum uma loja vender ao mesmo tempo no próprio site (mais margem, mais controle) e num marketplace (mais alcance), tratando o segundo como canal adicional de aquisição de cliente."
+      },
+      {
+        "title": "Reconheça o papel de um app de canal de venda.",
+        "detail": "Conectar a loja a um marketplace ou rede social normalmente acontece através de um **app de canal de venda** — um tipo específico de app que sincroniza produtos, preços e estoque do catálogo Shopify pro formato exigido por aquele canal externo, e traz pedidos feitos lá de volta pro admin como pedidos normais. Do ponto de vista de quem desenvolve, isso significa que um app de canal de venda lida bastante com sincronização de catálogo em duas direções e mapeamento de campos entre sistemas diferentes — um problema de integração, não só de interface.",
+        "advanced": "Regras de cada marketplace mudam com frequência (categoria obrigatória, campos específicos, políticas de imagem) — um app de canal de venda feito pra um marketplace específico tende a exigir manutenção contínua só pra acompanhar essas mudanças externas, mesmo sem nenhuma mudança do lado da Shopify."
+      }
+    ]
+  },
+  "categoryId": "fundamentos",
+  "categoryLabel": "Fundamentos de Ecommerce"
+}

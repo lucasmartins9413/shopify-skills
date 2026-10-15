@@ -1,0 +1,68 @@
+{
+  "id": "seo-structured-data",
+  "title": "Dados estruturados e rich snippets",
+  "desc": "Use o filtro structured_data pra gerar JSON-LD de produtos e artigos, e evite o erro mais comum: schema duplicado.",
+  "plan": {
+    "objetivo": "Implementar dados estruturados (schema.org via JSON-LD) usando o filtro nativo structured_data do Liquid, entender por que isso habilita rich snippets no Google, e evitar o erro mais comum: schema duplicado.",
+    "prereq": "Metadata de SEO no tema",
+    "tempo": "3h",
+    "doc": "https://shopify.dev/docs/api/liquid/filters/structured_data",
+    "steps": [
+      {
+        "title": "Entenda o que são dados estruturados e por que eles existem.",
+        "detail": "Título e meta description dizem ao Google **como apresentar** sua página — mas não dizem, de forma inequívoca, **o que ela é**. Uma página de produto \"parece\" um produto pro olho humano (preço, imagem, botão de comprar), mas pro código HTML puro, isso é só texto solto sem significado explícito.\n\n**Dados estruturados** (o vocabulário schema.org, geralmente serializado como **JSON-LD** — um bloco de JSON dentro de uma tag `<script>`) resolvem isso: descrevem explicitamente \"isto é um Product, com este preço, esta disponibilidade, esta marca\" — numa linguagem que motores de busca entendem sem ambiguidade. Isso habilita **rich snippets**: resultados de busca com preço, avaliação em estrelas, disponibilidade de estoque, direto na página de resultados, antes mesmo do clique.",
+        "advanced": "Dados estruturados não são garantia de rich snippet — o Google decide se e quando exibir o enriquecimento visual, mesmo com o schema tecnicamente correto. Trate como \"habilitar a possibilidade\", não como um recurso que ativa automaticamente algo visível."
+      },
+      {
+        "title": "Use o filtro `structured_data` — a forma nativa e recomendada de gerar o schema.",
+        "detail": "Em vez de escrever o JSON-LD manualmente campo por campo (processo longo e propenso a erro), o Liquid expõe um filtro que já monta o schema completo a partir do object: `{{ product | structured_data }}` (ou `{{ article | structured_data }}`). Ele resolve automaticamente nome, marca, descrição, imagem, preço e disponibilidade a partir dos dados reais daquele recurso.",
+        "code": "<script type=\"application/ld+json\">\n  {{ product | structured_data }}\n</script>"
+      },
+      {
+        "title": "Entenda a diferença entre saída `Product` e `ProductGroup`.",
+        "detail": "O comportamento do filtro muda dependendo de o produto ter variantes ou não:\n- **Sem variantes** (só a variante \"Default Title\") → gera um schema `Product` simples, com um único preço.\n- **Com uma ou mais variantes** (cor, tamanho) → gera um `ProductGroup`, representando a coleção de variantes, cada uma como um `Product` filho dentro do grupo, com seu próprio preço/disponibilidade.\n\nIsso é automático — você não escolhe qual formato sai, o filtro decide observando o object `product` que você passou.",
+        "advanced": "Se seu produto tem uma única variante \"Default Title\" (produto sem opções configuradas) mas você esperava um `ProductGroup`, confira se o produto realmente tem opções (Cor, Tamanho) configuradas no admin — sem opções, ele sempre gera `Product` simples."
+      },
+      {
+        "title": "Use o mesmo filtro para artigos de blog.",
+        "detail": "O filtro também funciona com o object `article`, gerando um schema `Article` — útil pra conteúdo de blog aparecer melhor destacado em resultados de busca informacionais.",
+        "code": "<script type=\"application/ld+json\">\n  {{ article | structured_data }}\n</script>"
+      },
+      {
+        "title": "Evite o erro mais comum: schema duplicado na mesma página.",
+        "detail": "Um problema real e documentado na comunidade de desenvolvedores Shopify: algumas implementações de tema (ou combinações tema + app) acabam gerando **dois** blocos `Product` JSON-LD na mesma página — um vindo do tema, outro de um app de reviews/SEO instalado, cada um sem saber da existência do outro. O Google Search Console sinaliza isso como aviso de \"vários elementos JSON-LD Product\", e o schema resultante fica ambíguo.\n\nAntes de adicionar seu próprio `structured_data`, sempre confira, no código-fonte renderizado, se já não existe outro bloco `application/ld+json` com `\"@type\": \"Product\"` gerado por algum app já instalado.",
+        "advanced": "Se você está construindo um **app** que adiciona dados estruturados (não um tema), documente claramente pro merchant que ele precisa desativar o schema nativo do tema (ou de outro app concorrente) antes de ativar o seu — caso contrário, você é a causa do schema duplicado, não a vítima dele."
+      },
+      {
+        "title": "Teste o schema gerado com as ferramentas de validação do Google.",
+        "detail": "Depois de implementar, sempre valide o resultado antes de considerar pronto — cole a URL da página (ou o JSON gerado) no **Rich Results Test** do Google. Ele confirma se o schema está sintaticamente correto e se qualifica pra algum tipo de rich snippet.",
+        "code": "https://search.google.com/test/rich-results"
+      },
+      {
+        "title": "Projeto — adicione dados estruturados de produto e confirme que não há duplicação.",
+        "detail": "Vamos implementar o schema de produto no tema de trabalho da trilha, validar no Rich Results Test, e auditar explicitamente contra duplicação."
+      },
+      {
+        "title": "Projeto — passo 1: adicione o bloco de `structured_data` na section principal de produto.",
+        "detail": "Abra a section responsável pela página de produto (ex: `sections/main-product.liquid`) e adicione o script JSON-LD usando o produto atual.",
+        "code": "<script type=\"application/ld+json\">\n  {{ product | structured_data }}\n</script>"
+      },
+      {
+        "title": "Projeto — passo 2: audite o código-fonte da página em busca de duplicação.",
+        "detail": "Com o preview rodando, abra o código-fonte da página de produto e procure por todas as ocorrências de `application/ld+json` — deve haver exatamente um bloco com `\"@type\": \"Product\"` (ou `ProductGroup`), não mais que isso.",
+        "code": "shopify theme dev --store=sua-loja-dev.myshopify.com"
+      },
+      {
+        "title": "Projeto — passo 3: valide o schema no Rich Results Test do Google.",
+        "detail": "Cole a URL de preview (ou o JSON copiado do código-fonte) na ferramenta de teste do Google, e confirme que ela reconhece o tipo `Product`/`ProductGroup` sem erros de sintaxe."
+      },
+      {
+        "title": "Projeto — passo 4: repita o processo pra um artigo de blog, usando o schema `Article`.",
+        "detail": "Adicione o bloco equivalente na section/template de artigo, usando `{{ article | structured_data }}`, e valide da mesma forma.",
+        "advanced": "Se o tema já vier com `structured_data` implementado nativamente (caso comum em temas modernos como Dawn/Horizon), use este projeto pra **auditar** o que já existe em vez de duplicar — confirme que já está correto, em vez de adicionar um segundo bloco por engano."
+      }
+    ]
+  },
+  "categoryId": "seo",
+  "categoryLabel": "SEO"
+}

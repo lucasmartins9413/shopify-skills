@@ -1,0 +1,19 @@
+{
+  "id": "commerce",
+  "label": "Commerce",
+  "intro": "Integre com APIs dedicadas para descontos, pagamentos, fulfillment e outros fluxos de trabalho de merchants.",
+  "topicCount": 11,
+  "topicIds": [
+    "marketing",
+    "discounts",
+    "merchandising",
+    "purchase-options",
+    "markets",
+    "orders",
+    "payments",
+    "channels",
+    "b2b",
+    "collective",
+    "blockchain"
+  ]
+}

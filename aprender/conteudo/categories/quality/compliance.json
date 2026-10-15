@@ -1,0 +1,67 @@
+{
+  "id": "compliance",
+  "title": "Compliance",
+  "desc": "Siga os termos de API e os requisitos de leis de privacidade.",
+  "plan": {
+    "objetivo": "Implementar os webhooks obrigatórios de proteção de dados (GDPR/LGPD), revisar retenção de dados e justificar cada escopo de API pedido.",
+    "prereq": "Authentication",
+    "tempo": "2h",
+    "doc": "https://shopify.dev/docs/apps/build/compliance/api-terms-compliance",
+    "steps": [
+      {
+        "title": "Entenda por que compliance é obrigatório mesmo pra apps pequenos ou locais.",
+        "detail": "É tentador achar que regulamentações como GDPR (Europa) ou LGPD (Brasil) só importam se você tem clientes nessas regiões especificamente. Mas a Shopify exige que **todo app na App Store** implemente os webhooks obrigatórios de proteção de dados, independente de onde o merchant ou os clientes dele estão — é um requisito de plataforma, não uma escolha condicional baseada em geografia."
+      },
+      {
+        "title": "Implemente os três webhooks obrigatórios de compliance.",
+        "detail": "Três topics de webhook são obrigatórios pra qualquer app publicado, cobrindo os direitos fundamentais de proteção de dados: solicitar os dados guardados, e solicitar exclusão de dados (do cliente ou da loja inteira).",
+        "code": "// webhooks obrigatórios de compliance (GDPR/LGPD)\ncustomers/data_request\ncustomers/redact\nshop/redact",
+        "advanced": "GDPR e LGPD precisam estar implementados mesmo se a loja não for da UE/Brasil — são exigidos pra qualquer app na App Store, sem exceção baseada na localização declarada da loja."
+      },
+      {
+        "title": "Entenda o que cada um dos três webhooks espera como resposta.",
+        "detail": "- **`customers/data_request`** — um cliente (ou a Shopify em nome dele) pediu acesso aos dados que seu app guarda sobre ele. Seu app precisa responder com esses dados (geralmente enviados por um canal separado, não na resposta do webhook em si, mas seguindo o processo documentado).\n- **`customers/redact`** — um cliente pediu exclusão de seus dados. Seu app precisa apagar (ou anonimizar) qualquer dado pessoal daquele cliente específico guardado no seu banco.\n- **`shop/redact`** — a loja desinstalou o app há tempo suficiente (geralmente 48h) e a Shopify está avisando que é hora de apagar todos os dados daquela loja do seu sistema."
+      },
+      {
+        "title": "Revise sua política de privacidade e o uso de dados coletados.",
+        "detail": "Sua política precisa listar, de forma clara: quais dados o app coleta, por quanto tempo guarda cada tipo de dado, e como o merchant (ou o cliente final) pode solicitar exclusão — mesmo que tecnicamente os webhooks já cubram a exclusão automática, a política precisa declarar isso explicitamente em linguagem acessível.",
+        "advanced": "Retenção de dados \"pra sempre por via das dúvidas\" é o motivo mais comum de rejeição em revisões de compliance — defina prazos de retenção explícitos e justificáveis pra cada tipo de dado, e implemente a exclusão automática correspondente, não só documente a intenção."
+      },
+      {
+        "title": "Confirme que os escopos de API pedidos são realmente necessários.",
+        "detail": "Cada escopo desnecessário (por exemplo, `write_customers` declarado mas nunca usado em nenhuma mutation do código) é um risco de rejeição na revisão do App Store — e também um risco de segurança desnecessário: quanto mais escopo seu app tem, maior o dano potencial se as credenciais vazarem algum dia.",
+        "code": "[access_scopes]\nscopes = \"read_products,write_orders\""
+      },
+      {
+        "title": "Justifique escopos sensíveis explicitamente na submissão.",
+        "detail": "Escopos como `read_all_orders` (acesso a **todos** os pedidos da loja, não só os feitos depois da instalação do app) exigem justificativa extra na submissão pra App Store — evite pedir esse tipo de escopo amplo se um escopo mais restrito resolver o mesmo problema de negócio.",
+        "advanced": "Ao decidir entre um escopo amplo e um restrito, pense do ponto de vista do revisor: \"por que esse app precisaria ver pedidos de antes da instalação?\" — se você não consegue responder isso claramente, é sinal de que o escopo mais restrito provavelmente já resolve."
+      },
+      {
+        "title": "Projeto — implemente os três webhooks de compliance de ponta a ponta.",
+        "detail": "Vamos implementar os três endpoints obrigatórios no app construído ao longo da trilha, seguindo o mesmo padrão de validação de HMAC visto no tópico de Webhooks."
+      },
+      {
+        "title": "Projeto — passo 1: declare os três topics no `shopify.app.toml`.",
+        "detail": "O template gerado por `shopify app init` já costuma incluir esses três webhooks pré-configurados — confirme isso, e ajuste se algum estiver faltando.",
+        "code": "[[webhooks.subscriptions]]\ntopics = [\"customers/data_request\", \"customers/redact\", \"shop/redact\"]\nuri = \"/webhooks/compliance\""
+      },
+      {
+        "title": "Projeto — passo 2: implemente o handler de `customers/redact` apagando dados do banco local.",
+        "detail": "Escreva a lógica que, ao receber esse webhook, localiza e remove (ou anonimiza) qualquer registro no seu banco de dados associado ao ID do cliente informado no payload.",
+        "code": "if (topic === \"customers/redact\") {\n  const { customer } = payload;\n  await db.customerData.deleteMany({ where: { customerId: customer.id } });\n}"
+      },
+      {
+        "title": "Projeto — passo 3: implemente o handler de `shop/redact` apagando todos os dados da loja.",
+        "detail": "Escreva a lógica correspondente pra `shop/redact`, removendo todo dado associado ao domínio da loja informado no payload — incluindo sessões, configurações e qualquer dado de negócio próprio do app.",
+        "code": "if (topic === \"shop/redact\") {\n  const { shop_domain } = payload;\n  await db.session.deleteMany({ where: { shop: shop_domain } });\n  await db.appData.deleteMany({ where: { shop: shop_domain } });\n}"
+      },
+      {
+        "title": "Projeto — passo 4: revise a lista de escopos do `shopify.app.toml` e justifique cada um por escrito.",
+        "detail": "Abra o arquivo de configuração, liste cada escopo declarado, e escreva uma frase justificando a necessidade de cada um — exatamente como praticado no tópico \"Dev Dashboard\" da trilha, agora sob a ótica específica de compliance."
+      }
+    ]
+  },
+  "categoryId": "quality",
+  "categoryLabel": "Quality"
+}

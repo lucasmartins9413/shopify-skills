@@ -1,0 +1,67 @@
+{
+  "id": "discounts",
+  "title": "Discounts",
+  "desc": "Crie tipos de desconto customizados com Functions e a GraphQL Admin API.",
+  "plan": {
+    "objetivo": "Entender os diferentes targets de Function de desconto, implementar uma regra customizada de negócio e lidar corretamente com combinação entre descontos.",
+    "prereq": "Shopify Functions",
+    "tempo": "5h",
+    "doc": "https://shopify.dev/docs/apps/build/discounts",
+    "steps": [
+      {
+        "title": "Relembre por que descontos customizados usam Functions, não webhooks.",
+        "detail": "Como visto no tópico \"Shopify Functions\" da trilha, lógica que precisa rodar **durante** a experiência de compra (não depois, de forma assíncrona) precisa estar dentro da infraestrutura da própria Shopify, sem depender de uma chamada de rede externa. Descontos são o exemplo mais direto disso: a cada mudança no carrinho, a Shopify precisa recalcular se um desconto se aplica, instantaneamente — um webhook (que é assíncrono) não serve pra esse caso, porque a resposta precisa estar pronta antes da próxima renderização do carrinho."
+      },
+      {
+        "title": "Escolha o `target` certo conforme o tipo de desconto.",
+        "detail": "Existem pontos de extensão diferentes pra diferentes categorias de desconto, cada um com seu próprio schema de input/output:\n- `cart.lines.discounts.generate.run` — desconto por linha/produto específico do carrinho.\n- `cart.delivery-options.discounts.generate.run` — desconto sobre o valor de frete.\n\nEscolher o target errado significa que sua lógica nunca é chamada no momento certo do fluxo — não é possível, por exemplo, aplicar um desconto de frete usando o target de linha de carrinho.",
+        "code": "shopify app generate extension\n# escolha \"Function\" > categoria \"Discounts\" > o target apropriado",
+        "advanced": "Funções de desconto rodam em **cada atualização de carrinho** (a cada item adicionado/removido/alterado) — lógica cara aqui (loops grandes sobre todas as linhas, muitas comparações) deixa o carrinho perceptivelmente mais lento pro comprador, já que o resultado precisa estar pronto antes do carrinho recalcular o total exibido."
+      },
+      {
+        "title": "Implemente a regra de negócio: 10% acima de X itens.",
+        "detail": "A lógica recebe o carrinho (`input.cart.lines`) e devolve um array de `operations` com o desconto e o alvo (uma linha específica ou o subtotal do pedido inteiro).",
+        "code": "export function cartLinesDiscountsGenerateRun(input) {\n  const totalQty = input.cart.lines.reduce((sum, l) => sum + l.quantity, 0);\n  if (totalQty < 3) return { operations: [] };\n\n  return {\n    operations: [{\n      orderDiscountsAdd: {\n        selectionStrategy: \"FIRST\",\n        candidates: [{\n          message: \"10% OFF acima de 3 itens\",\n          targets: [{ orderSubtotal: { excludedCartLineIds: [] } }],\n          value: { percentage: { value: \"10.0\" } }\n        }]\n      }\n    }]\n  };\n}"
+      },
+      {
+        "title": "Entenda `combinesWith`: como sua Function convive com outros descontos.",
+        "detail": "Por padrão, a Shopify trata descontos automáticos como **não combináveis** entre si — se dois descontos automáticos diferentes tentassem se aplicar ao mesmo pedido, só um venceria. Se seu desconto deveria poder se combinar com outros (por exemplo, um desconto de frete junto com um desconto de produto), isso precisa ser declarado explicitamente através das regras de `combinesWith` no metadata da Function.",
+        "advanced": "Combinações de desconto (produto + pedido + frete) seguem regras de `combinesWith` que você declara — sem isso, mesmo dois descontos legítimos e bem implementados podem \"brigar\" pelo mesmo pedido, e o merchant não entender por que só um deles está sendo aplicado."
+      },
+      {
+        "title": "Trate casos de borda: carrinho vazio, quantidade zero, item removido no meio do cálculo.",
+        "detail": "O carrinho é um estado altamente dinâmico — o comprador pode remover um item exatamente enquanto sua Function está processando o cálculo anterior. Sua lógica precisa lidar graciosamente com casos como carrinho vazio (`input.cart.lines` sendo um array vazio) ou quantidades zero, sempre retornando uma resposta válida (mesmo que `{ operations: [] }`), nunca lançando uma exceção não tratada nesses cenários.",
+        "advanced": "Functions que lançam exceção ou estouram limites em casos de borda derrubam **todo o cálculo de desconto do checkout**, não só a sua regra específica — um bug na sua Function pode, no pior caso, impedir até descontos de outros apps de serem calculados corretamente na mesma sessão."
+      },
+      {
+        "title": "Publique e ative numa loja de teste, validando no carrinho.",
+        "detail": "Ative a Function em Configurações → Descontos → Criar desconto, escolhendo o app/Function na lista, e teste adicionando itens ao carrinho que disparam a regra — exatamente como visto no tópico \"Shopify Functions\", agora com uma regra de negócio mais elaborada."
+      },
+      {
+        "title": "Projeto — implemente um desconto progressivo por faixa de quantidade.",
+        "detail": "Vamos evoluir o exemplo de \"10% acima de 3 itens\" pra uma regra mais realista de varejo: desconto progressivo, com percentuais diferentes conforme a faixa de quantidade comprada."
+      },
+      {
+        "title": "Projeto — passo 1: defina as faixas de desconto.",
+        "detail": "Estabeleça a regra de negócio antes de codificar: por exemplo, 5% de 3 a 5 itens, 10% de 6 a 9 itens, 15% para 10 ou mais."
+      },
+      {
+        "title": "Projeto — passo 2: implemente a lógica de faixas na Function.",
+        "detail": "Adapte o código anterior pra calcular o percentual correto conforme a quantidade total, usando uma série de condições.",
+        "code": "export function cartLinesDiscountsGenerateRun(input) {\n  const totalQty = input.cart.lines.reduce((sum, l) => sum + l.quantity, 0);\n  let percent = 0;\n  if (totalQty >= 10) percent = 15;\n  else if (totalQty >= 6) percent = 10;\n  else if (totalQty >= 3) percent = 5;\n\n  if (percent === 0) return { operations: [] };\n\n  return {\n    operations: [{\n      orderDiscountsAdd: {\n        selectionStrategy: \"FIRST\",\n        candidates: [{\n          message: `${percent}% OFF por volume`,\n          targets: [{ orderSubtotal: { excludedCartLineIds: [] } }],\n          value: { percentage: { value: String(percent) } }\n        }]\n      }\n    }]\n  };\n}"
+      },
+      {
+        "title": "Projeto — passo 3: teste as três faixas separadamente.",
+        "detail": "Monte carrinhos de teste com 2, 5 e 12 itens, confirmando que o percentual aplicado corresponde exatamente à faixa esperada em cada caso.",
+        "code": "shopify app dev --store=sua-loja-dev.myshopify.com"
+      },
+      {
+        "title": "Projeto — passo 4: teste o caso de borda de transição exata entre faixas.",
+        "detail": "Teste especificamente com exatamente 3, 6 e 10 itens (os limites exatos de cada faixa) — são os casos mais propensos a erros de \"off-by-one\" (usar `>` quando deveria ser `>=`, por exemplo).",
+        "advanced": "Erros de limite (off-by-one) em regras de desconto por faixa são um dos bugs mais comuns e mais fáceis de passar despercebido em teste manual superficial — sempre teste explicitamente os valores exatos de fronteira, não só valores \"confortavelmente\" dentro de cada faixa."
+      }
+    ]
+  },
+  "categoryId": "commerce",
+  "categoryLabel": "Commerce"
+}

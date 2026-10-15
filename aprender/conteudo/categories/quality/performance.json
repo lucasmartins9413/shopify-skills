@@ -1,0 +1,67 @@
+{
+  "id": "performance",
+  "title": "Performance",
+  "desc": "Otimize a velocidade do seu app no admin, checkout, loja e POS.",
+  "plan": {
+    "objetivo": "Diagnosticar os gargalos de performance mais comuns em apps embutidos, aplicar as otimizações certas para cada um, e medir o ganho real, não só a percepção.",
+    "prereq": "App Home",
+    "tempo": "3h",
+    "doc": "https://shopify.dev/docs/apps/build/performance",
+    "steps": [
+      {
+        "title": "Entenda por que apps embutidos têm um orçamento de performance mais apertado que sites comuns.",
+        "detail": "Um app dentro do admin compete por recursos (tempo de carregamento, processamento) dentro de uma página que já está fazendo muita coisa — carregando o resto do admin, possivelmente outros apps instalados, tudo dentro de um iframe com menos controle sobre o ambiente do que um site standalone teria. Um app lento não é só \"menos agradável de usar\" — ele efetivamente atrasa o fluxo de trabalho do merchant, que muitas vezes está no meio de uma tarefa operacional urgente (processar um pedido, ajustar um preço)."
+      },
+      {
+        "title": "Rode um audit de performance na página principal do app.",
+        "detail": "Rode o Lighthouse pela aba DevTools do Chrome, ou pelo terminal — ele produz uma pontuação e uma lista detalhada de oportunidades de melhoria, com impacto estimado de cada uma.",
+        "code": "npx lighthouse https://sua-loja.myshopify.com",
+        "advanced": "Rode o Lighthouse também em **modo mobile**, não só desktop — o admin embutido carrega de forma diferente em conexões mais lentas, e o app mobile do admin (coberto no tópico \"Mobile support\") é um contexto de uso real que merece ser medido separadamente."
+      },
+      {
+        "title": "Identifique o maior gargalo entre os três mais comuns.",
+        "detail": "Em ordem de frequência observada em apps embutidos:\n1. **Bundle JS grande** — código não usado (bibliotecas inteiras importadas pra usar uma função pequena, código morto) sendo enviado pro cliente.\n2. **Chamadas GraphQL sequenciais** em vez de paralelas — múltiplas queries feitas uma depois da outra (`await` sequencial) quando poderiam rodar ao mesmo tempo com `Promise.all`.\n3. **Imagens não otimizadas** — sem `srcset`/lazy loading, carregando a versão em resolução máxima mesmo quando exibida pequena na tela.",
+        "code": "// sequencial (lento): 300ms + 300ms = 600ms\nconst produtos = await fetchProdutos();\nconst pedidos = await fetchPedidos();\n\n// paralelo (rápido): max(300ms, 300ms) = 300ms\nconst [produtos, pedidos] = await Promise.all([fetchProdutos(), fetchPedidos()]);"
+      },
+      {
+        "title": "Prefira renderização no servidor a otimização de bundle client-side quando possível.",
+        "detail": "Server-side rendering (usando `loader`s do React Router, como visto no tópico \"Build an app\") costuma valer mais a pena que só otimizar o bundle JavaScript do lado do cliente em apps com bastante dado — porque evita um round-trip extra de `fetch` acontecendo **depois** do primeiro paint da página, que é justamente o padrão que faz uma tela parecer lenta mesmo com um bundle pequeno.",
+        "advanced": "Isso não significa ignorar o tamanho do bundle — as duas otimizações são complementares. Mas se você só tem tempo pra atacar um problema primeiro, dados buscados no servidor via `loader` costumam ter impacto perceptível maior do que cortar alguns KB de JavaScript."
+      },
+      {
+        "title": "Aplique uma otimização por vez e meça isoladamente.",
+        "detail": "Compare o score do Lighthouse **antes/depois** de cada mudança pra confirmar o ganho real, não só a percepção subjetiva de que \"ficou mais rápido\". Mude uma coisa de cada vez — se você aplicar três otimizações simultaneamente e o score melhorar, não vai saber qual delas de fato ajudou (ou se alguma até piorou, mascarada pelo ganho das outras)."
+      },
+      {
+        "title": "Meça em produção real, não só localhost.",
+        "detail": "O túnel de desenvolvimento (Cloudflare, usado por `shopify app dev`) mascara boa parte da latência de rede real que o merchant vai sentir usando o app publicado, num host de produção de verdade, através da internet normal. Números bons no ambiente de desenvolvimento local não são garantia de performance boa em produção — reserve tempo pra medir novamente depois do deploy real.",
+        "advanced": "Considere ferramentas de monitoramento contínuo de performance em produção (não só um Lighthouse pontual) — performance pode degradar com o tempo conforme o app cresce, sem nenhuma mudança de código óbvia sendo a causa direta."
+      },
+      {
+        "title": "Projeto — diagnostique e corrija um gargalo real no app construído na trilha.",
+        "detail": "Vamos aplicar o processo completo: medir, identificar o maior gargalo, aplicar uma correção isolada, e medir de novo pra confirmar o ganho."
+      },
+      {
+        "title": "Projeto — passo 1: rode o Lighthouse na Home do app e anote o score inicial.",
+        "detail": "Registre o score de Performance antes de qualquer mudança — essa é sua linha de base pra comparação.",
+        "code": "npx lighthouse http://localhost:PORTA/app --view"
+      },
+      {
+        "title": "Projeto — passo 2: procure por chamadas GraphQL sequenciais no `loader`.",
+        "detail": "Revise o `loader` da rota principal (construído no tópico \"Build an app\" ou \"App Home\") e verifique se existem múltiplas chamadas `await admin.graphql(...)` em sequência que poderiam ser paralelizadas."
+      },
+      {
+        "title": "Projeto — passo 3: converta as chamadas sequenciais para `Promise.all`, se aplicável.",
+        "detail": "Se encontrou chamadas sequenciais independentes entre si (uma não depende do resultado da outra), reescreva usando `Promise.all` pra rodar em paralelo.",
+        "code": "const [produtosRes, pedidosRes] = await Promise.all([\n  admin.graphql(queryProdutos),\n  admin.graphql(queryPedidos)\n]);"
+      },
+      {
+        "title": "Projeto — passo 4: rode o Lighthouse novamente e compare os dois scores.",
+        "detail": "Repita a auditoria no mesmo ambiente e compare diretamente com o número anotado no passo 1, confirmando (ou não) uma melhora mensurável — e documentando o resultado, mesmo que a mudança não tenha ajudado tanto quanto esperado.",
+        "advanced": "Se o score não melhorar como esperado, isso também é um resultado valioso — significa que o gargalo real estava em outro lugar, e vale repetir o processo de diagnóstico (passo 1 da teoria) em vez de insistir na mesma otimização."
+      }
+    ]
+  },
+  "categoryId": "quality",
+  "categoryLabel": "Quality"
+}

@@ -1,0 +1,34 @@
+{
+  "id": "catalogo-produtos-variantes",
+  "title": "Catálogo, produtos e variantes",
+  "desc": "Como a Shopify modela o que uma loja vende: produto, variante, SKU e coleção — o vocabulário que sustenta praticamente toda a Admin API.",
+  "plan": {
+    "objetivo": "Entender como um catálogo de loja é modelado em produtos, variantes e coleções, pra reconhecer esses conceitos assim que aparecerem em qualquer tema, app ou chamada de API.",
+    "prereq": "Anatomia de uma loja online",
+    "tempo": "25min",
+    "doc": "https://help.shopify.com/en/manual/products",
+    "steps": [
+      {
+        "title": "Distinga produto de variante — é a confusão mais comum de quem começa.",
+        "detail": "Um **produto** é a entidade \"pai\": título, descrição, fotos, categoria. Uma **variante** é uma combinação específica de opções desse produto — cor, tamanho, material — que tem seu próprio preço, estoque e código.\n\nExemplo: a camiseta \"Básica Azul\" é um produto. \"Básica Azul, tamanho M\" e \"Básica Azul, tamanho G\" são duas variantes do mesmo produto. Quando alguém diz \"esse produto tem 40 unidades em estoque\", tecnicamente o estoque vive em cada variante, não no produto — a Shopify soma tudo pra mostrar um número só na tela.",
+        "advanced": "Todo produto tem pelo menos **uma variante**, mesmo sem opções configuradas — se você nunca definiu cor/tamanho, a Shopify cria sozinha uma variante única chamada \"Default Title\". Isso explica por que, ao criar um produto pela API sem especificar `variants`, ele não fica \"sem variante nenhuma\"."
+      },
+      {
+        "title": "Entenda o que é SKU e por que ele existe além do nome do produto.",
+        "detail": "**SKU** (Stock Keeping Unit) é um código curto que identifica uma variante especificamente pra controle de estoque e logística — geralmente definido pelo próprio merchant (ex: `CAM-AZUL-M`). Diferente do nome do produto (que pode mudar por marketing), o SKU tende a ser estável e é o que sistemas de estoque, fulfillment e contabilidade usam entre si pra não depender de texto livre.",
+        "advanced": "Nem todo produto tem SKU preenchido — é um campo opcional. Ao construir uma integração que depende de SKU (ex: sincronizar estoque com um ERP), trate a ausência de SKU como um caso real a considerar, não uma exceção rara."
+      },
+      {
+        "title": "Veja como coleções agrupam produtos sem duplicar dado nenhum.",
+        "detail": "Uma **coleção** é um agrupamento de produtos — \"Promoções\", \"Verão 2025\", \"Camisetas\" — usado principalmente pra montar páginas de listagem no tema. Existem dois tipos:\n\n- **Manual**: o merchant escolhe produto por produto.\n- **Automática (smart collection)**: definida por uma regra (ex: \"todo produto com a tag `verao`\") — a Shopify mantém a lista atualizada sozinha conforme produtos são criados ou editados.\n\nUm mesmo produto pode aparecer em várias coleções ao mesmo tempo — a coleção só referencia o produto, não faz uma cópia dele.",
+        "advanced": "Coleções automáticas são a forma mais comum de manter uma vitrine sempre atualizada sem trabalho manual — mas regras mal definidas (ex: baseadas só em título) tendem a incluir produto errado sem ninguém perceber. Tags bem padronizadas evitam esse problema."
+      },
+      {
+        "title": "Reconheça metafields como a forma de guardar dado que o modelo padrão não previu.",
+        "detail": "Produto, variante e coleção já vêm com campos padrão (título, preço, descrição...), mas praticamente toda loja precisa guardar algo a mais — material do tecido, instruções de cuidado, vídeo do produto, ficha técnica. Isso é resolvido com **metafields**: campos extras, definidos pelo próprio merchant ou por um app, anexados a qualquer uma dessas entidades.\n\nEssa ideia reaparece bastante na trilha de dados e automações, com mais profundidade técnica — aqui o importante é reconhecer que \"o modelo tem um jeito oficial de crescer\", em vez de forçar informação dentro de campos que não foram feitos pra isso (como colocar material do tecido dentro do título do produto)."
+      }
+    ]
+  },
+  "categoryId": "fundamentos",
+  "categoryLabel": "Fundamentos de Ecommerce"
+}

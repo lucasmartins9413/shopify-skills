@@ -1,0 +1,76 @@
+{
+  "id": "theme-cli",
+  "title": "Shopify CLI (temas)",
+  "desc": "Inicialize, visualize, teste e compartilhe temas localmente.",
+  "plan": {
+    "objetivo": "Dominar o conjunto completo de comandos `shopify theme` que você vai usar todo dia — não só `dev`, mas pull, push, share, list e check — e saber exatamente quando usar cada um.",
+    "prereq": "Build a new theme",
+    "tempo": "2h",
+    "doc": "https://shopify.dev/docs/storefronts/themes/tools/cli",
+    "steps": [
+      {
+        "title": "Veja o mapa mental dos comandos de tema.",
+        "detail": "O CLI de temas gira em torno de um punhado de comandos, cada um resolvendo um problema específico do fluxo de trabalho:\n\n### O ciclo do dia a dia\n- `shopify theme dev` — sobe um preview local com hot reload, ligado a um tema de desenvolvimento efêmero.\n- `shopify theme check` — roda o linter estático (Liquid inválido, performance, acessibilidade, schema).\n\n### Sincronização com a loja\n- `shopify theme pull` — baixa arquivos de um tema já existente na loja pro seu ambiente local.\n- `shopify theme push` — envia seus arquivos locais pra loja, como tema novo ou sobrescrevendo um existente.\n\n### Colaboração e gestão\n- `shopify theme share` — gera um link de preview temporário pra qualquer pessoa ver, sem acesso à loja.\n- `shopify theme list` — lista os temas da biblioteca, com IDs e status (publicado/rascunho).\n- `shopify theme open` — abre o editor do tema no admin direto do terminal.\n- `shopify theme delete` — remove um tema da biblioteca.\n\nEntender esse mapa evita o erro mais comum de quem está começando: usar `push` quando o certo seria `dev`, e acabar sujando a biblioteca de temas da loja com dezenas de versões de teste.",
+        "advanced": "Rode `shopify theme --help` a qualquer momento — a lista de comandos e flags muda entre versões do CLI, e o help embutido é sempre a fonte mais atual, mais do que qualquer anotação externa (inclusive esta)."
+      },
+      {
+        "title": "Use `shopify theme dev` no dia a dia de edição.",
+        "detail": "Esse é o comando que você vai rodar na maior parte do tempo. Ele sobe um preview local sincronizado com uma dev store: qualquer arquivo salvo localmente aparece quase instantaneamente no navegador, sem precisar de deploy manual.\n\nPor baixo dos panos, o `theme dev` também injeta um pequeno script no HTML servido que mantém uma conexão (via WebSocket) com o CLI, pra saber quando recarregar.",
+        "code": "shopify theme dev --store=sua-loja-dev.myshopify.com",
+        "advanced": "`theme dev` sincroniza só o que muda localmente. Se alguém (ou você mesmo) editar algo direto no editor visual do admin durante a sessão, essa mudança pode ser sobrescrita na próxima sincronização — trate a sessão de dev como \"fonte da verdade sou eu, local\"."
+      },
+      {
+        "title": "Baixe um tema existente da loja com `shopify theme pull`.",
+        "detail": "Use quando você precisa trabalhar em cima de um tema que já existe na loja — por exemplo, o tema publicado atual de um cliente, ou um rascunho que outra pessoa do time criou pelo admin.\n\nSem a flag `--theme`, o pull baixa o **tema publicado** por padrão. Isso é perigoso se você já tem mudanças locais não commitadas: o comando sobrescreve arquivos locais com o conteúdo da loja.",
+        "code": "# baixa o tema publicado (cuidado com mudanças locais!)\nshopify theme pull --store=sua-loja.myshopify.com\n\n# baixa um tema específico pelo ID\nshopify theme pull --theme=123456789 --store=sua-loja.myshopify.com",
+        "advanced": "Sempre rode `git status` (ou equivalente) antes de um `theme pull` num projeto que já tem histórico — se sobrar alguma dúvida, faça um commit ou um stash primeiro."
+      },
+      {
+        "title": "Envie mudanças com `shopify theme push` — e escolha o modo certo.",
+        "detail": "`theme push` sobe seus arquivos locais pra loja. O comportamento muda bastante dependendo das flags:\n- sem flags, se o diretório não estiver ligado a um tema ainda, ele pergunta se você quer criar um novo ou sobrescrever um existente;\n- `--unpublished` sempre cria um tema novo, não publicado — a opção mais segura pra testar;\n- `--theme=<id>` sobrescreve um tema específico já existente;\n- `--only` e `--ignore` permitem subir (ou pular) só arquivos/pastas específicos, útil em deploys incrementais de temas grandes.",
+        "code": "# cria sempre um tema novo, não publicado (mais seguro)\nshopify theme push --unpublished --store=sua-loja.myshopify.com\n\n# sobrescreve um tema específico já existente\nshopify theme push --theme=123456789 --store=sua-loja.myshopify.com\n\n# sobe só a pasta de sections, sem tocar no resto\nshopify theme push --only=sections/* --store=sua-loja.myshopify.com",
+        "advanced": "`--only`/`--ignore` são vitais em temas grandes com pipelines de CI: subir o tema inteiro a cada commit é lento e aumenta a chance de conflito com mudanças feitas por outra pessoa no editor visual ao mesmo tempo."
+      },
+      {
+        "title": "Compartilhe um preview com `shopify theme share`, sem dar acesso à loja.",
+        "detail": "Gera uma URL de preview temporária que qualquer pessoa pode abrir — um cliente aprovando um design, por exemplo — sem precisar ser colaborador da loja.",
+        "code": "shopify theme share --store=sua-loja.myshopify.com",
+        "advanced": "Links do `theme share` expiram (geralmente em algumas horas) e podem exigir nova geração depois disso — não use como link permanente de demonstração num README ou portfólio."
+      },
+      {
+        "title": "Gerencie a biblioteca com `shopify theme list` e `shopify theme delete`.",
+        "detail": "`theme list` mostra todos os temas da loja com ID, nome e status (`LIVE`, `UNPUBLISHED`, `DEMO`). É o primeiro comando pra rodar quando você não lembra o ID de um tema, ou quando quer conferir se sobrou algum tema de teste pendurado.",
+        "code": "shopify theme list --store=sua-loja.myshopify.com\nshopify theme delete --theme=123456789 --store=sua-loja.myshopify.com",
+        "advanced": "`theme delete` é permanente e não pergunta duas vezes fora do modo interativo — em scripts, confirme o ID certo antes de automatizar essa chamada."
+      },
+      {
+        "title": "Projeto — monte um roteiro completo de sincronização de tema.",
+        "detail": "Vamos simular um cenário realista: você recebeu acesso a uma loja com um tema já publicado, precisa clonar esse tema pra mexer localmente, testar uma mudança, e subir como rascunho pra revisão — sem nunca tocar no tema ao vivo.\n\nEsse roteiro é exatamente o que você vai repetir, com variações, em praticamente todo projeto de tema no mundo real.",
+        "advanced": "Documente esse roteiro (ou um script de shell com ele) no README do seu projeto de tema — times novos entrando no projeto ganham produtividade imediata."
+      },
+      {
+        "title": "Projeto — passo 1: liste os temas da loja e identifique o publicado.",
+        "detail": "Rode `theme list` e anote o ID do tema com status `LIVE` — é esse que você vai clonar, sem publicá-lo de novo por engano depois.",
+        "code": "shopify theme list --store=sua-loja.myshopify.com"
+      },
+      {
+        "title": "Projeto — passo 2: clone esse tema pra uma pasta local nova.",
+        "detail": "Use `theme pull` apontando o ID anotado, numa pasta vazia dedicada a esse projeto.",
+        "code": "mkdir tema-cliente && cd tema-cliente\nshopify theme pull --theme=<id-do-tema-live> --store=sua-loja.myshopify.com"
+      },
+      {
+        "title": "Projeto — passo 3: rode o preview local e faça uma mudança de teste.",
+        "detail": "Suba o `theme dev` e edite algo pequeno e visível (um texto, uma cor) só pra confirmar o ciclo completo antes de mexer em algo real.",
+        "code": "shopify theme dev --store=sua-loja.myshopify.com"
+      },
+      {
+        "title": "Projeto — passo 4: suba como rascunho não publicado pra revisão.",
+        "detail": "Envie a versão modificada como um tema novo, não publicado — pronta pra alguém revisar no admin antes de qualquer decisão de publicar.",
+        "code": "shopify theme push --unpublished --store=sua-loja.myshopify.com",
+        "advanced": "Nomeie o tema resultante de forma clara antes de pedir revisão (o CLI pergunta o nome no momento do push) — \"tema-cliente (revisão banner hero)\" comunica muito mais do que o nome padrão da pasta."
+      }
+    ]
+  },
+  "categoryId": "themes",
+  "categoryLabel": "Temas (Storefronts)"
+}

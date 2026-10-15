@@ -1,0 +1,69 @@
+{
+  "id": "extensions",
+  "title": "Extensions",
+  "desc": "Adicione a funcionalidade do seu app às interfaces da Shopify com app extensions.",
+  "plan": {
+    "objetivo": "Entender o modelo geral de app extensions — por que elas existem, como se relacionam com o app principal, e como escolher o tipo certo entre as várias superfícies disponíveis.",
+    "prereq": "GraphQL",
+    "tempo": "3h",
+    "doc": "https://shopify.dev/docs/apps/build/app-extensions",
+    "steps": [
+      {
+        "title": "Entenda o problema que extensions resolvem: seu app não é a única interface possível.",
+        "detail": "Até aqui, a trilha construiu conhecimento sobre a Home do app — uma tela dentro do admin, acessada quando o merchant clica no ícone do app no menu. Mas há dezenas de outros lugares onde um merchant (ou comprador) pode se beneficiar de uma funcionalidade do seu app: dentro da página de um produto no admin, no checkout, no aplicativo de POS, na conta do cliente, no tema da loja online.\n\n**App extensions** são pontos de extensão pré-definidos pela Shopify nessas superfícies — em vez de você tentar \"injetar\" código arbitrário em lugares não previstos, você escreve uma extension seguindo o contrato de um `target` específico (uma localização exata, como \"bloco na página de produto do admin\" ou \"seção no checkout\"), e a Shopify garante que ela renderiza corretamente e com segurança nesse ponto.",
+        "advanced": "Esse modelo de \"pontos de extensão pré-definidos\" (em vez de acesso livre ao DOM) é o que permite à Shopify garantir performance e segurança em superfícies críticas como o checkout — cada extension roda isolada, sem poder interferir arbitrariamente no resto da página."
+      },
+      {
+        "title": "Conheça as principais famílias de extension e onde cada uma vive.",
+        "detail": "As extensions se agrupam por superfície, cada uma coberta em detalhe num tópico próprio mais adiante na trilha (categoria Surfaces):\n\n- **Admin** — actions e blocks em páginas de recursos (produto, pedido).\n- **Checkout** — UI extensions em pontos específicos do fluxo de compra.\n- **Customer accounts** — blocos na conta do cliente e página de status do pedido.\n- **POS** — tiles e modais no aplicativo de ponto de venda.\n- **Online Store** — app blocks e app embeds em temas.\n- **Functions** — lógica de backend customizada (desconto, frete, validação), sem interface visual própria.\n\nCada família tem seu próprio runtime e restrições — uma extension de checkout não compartilha código diretamente com uma extension de POS, por exemplo, mesmo que a lógica de negócio por trás seja parecida.",
+        "advanced": "Cada tipo de extension tem seu próprio runtime (React pra a maioria das UIs, Rust/JavaScript compilado pra Wasm no caso de Functions) — não são intercambiáveis, e o código de uma não roda diretamente dentro de outra."
+      },
+      {
+        "title": "Rode `shopify app generate extension` e explore as opções.",
+        "detail": "O CLI lista todos os tipos disponíveis, agrupados por superfície. Escolha um tipo simples pra praticar — um admin block ou uma checkout UI extension costumam ser bons pontos de partida por terem exemplos visuais simples.",
+        "code": "shopify app generate extension"
+      },
+      {
+        "title": "Explore a estrutura gerada: `shopify.extension.toml` e `src/`.",
+        "detail": "Toda extension gerada segue uma estrutura parecida: `shopify.extension.toml` define nome, tipo e o `target` exato (a localização específica onde ela aparece); `src/` guarda o código de fato (React, Liquid ou Rust, dependendo do tipo escolhido).",
+        "code": "extensions/\n└── minha-extension/\n    ├── shopify.extension.toml\n    └── src/\n        └── index.jsx"
+      },
+      {
+        "title": "Entenda a relação entre uma extension e o app \"pai\".",
+        "detail": "Uma extension não é um projeto independente — ela vive dentro da pasta `extensions/` do seu app e é deployada **junto** com ele numa mesma versão (`shopify app deploy`). Isso significa que ativar/desativar/atualizar uma extension está sempre atrelado ao ciclo de vida de versões do app inteiro, não é publicado separadamente.",
+        "advanced": "Uma extension só é visível de verdade pro merchant depois do deploy **e** da publicação da versão do app que a contém — gerar e testar localmente (`shopify app dev`) não afeta merchants reais até esse passo acontecer."
+      },
+      {
+        "title": "Rode `shopify app dev` e veja a extension carregando sem precisar de deploy.",
+        "detail": "A extension aparece automaticamente na dev store vinculada ao app, sem precisar de deploy pra testar localmente — o mesmo túnel/hot reload que já vale pra Home do app também cobre extensions.",
+        "advanced": "Múltiplas extensions do mesmo tipo no mesmo app precisam de `handle` únicos no `shopify.extension.toml` — colisão de handle é uma causa comum de uma das extensions não aparecer no editor/preview."
+      },
+      {
+        "title": "Projeto — gere e configure sua primeira extension de admin, do zero até visível na dev store.",
+        "detail": "Vamos criar uma admin action simples que só mostra uma mensagem — o objetivo aqui é o fluxo completo de geração-configuração-teste, não a complexidade da lógica em si (extensions de admin específicas são aprofundadas no tópico \"Admin\" da categoria Surfaces)."
+      },
+      {
+        "title": "Projeto — passo 1: gere uma admin action.",
+        "detail": "Rode o gerador e escolha o tipo de admin action (ação que abre um modal sobre um recurso, como produto).",
+        "code": "shopify app generate extension\n# escolha \"Admin action\""
+      },
+      {
+        "title": "Projeto — passo 2: confirme o `target` no `shopify.extension.toml` gerado.",
+        "detail": "Abra o arquivo e identifique em qual página/recurso essa action vai aparecer, olhando o campo `target`.",
+        "code": "[[extensions.targeting]]\ntarget = \"admin.product-details.action.render\""
+      },
+      {
+        "title": "Projeto — passo 3: suba o app e abra um produto na dev store.",
+        "detail": "Com `shopify app dev` rodando, abra qualquer produto na dev store e procure a extension no menu \"More actions\" (ou equivalente) da página.",
+        "code": "shopify app dev"
+      },
+      {
+        "title": "Projeto — passo 4: acione a extension e confirme que ela renderiza.",
+        "detail": "Clique na ação e confirme que o modal abre com o conteúdo do template — mesmo sem lógica customizada ainda, isso prova que o fluxo completo (geração → target correto → deploy local → renderização) está funcionando.",
+        "advanced": "Se a extension não aparecer na lista, confira primeiro o `target` — um valor digitado errado falha silenciosamente, sem nenhum erro explícito no console ou no terminal."
+      }
+    ]
+  },
+  "categoryId": "data",
+  "categoryLabel": "Data and logic"
+}

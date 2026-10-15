@@ -1,0 +1,70 @@
+{
+  "id": "theme-config",
+  "title": "Config",
+  "desc": "Defina as configurações que aparecem na área de Theme settings do editor.",
+  "plan": {
+    "objetivo": "Entender a relação entre `settings_schema.json` e `settings_data.json`, criar configurações globais e usar color schemes corretamente.",
+    "prereq": "Sections",
+    "tempo": "2h",
+    "doc": "https://shopify.dev/docs/storefronts/themes/architecture/config",
+    "steps": [
+      {
+        "title": "Distinga schema de dados: os dois arquivos de `config/`.",
+        "detail": "`config/` tem sempre dois arquivos com papéis bem diferentes:\n\n- **`settings_schema.json`** — o **formulário**: define quais campos existem na página \"Configurações do tema\" do editor (cores globais, fontes, layout). É código do tema, versionado no seu git, igual a qualquer outro arquivo.\n- **`settings_data.json`** — os **valores reais** que aquela loja específica preencheu nesse formulário. Não é \"código\" no sentido tradicional — é dado, específico de cada instalação do tema numa loja.\n\nEsses dois arquivos vivem separados de propósito: você distribui o schema (como parte do tema), e cada loja acumula seus próprios dados nele, sem depender de você pra preencher.",
+        "advanced": "Nunca edite `settings_data.json` manualmente esperando previsibilidade — ele é gerenciado pela própria Shopify conforme o merchant interage com o editor, e sua estrutura interna (incluindo blocks e presets de sections) é mais complexa do que parece à primeira vista."
+      },
+      {
+        "title": "Adicione uma configuração global nova.",
+        "detail": "Cada entrada em `settings_schema.json` segue exatamente os mesmos tipos de setting vistos no tópico de Sections (`text`, `color`, `range`, etc.), organizados dentro de grupos com nome (`name`) — cada grupo vira uma seção colapsável na página de configurações do tema.",
+        "code": "// config/settings_schema.json (um grupo)\n{\n  \"name\": \"Cores\",\n  \"settings\": [\n    {\n      \"type\": \"color\",\n      \"id\": \"accent_color\",\n      \"label\": \"Cor de destaque\",\n      \"default\": \"#000000\"\n    }\n  ]\n}",
+        "advanced": "O primeiro objeto do array em `settings_schema.json` é reservado (`\"name\": \"theme_info\"`) e guarda metadados do tema — nome, autor, versão, link de documentação. Não misture settings de verdade dentro dele."
+      },
+      {
+        "title": "Acesse o valor salvo via o object `settings`, em qualquer lugar do tema.",
+        "detail": "Diferente de `section.settings` (que só existe dentro daquela section específica), o object global `settings` está disponível em **qualquer arquivo Liquid do tema** — layout, qualquer section, qualquer snippet — porque representa configuração da loja como um todo, não de um módulo específico.",
+        "code": "<style>\n  :root { --accent: {{ settings.accent_color }}; }\n</style>",
+        "advanced": "Renomear ou remover um setting do schema sem migração deixa o valor antigo \"órfão\" dentro de `settings_data.json` — sem erro visível, só um dado que nunca mais é lido por nenhum Liquid. Rode o Theme Check periodicamente pra ajudar a identificar isso."
+      },
+      {
+        "title": "Use `color_scheme_group` e `color_scheme` pra esquemas de cor completos.",
+        "detail": "Além de settings de cor individuais, temas modernos definem **esquemas de cor** inteiros (fundo, texto, botão, borda — um conjunto coerente) através de `color_scheme_group` no `settings_schema.json`. Sections e blocks então referenciam um esquema inteiro com um setting do tipo `color_scheme`, em vez de escolher cada cor isoladamente — isso garante contraste e coerência visual mesmo quando o merchant troca o esquema.",
+        "code": "{\n  \"type\": \"color_scheme\",\n  \"id\": \"color_scheme\",\n  \"label\": \"Esquema de cores\",\n  \"default\": \"scheme-1\"\n}"
+      },
+      {
+        "title": "Entenda o comportamento de `default` na primeira instalação.",
+        "detail": "O valor `default` de um setting só é aplicado **na primeira vez** que o tema é instalado numa loja (ou quando o setting é criado pela primeira vez, numa atualização de tema já instalado). Mudar o `default` no código depois **não retroage** — lojas que já têm o tema instalado mantêm o valor que já foi salvo em `settings_data.json`, mesmo que ele seja igual ao default antigo.",
+        "advanced": "Isso é intencional: evita que uma atualização de tema mude visualmente lojas já publicadas sem o merchant pedir. Se você precisa mudar um valor em produção, isso exige ação explícita do merchant no editor (ou uma migração de dados fora do escopo do schema)."
+      },
+      {
+        "title": "Ajuste um valor pelo editor e confirme o Liquid reagindo.",
+        "detail": "Mude o valor de um setting global no editor de temas, salve, e recarregue o preview — o Liquid deve refletir o novo valor imediatamente, sem precisar de novo deploy (já que o valor vem de `settings_data.json`, não do código)."
+      },
+      {
+        "title": "Projeto — crie uma configuração de \"modo de exibição de preço\" reutilizável.",
+        "detail": "Vamos criar um setting global que controla, em todo o tema, se preços aparecem com ou sem centavos — um exemplo clássico de configuração que várias sections/snippets diferentes precisam consultar."
+      },
+      {
+        "title": "Projeto — passo 1: adicione o setting ao `settings_schema.json`.",
+        "detail": "Crie um grupo (ou adicione a um existente) com um `checkbox` pra essa opção.",
+        "code": "{\n  \"name\": \"Preços\",\n  \"settings\": [\n    {\n      \"type\": \"checkbox\",\n      \"id\": \"hide_cents\",\n      \"label\": \"Ocultar centavos nos preços\",\n      \"default\": false\n    }\n  ]\n}"
+      },
+      {
+        "title": "Projeto — passo 2: crie um snippet que centraliza a formatação de preço.",
+        "detail": "Em vez de repetir a lógica condicional em cada lugar que imprime preço, centralize num snippet único que lê `settings.hide_cents`.",
+        "code": "<!-- snippets/format-price.liquid -->\n{% doc %}\n  @param {number} amount - o valor em centavos a ser formatado\n{% enddoc %}\n\n{% if settings.hide_cents %}\n  {{ amount | money_without_trailing_zeros }}\n{% else %}\n  {{ amount | money }}\n{% endif %}"
+      },
+      {
+        "title": "Projeto — passo 3: use o snippet no card de produto criado anteriormente.",
+        "detail": "Volte ao `snippets/product-card.liquid` construído no tópico de Liquid, e troque o filtro `money` direto por uma chamada ao novo snippet centralizador.",
+        "code": "{% render 'format-price', amount: variant.price %}"
+      },
+      {
+        "title": "Projeto — passo 4: alterne o setting no editor e confirme o efeito em cascata.",
+        "detail": "Ligue e desligue \"Ocultar centavos nos preços\" no editor de temas, e confirme que **todo lugar** que usa o snippet `format-price` muda de formato ao mesmo tempo — essa é a vantagem de centralizar a leitura de um setting global num único ponto do código.",
+        "code": "shopify theme dev --store=sua-loja-dev.myshopify.com"
+      }
+    ]
+  },
+  "categoryId": "themes",
+  "categoryLabel": "Temas (Storefronts)"
+}

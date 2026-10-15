@@ -1,0 +1,68 @@
+{
+  "id": "theme-best-practices",
+  "title": "Best practices",
+  "desc": "Siga as recomendações da Shopify para desenvolver temas e organizar seu toolchain.",
+  "plan": {
+    "objetivo": "Internalizar as práticas recomendadas de sections/blocks, carregamento de CSS/JS e convenções de eventos, aplicando-as num code review real do seu próprio tema.",
+    "prereq": "Blocks",
+    "tempo": "3h",
+    "doc": "https://shopify.dev/docs/storefronts/themes/best-practices",
+    "steps": [
+      {
+        "title": "Prefira blocks a settings gigantes numa única section.",
+        "detail": "Um erro comum de quem vem de outras plataformas: modelar \"suporte a até 5 depoimentos\" como 5 grupos quase idênticos de settings (`testimonial_1_text`, `testimonial_2_text`...) numa única section. Isso trava o merchant num número arbitrário, deixa o schema gigante e repetitivo, e não permite reordenar itens individualmente.\n\nA alternativa correta: um theme block \"Depoimento\", com seus próprios settings, que o merchant adiciona quantas vezes quiser (dentro de um limite razoável) e reordena livremente.",
+        "advanced": "Blocks dão flexibilidade, mas cada block a mais no schema de uma section é mais complexidade de manutenção e mais opções pro merchant errar visualmente — balanceie a granularidade dos blocks com o tamanho real da equipe de merchandising que vai usar o tema no dia a dia."
+      },
+      {
+        "title": "Use `{% stylesheet %}` e `{% javascript %}` — nunca `<style>`/`<script>` soltos numa section.",
+        "detail": "CSS e JS específicos de uma section devem viver dentro das tags `{% stylesheet %}` e `{% javascript %}`, no mesmo arquivo da section. Isso garante que esse código só carregue nas páginas onde a section realmente aparece — evitando o antipadrão de um `assets/global.css` gigante que cresce pra sempre e carrega em toda página, mesmo em rotas onde 90% dele é inútil.",
+        "code": "{% stylesheet %}\n.banner {\n  padding: 2rem;\n}\n{% endstylesheet %}\n\n{% javascript %}\nconsole.log('banner section carregada');\n{% endjavascript %}",
+        "advanced": "Essas tags são deduplicadas automaticamente pela Shopify quando a mesma section se repete várias vezes na mesma página (ex: a mesma section de banner usada duas vezes) — você não precisa se preocupar em carregar o mesmo CSS/JS em duplicidade."
+      },
+      {
+        "title": "Nomeie eventos customizados com namespace, usando `CustomEvent` nativo.",
+        "detail": "Quando o JS do seu tema precisa comunicar mudanças de estado entre componentes (ex: \"o carrinho mudou\"), use eventos DOM nativos via `CustomEvent`, sempre com um prefixo de namespace que identifique seu tema — nunca nomes genéricos como `\"updated\"` ou `\"change\"` direto no `document`.",
+        "code": "document.dispatchEvent(new CustomEvent('theme:cart-updated', {\n  detail: { count: 3 },\n  bubbles: true\n}));\n\ndocument.addEventListener('theme:cart-updated', (event) => {\n  console.log('novo total:', event.detail.count);\n});",
+        "advanced": "Sem namespace, dois scripts diferentes na mesma página (o seu tema e um app de terceiro instalado) podem escutar/disparar o mesmo nome de evento genérico por coincidência, causando bugs muito difíceis de rastrear porque o comportamento parece \"aleatório\"."
+      },
+      {
+        "title": "Evite manipulação pesada do DOM antes do primeiro paint.",
+        "detail": "Scripts que reorganizam grandes porções do DOM logo no carregamento da página (em vez de já renderizar a estrutura final no Liquid/HTML) causam **layout shift** — o conteúdo \"pula\" visualmente depois de carregado, prejudicando tanto a experiência do usuário quanto métricas de Core Web Vitals. Prefira resolver o máximo possível no HTML gerado pelo Liquid, deixando JS só pra interatividade de fato (cliques, formulários, atualizações depois de uma ação do usuário).",
+        "advanced": "Se um comportamento realmente precisa de JS antes do paint (ex: aplicar um tema escuro salvo em localStorage), isolar esse script específico como síncrono e mínimo no `<head>` é preferível a um framework JS inteiro carregando de forma bloqueante."
+      },
+      {
+        "title": "Carregue scripts de terceiros de forma assíncrona e o mais tarde possível.",
+        "detail": "Scripts de apps ou serviços externos (chat, reviews, analytics adicionais) devem usar `defer` ou `async`, e idealmente ser carregados só quando necessário (ex: um widget de chat só carrega depois de interação do usuário, não bloqueando o carregamento inicial da página).",
+        "code": "<script src=\"{{ 'chat-widget.js' | asset_url }}\" defer></script>"
+      },
+      {
+        "title": "Documente convenções do tema num `README` do projeto.",
+        "detail": "Convenções de nomenclatura de eventos, padrão de organização de settings, decisões de arquitetura (por que um componente é block e outro é section) — tudo isso deveria estar escrito, não só na cabeça de quem construiu o tema. Isso acelera drasticamente a entrada de qualquer pessoa nova no projeto, incluindo você mesmo, revisitando o código meses depois."
+      },
+      {
+        "title": "Projeto — faça um code review de boas práticas no seu próprio tema.",
+        "detail": "Vamos aplicar essa lista como um checklist real sobre o tema que você vem construindo desde o início da trilha, corrigindo o que estiver fora do padrão."
+      },
+      {
+        "title": "Projeto — passo 1: audite CSS/JS soltos fora das tags corretas.",
+        "detail": "Procure por `<style>` ou `<script>` direto no HTML de alguma section (fora de `{% stylesheet %}`/`{% javascript %}`) e migre pro formato correto.",
+        "code": "shopify theme check"
+      },
+      {
+        "title": "Projeto — passo 2: identifique uma section com settings repetitivos candidata a virar blocks.",
+        "detail": "Procure padrões como `item_1_titulo`, `item_2_titulo` no schema de alguma section — se encontrar, é candidata direta a ser refatorada pra usar theme blocks, como visto no tópico anterior da trilha."
+      },
+      {
+        "title": "Projeto — passo 3: revise nomes de eventos customizados no JS do tema.",
+        "detail": "Se seu tema já tem algum `CustomEvent` disparado no JS, confirme que o nome segue o padrão `namespace:evento`. Se não tiver nenhum ainda, adicione um evento simples seguindo a convenção, simulando uma atualização de carrinho.",
+        "code": "document.dispatchEvent(new CustomEvent('meutema:cart-updated', {\n  detail: { count: cart.item_count },\n  bubbles: true\n}));"
+      },
+      {
+        "title": "Projeto — passo 4: confirme que scripts de terceiros (se houver) usam `defer`/`async`.",
+        "detail": "Revise qualquer `<script src=...>` apontando pra um domínio externo ou pra `assets/` do próprio tema, e confirme que nenhum deles bloqueia o carregamento da página sem necessidade real."
+      }
+    ]
+  },
+  "categoryId": "themes",
+  "categoryLabel": "Temas (Storefronts)"
+}

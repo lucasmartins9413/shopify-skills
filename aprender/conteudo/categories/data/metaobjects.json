@@ -1,0 +1,68 @@
+{
+  "id": "metaobjects",
+  "title": "Metaobjects",
+  "desc": "Armazene conteúdo estruturado que pode ser reutilizado por toda a loja.",
+  "plan": {
+    "objetivo": "Entender quando usar metaobjects em vez de metafields, modelar uma definição própria com referências, e consumir os dados no app e no storefront.",
+    "prereq": "Metafields",
+    "tempo": "3h",
+    "doc": "https://shopify.dev/docs/apps/build/metaobjects",
+    "steps": [
+      {
+        "title": "Entenda a diferença entre metafield e metaobject.",
+        "detail": "Um **metafield** sempre pertence a um recurso existente (um produto, um pedido) — ele estende algo que já existe. Mas e quando o dado que você precisa modelar **não é** uma extensão de um recurso, e sim uma entidade própria, com existência independente? Um depoimento de cliente, uma pergunta de FAQ, um membro da equipe, uma marca — nada disso é \"um campo a mais\" num produto, são registros próprios, com seus próprios campos.\n\n**Metaobjects** resolvem exatamente isso: são registros de conteúdo estruturado, com seu próprio tipo (schema) definido por você, existindo de forma independente — e que **podem**, opcionalmente, ser referenciados a partir de produtos, coleções ou outros metaobjects, mas não precisam estar amarrados a nada.",
+        "advanced": "Metaobjects têm limite de campos e de entradas por loja, dependendo do plano — não use pra volumes tipo \"milhares de linhas de log\" ou dados que crescem sem limite; são pensados pra conteúdo estruturado gerenciado por humanos (dezenas a centenas de entradas), não pra armazenamento de eventos de alto volume."
+      },
+      {
+        "title": "Modele uma definição de metaobject.",
+        "detail": "Assim como metafields têm definições, metaobjects começam com um **type** (o nome do schema, ex: `depoimento`) e uma lista de campos, cada um com seu próprio tipo de dado. Diferente de metafields (sempre presos a um `ownerType` fixo como Product), o type de um metaobject é totalmente livre — você o inventa conforme a necessidade do domínio.",
+        "code": "mutation {\n  metaobjectDefinitionCreate(definition: {\n    type: \"depoimento\",\n    name: \"Depoimento\",\n    fieldDefinitions: [\n      { name: \"Nome\", key: \"nome\", type: \"single_line_text_field\" },\n      { name: \"Texto\", key: \"texto\", type: \"multi_line_text_field\" }\n    ]\n  }) { metaobjectDefinition { id } userErrors { field message } }\n}"
+      },
+      {
+        "title": "Crie uma entrada desse metaobject via GraphQL.",
+        "detail": "Use `metaobjectCreate` informando o `type` definido e os campos correspondentes — cada chamada cria **uma entrada** (um depoimento específico, por exemplo), não o schema em si (isso já foi feito no passo anterior).",
+        "code": "mutation {\n  metaobjectCreate(metaobject: {\n    type: \"depoimento\",\n    fields: [\n      {key: \"nome\", value: \"Ana\"},\n      {key: \"texto\", value: \"Produto excelente, entrega rápida!\"}\n    ]\n  }) { metaobject { id } userErrors { field message } }\n}"
+      },
+      {
+        "title": "Use referências pra modelar relações entre metaobjects (ou com produtos).",
+        "detail": "Um campo do tipo `metaobject_reference` (ou `product_reference`, `mixed_reference`) permite que uma entrada aponte pra outra — por exemplo, um depoimento que referencia o produto específico sobre o qual fala. Isso é o que aproxima metaobjects de um mini-banco relacional dentro da própria Shopify, sem precisar de um banco de dados externo só pra esse tipo de conteúdo.",
+        "code": "{\n  \"name\": \"Produto relacionado\",\n  \"key\": \"produto\",\n  \"type\": \"product_reference\"\n}",
+        "advanced": "Referências circulares entre metaobjects são tecnicamente possíveis mas complicam a leitura (você precisa decidir até que profundidade seguir as referências numa query) — modele o grafo de relações com cuidado antes de criar múltiplos níveis de referência cruzada."
+      },
+      {
+        "title": "Consuma essa entrada numa query e exiba no app.",
+        "detail": "Consuma via `metaobjects(type: \"depoimento\", first: 10)` numa query, iterando sobre os campos de cada entrada retornada.",
+        "code": "query {\n  metaobjects(type: \"depoimento\", first: 10) {\n    nodes {\n      id\n      field(key: \"nome\") { value }\n      field(key: \"texto\") { value }\n    }\n  }\n}"
+      },
+      {
+        "title": "Decida onde o conteúdo deve aparecer: admin, storefront, ou ambos.",
+        "detail": "Metaobjects podem ser expostos no storefront diretamente via Liquid (`shop.metaobjects`) — útil se o conteúdo (como os depoimentos) precisa aparecer pro cliente final na loja — ou consumidos só pela Storefront API/Admin API, se o uso for mais interno ao app. Decida isso cedo, porque afeta se você precisa também tocar em código de tema, não só no app.",
+        "advanced": "Se o conteúdo precisa aparecer no storefront e você não controla o tema do merchant, considere entregar isso como uma **theme app extension** (app block) em vez de pedir que o merchant edite o Liquid manualmente pra consumir os metaobjects."
+      },
+      {
+        "title": "Projeto — modele um sistema de depoimentos completo com metaobjects.",
+        "detail": "Vamos criar o schema, popular com dados de teste, e consumir a lista completa via API — a base de uma funcionalidade real de \"depoimentos de clientes\" que um app poderia oferecer."
+      },
+      {
+        "title": "Projeto — passo 1: crie a definição do type `depoimento`.",
+        "detail": "Rode a mutation de criação de definição com os campos nome, texto e uma referência opcional a um produto.",
+        "code": "mutation {\n  metaobjectDefinitionCreate(definition: {\n    type: \"depoimento\",\n    name: \"Depoimento\",\n    fieldDefinitions: [\n      { name: \"Nome\", key: \"nome\", type: \"single_line_text_field\" },\n      { name: \"Texto\", key: \"texto\", type: \"multi_line_text_field\" },\n      { name: \"Produto\", key: \"produto\", type: \"product_reference\" }\n    ]\n  }) { metaobjectDefinition { id } userErrors { field message } }\n}"
+      },
+      {
+        "title": "Projeto — passo 2: crie três entradas de teste, uma referenciando um produto real.",
+        "detail": "Rode `metaobjectCreate` três vezes com dados diferentes, preenchendo a referência de produto em pelo menos uma delas com o ID de um produto real da sua dev store."
+      },
+      {
+        "title": "Projeto — passo 3: consulte todas as entradas e resolva a referência.",
+        "detail": "Escreva uma query que traga a lista completa de depoimentos, incluindo o título do produto referenciado (seguindo a referência), não só o ID bruto.",
+        "code": "query {\n  metaobjects(type: \"depoimento\", first: 10) {\n    nodes {\n      field(key: \"nome\") { value }\n      field(key: \"produto\") {\n        reference {\n          ... on Product { title }\n        }\n      }\n    }\n  }\n}"
+      },
+      {
+        "title": "Projeto — passo 4: exiba a lista na Home do seu app.",
+        "detail": "Adapte o `loader` da rota principal do app (visto no tópico \"Build an app\") pra rodar essa query e renderizar a lista de depoimentos usando um componente Polaris, fechando o ciclo de dado modelado → consumido → exibido."
+      }
+    ]
+  },
+  "categoryId": "data",
+  "categoryLabel": "Data and logic"
+}

@@ -1,0 +1,64 @@
+{
+  "id": "seo-international",
+  "title": "SEO internacional: hreflang e Markets",
+  "desc": "Entenda a geração automática de hreflang via Shopify Markets, e quando (raramente) vale implementar manualmente.",
+  "plan": {
+    "objetivo": "Entender como a Shopify gera tags hreflang automaticamente via Markets, saber quando desativar esse comportamento, e implementar hreflang manual corretamente quando for genuinamente necessário.",
+    "prereq": "Arquitetura de conteúdo e URLs",
+    "tempo": "2h30",
+    "doc": "https://shopify.dev/docs/storefronts/themes/seo/hreflang",
+    "steps": [
+      {
+        "title": "Entenda o problema que hreflang resolve.",
+        "detail": "Quando uma loja vende em múltiplos idiomas e/ou países, a **mesma página de produto** pode existir em várias versões — `/products/camiseta` em português, `/en/products/shirt` em inglês, `/fr/products/chemise` em francês. Sem nenhuma sinalização extra, o Google vê isso como conteúdo duplicado ou, pior, mostra a versão errada de idioma pro usuário errado (a versão em português pra alguém buscando em francês).\n\nA tag **`hreflang`** resolve isso: declara explicitamente \"esta página tem uma versão equivalente neste outro idioma/região, nesta URL\" — permitindo ao Google servir a versão certa pra cada buscador."
+      },
+      {
+        "title": "Entenda que a Shopify já gera isso automaticamente, via Markets.",
+        "detail": "Se sua loja usa **Shopify Markets** (a funcionalidade de segmentação internacional, vista na trilha de Commerce), a Shopify já gera as tags `hreflang` automaticamente, injetadas através do `content_for_header` em `layout/theme.liquid` — o mesmo mecanismo que injeta scripts de apps e pixels de analytics. Ela:\n- gera tags qualificadas por região (`fr-ca`, `en-us`) ou só por idioma (`fr`), dependendo de como o market foi configurado;\n- atualiza automaticamente quando markets, domínios ou idiomas mudam;\n- mantém sincronia com o canonical de cada página.\n\nOu seja: **na maioria dos casos, você não precisa implementar nada** — só precisa saber que isso existe e confiar no comportamento automático.",
+        "advanced": "Adicionar suas próprias tags hreflang **por cima** das automáticas produz anotações duplicadas ou conflitantes — o que pode prejudicar o ranking da loja em vez de ajudar. O erro mais comum neste tópico é justamente duplicar algo que já funciona."
+      },
+      {
+        "title": "Reconheça os dois cenários legítimos pra gerenciar hreflang manualmente.",
+        "detail": "Existem só dois casos onde faz sentido assumir o controle manual:\n1. Seu **tema ou um app de terceiro** já gera tags hreflang por conta própria (duplicando o que a Shopify já faz).\n2. Sua configuração precisa **linkar páginas entre lojas Shopify separadas**, em domínios diferentes — um cenário que o sistema automático de Markets (pensado pra uma única loja com múltiplos mercados) não cobre."
+      },
+      {
+        "title": "Desative as tags automáticas antes de implementar as suas.",
+        "detail": "Se você se encaixa num dos dois cenários acima, primeiro desative o comportamento automático — em Loja Online → Preferências → seção \"Compartilhamento social e SEO\" → desligue \"Tags hreflang automáticas\". Só depois disso implemente sua própria versão, pra não ter as duas rodando ao mesmo tempo."
+      },
+      {
+        "title": "Construa as tags manuais dinamicamente a partir do object `localization`.",
+        "detail": "Se a implementação manual for necessária, nunca hardcode domínios ou handles de recurso — construa tudo a partir do object `localization`, que reflete os mercados realmente ativos da loja. Isso garante que a lista de hreflang se mantém correta conforme mercados são adicionados/removidos, sem precisar editar código a cada mudança.",
+        "code": "{% for lang in localization.available_languages %}\n  <link\n    rel=\"alternate\"\n    hreflang=\"{{ lang.iso_code }}\"\n    href=\"{{ request.origin }}{{ lang.root_url }}{{ canonical_url | remove: shop.url }}\"\n  />\n{% endfor %}\n<link rel=\"alternate\" hreflang=\"x-default\" href=\"{{ shop.url }}{{ canonical_url | remove: shop.url }}\" />",
+        "advanced": "Cada URL localizada declarada via hreflang deve referenciar a **si mesma** como canonical (não a versão padrão/original) — é um requisito do próprio protocolo hreflang, e um erro comum é apontar todas as versões pro mesmo canonical \"principal\", o que invalida a sinalização inteira."
+      },
+      {
+        "title": "Entenda `x-default` — a versão \"pra qualquer outro idioma\".",
+        "detail": "A tag `hreflang=\"x-default\"` diz ao Google \"se o buscador não corresponder a nenhum dos idiomas/regiões específicos listados, mostre esta versão\" — geralmente a versão no idioma principal da loja. É uma rede de segurança, não uma versão de idioma real."
+      },
+      {
+        "title": "Projeto — audite a implementação automática de hreflang numa loja com Markets configurado.",
+        "detail": "Já que a implementação automática cobre a esmagadora maioria dos casos, este projeto foca em **verificar** que ela está funcionando corretamente, em vez de reimplementar algo que já existe."
+      },
+      {
+        "title": "Projeto — passo 1: configure (ou confirme) pelo menos dois markets com idiomas diferentes.",
+        "detail": "Em Configurações → Markets na sua dev store, confirme que existem ao menos dois mercados ativos com idiomas diferentes — reaproveite a configuração feita no tópico \"Global markets\" da trilha de Commerce, se já existir."
+      },
+      {
+        "title": "Projeto — passo 2: abra o código-fonte de uma página de produto e localize as tags hreflang.",
+        "detail": "Procure por `rel=\"alternate\" hreflang=` no HTML renderizado — devem aparecer uma tag por idioma/mercado configurado, mais uma `x-default`.",
+        "code": "shopify theme dev --store=sua-loja-dev.myshopify.com"
+      },
+      {
+        "title": "Projeto — passo 3: confirme que cada URL listada é, de fato, a versão localizada correta daquele produto.",
+        "detail": "Abra manualmente cada URL encontrada nas tags hreflang e confirme que ela carrega a versão certa de idioma daquele mesmo produto — não uma página genérica ou um 404."
+      },
+      {
+        "title": "Projeto — passo 4: confirme que cada versão localizada se autocanonicaliza.",
+        "detail": "Em cada uma das URLs abertas no passo anterior, confira o `<link rel=\"canonical\">` — cada versão deve apontar pra si mesma, não pra versão do idioma principal da loja.",
+        "advanced": "Se alguma URL localizada canonicalizar de volta pro idioma principal, isso anula a sinalização de hreflang pra aquele mercado — é um sinal de configuração incorreta de Markets, não algo a corrigir manualmente no tema."
+      }
+    ]
+  },
+  "categoryId": "seo",
+  "categoryLabel": "SEO"
+}

@@ -1,0 +1,71 @@
+{
+  "id": "bulk-operations",
+  "title": "Bulk Operations",
+  "desc": "Leia ou grave centenas de milhares de registros sem esbarrar no rate limit, usando operações assíncronas com resultado em JSONL.",
+  "plan": {
+    "objetivo": "Exportar e importar grandes volumes (catálogo, pedidos, clientes) com Bulk Operations: disparar, acompanhar, baixar e processar o resultado JSONL — e saber quando usar isso em vez de paginação.",
+    "prereq": "GraphQL avançado",
+    "tempo": "4h",
+    "doc": "https://shopify.dev/docs/api/usage/bulk-operations/queries",
+    "steps": [
+      {
+        "title": "Entenda quando usar Bulk Operations.",
+        "detail": "Paginar com `first: 250` funciona pra telas, mas é lento e consome o balde de pontos em coleções grandes (dezenas de milhares de itens). Uma **Bulk Operation** inverte o modelo: você entrega a query pra Shopify, ela roda **de forma assíncrona nos servidores dela** e devolve um arquivo pra baixar, sem você brigar com o rate limit.\n\nUse pra: exportar catálogo/pedidos, sincronizar com ERP/BI, reindexar busca. Não use pra dado que uma tela precisa em tempo real.",
+        "advanced": "Existem dois sabores: **bulk query** (ler) e **bulk mutation** (gravar muitas linhas com a mesma mutation). Ambos são assíncronos e terminam em arquivo/status, não numa resposta imediata."
+      },
+      {
+        "title": "Dispare uma bulk query.",
+        "detail": "Use a mutation `bulkOperationRunQuery`, passando a query GraphQL como **string** (com aspas triplas). Repare que dentro dela as connections **não** usam `first`/`after` — a Shopify pagina por você.",
+        "code": "mutation {\n  bulkOperationRunQuery(\n    query: \"\"\"\n    {\n      products {\n        edges {\n          node {\n            id\n            title\n            variants {\n              edges { node { id sku price } }\n            }\n          }\n        }\n      }\n    }\n    \"\"\"\n  ) {\n    bulkOperation { id status }\n    userErrors { field message }\n  }\n}",
+        "advanced": "Bulk queries têm limites: as connections usam o formato `edges { node }` (não `nodes`), há um máximo de connections por query e de níveis de aninhamento. Se a query for rejeitada, o motivo vem em `userErrors` — confira os limites atuais na doc."
+      },
+      {
+        "title": "Acompanhe o status: polling ou webhook.",
+        "detail": "A operação passa por `CREATED → RUNNING → COMPLETED` (ou `FAILED`/`CANCELED`). Há duas formas de saber: consultar `currentBulkOperation` de tempos em tempos (polling) ou assinar o webhook `bulk_operations/finish` e ser avisado. Em produção, prefira o webhook.",
+        "code": "query {\n  currentBulkOperation(type: QUERY) {\n    id\n    status\n    errorCode\n    objectCount\n    rootObjectCount\n    createdAt\n    completedAt\n    url\n    partialDataUrl\n  }\n}\n\n# shopify.app.toml — assinar o aviso de término\n[[webhooks.subscriptions]]\ntopics = [\"bulk_operations/finish\"]\nuri = \"/webhooks/bulk\"",
+        "advanced": "Se o status for `FAILED`, veja o `errorCode`. O `partialDataUrl` traz o que foi lido até a falha — útil pra não perder um export longo por um erro no final."
+      },
+      {
+        "title": "Baixe e leia o arquivo JSONL.",
+        "detail": "Quando `COMPLETED`, o campo `url` aponta pra um arquivo **JSONL** (JSON Lines): **um objeto JSON por linha**, não um array gigante. Isso permite processar em streaming, linha a linha, sem carregar o arquivo inteiro na memória.",
+        "code": "import readline from \"node:readline\";\nimport { Readable } from \"node:stream\";\n\nconst res = await fetch(operation.url);\nconst rl = readline.createInterface({ input: Readable.fromWeb(res.body) });\n\nfor await (const line of rl) {\n  const row = JSON.parse(line);\n  // processe row aqui\n}",
+        "advanced": "A `url` é temporária (expira depois de alguns dias). Baixe e guarde o que precisa logo após o término; não salve a URL esperando usá-la semanas depois."
+      },
+      {
+        "title": "Reconstrua a hierarquia com __parentId.",
+        "detail": "O JSONL é **achatado**: pai e filhos aparecem em linhas separadas. Cada filho traz `__parentId` apontando pro `id` do pai. Como o pai vem antes dos filhos, dá pra remontar tudo em uma passada só.",
+        "code": "// linhas do arquivo\n{\"id\":\"gid://shopify/Product/1\",\"title\":\"Camisa\"}\n{\"id\":\"gid://shopify/ProductVariant/10\",\"sku\":\"CAM-P\",\"__parentId\":\"gid://shopify/Product/1\"}\n{\"id\":\"gid://shopify/ProductVariant/11\",\"sku\":\"CAM-M\",\"__parentId\":\"gid://shopify/Product/1\"}\n\n// JS\nconst products = new Map();\nfor await (const line of rl) {\n  const row = JSON.parse(line);\n  if (row.__parentId) products.get(row.__parentId).variants.push(row);\n  else products.set(row.id, { ...row, variants: [] });\n}"
+      },
+      {
+        "title": "Cancele uma operação em andamento.",
+        "detail": "Disparou a query errada num catálogo enorme? Cancele com `bulkOperationCancel` passando o id. O status vai a `CANCELING` e depois `CANCELED`.",
+        "code": "mutation {\n  bulkOperationCancel(id: \"gid://shopify/BulkOperation/123\") {\n    bulkOperation { id status }\n    userErrors { field message }\n  }\n}",
+        "advanced": "Há limite de operações simultâneas por loja (antes era uma por tipo; versões recentes ampliaram — confira na doc). Se disparar der erro de \"já existe uma em andamento\", consulte `currentBulkOperation` e espere ou cancele a anterior."
+      },
+      {
+        "title": "Grave em massa com uma bulk mutation.",
+        "detail": "Pra atualizar milhares de registros você não faz milhares de chamadas. O fluxo tem 3 etapas: (1) pedir uma URL de upload com `stagedUploadsCreate`, (2) enviar um arquivo **JSONL de variáveis** (uma linha por execução da mutation), (3) disparar `bulkOperationRunMutation` apontando pro arquivo enviado.",
+        "code": "# 1) preparar o upload\nmutation {\n  stagedUploadsCreate(input: [{\n    resource: BULK_MUTATION_VARIABLES,\n    filename: \"vars.jsonl\",\n    mimeType: \"text/jsonl\",\n    httpMethod: POST\n  }]) {\n    stagedTargets { url parameters { name value } }\n    userErrors { field message }\n  }\n}\n\n# 2) vars.jsonl — uma linha por produto\n{\"input\":{\"id\":\"gid://shopify/Product/1\",\"tags\":[\"promo\"]}}\n{\"input\":{\"id\":\"gid://shopify/Product/2\",\"tags\":[\"promo\"]}}\n\n# 3) rodar a mutation sobre o arquivo\nmutation {\n  bulkOperationRunMutation(\n    mutation: \"mutation call($input: ProductInput!) { productUpdate(input: $input) { product { id } userErrors { field message } } }\",\n    stagedUploadPath: \"<chave devolvida no passo 1>\"\n  ) {\n    bulkOperation { id status }\n    userErrors { field message }\n  }\n}",
+        "advanced": "O arquivo de **resultado** de uma bulk mutation traz, linha a linha, o retorno de cada execução — inclusive os `userErrors` individuais. Baixe e verifique: a operação pode terminar `COMPLETED` com várias linhas que falharam por regra de negócio."
+      },
+      {
+        "title": "Projeto — exporte o catálogo inteiro pra um arquivo CSV.",
+        "detail": "Vai disparar uma bulk query, esperar o término, ler o JSONL em streaming e gerar um CSV de variantes."
+      },
+      {
+        "title": "Projeto — passo 1: dispare e acompanhe a operação.",
+        "detail": "Rode a bulk query de produtos + variantes num script/rota. Consulte `currentBulkOperation` a cada poucos segundos até `COMPLETED` e imprima o `objectCount`."
+      },
+      {
+        "title": "Projeto — passo 2: leia o JSONL e gere o CSV.",
+        "detail": "Faça o streaming do arquivo, reconstrua produto → variantes com `__parentId` e escreva uma linha de CSV por variante (título do produto, SKU, preço). Compare o tempo total com o de paginar o mesmo catálogo com `first: 250`."
+      },
+      {
+        "title": "Projeto — passo 3: troque o polling pelo webhook.",
+        "detail": "Assine `bulk_operations/finish` no `shopify.app.toml`, crie a rota do webhook e dispare o processamento do arquivo de lá. Confirme que o app agora não faz nenhuma chamada enquanto espera."
+      }
+    ]
+  },
+  "categoryId": "data",
+  "categoryLabel": "Data and logic"
+}

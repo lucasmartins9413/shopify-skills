@@ -1,0 +1,72 @@
+{
+  "id": "localize",
+  "title": "Localize your app",
+  "desc": "Traduza seu app e adapte-o para merchants internacionais.",
+  "plan": {
+    "objetivo": "Extrair textos fixos para arquivos de tradução, lidar corretamente com pluralização e formatação regional, e reconhecer quando um idioma exige mais que tradução (como RTL).",
+    "prereq": "App Home",
+    "tempo": "3h",
+    "doc": "https://shopify.dev/docs/apps/build/localize-your-app",
+    "steps": [
+      {
+        "title": "Entenda por que localizar o app amplia seu mercado potencial de forma direta.",
+        "detail": "A Shopify tem merchants em praticamente todo país do mundo — um app disponível só em inglês (ou só em português) automaticamente exclui uma fatia grande de instalações potenciais. Diferente de outras práticas de qualidade cobertas na trilha (que evitam problemas), localização é uma das poucas que **expande** diretamente o alcance comercial do app."
+      },
+      {
+        "title": "Extraia os textos fixos da interface para um arquivo de tradução.",
+        "detail": "Separe todo texto de interface (labels, botões, mensagens de erro/sucesso) num objeto de tradução — um arquivo JSON por idioma — em vez de deixá-los hardcoded diretamente no JSX. Isso não só habilita tradução, como também centraliza revisão de copy (texto de interface) num só lugar, mais fácil de manter conforme o app cresce.",
+        "code": "// pt-BR.json\n{ \"products.title\": \"Produtos\", \"actions.save\": \"Salvar\" }\n\n// en.json\n{ \"products.title\": \"Products\", \"actions.save\": \"Save\" }"
+      },
+      {
+        "title": "Adicione uma tradução para um segundo idioma.",
+        "detail": "Bibliotecas como `react-i18next` resolvem esse problema de forma robusta pra apps maiores; um dicionário simples por idioma, resolvido por um hook próprio, já é suficiente pra apps pequenos, sem precisar da complexidade extra de uma biblioteca dedicada.",
+        "code": "function useTranslation(locale) {\n  const dict = locale === 'pt-BR' ? ptBR : en;\n  return (key) => dict[key] ?? key;\n}"
+      },
+      {
+        "title": "Trate pluralização como uma regra própria de cada idioma, não uma condição simples.",
+        "detail": "Pluralização (\"1 item\" vs \"2 itens\") precisa de lógica própria por idioma — nem toda língua segue a mesma regra binária singular/plural do português e do inglês. Algumas línguas têm 3 ou mais formas plurais diferentes, dependendo da quantidade exata. Uma implementação que só checa `count === 1 ? singular : plural` funciona pra português/inglês, mas quebra silenciosamente ao adicionar um idioma com regras mais complexas.",
+        "advanced": "Se seu app crescer pra suportar vários idiomas, vale usar `Intl.PluralRules` (nativo do JavaScript) ou uma biblioteca de i18n que já resolve pluralização corretamente por locale, em vez de manter sua própria lógica condicional simplificada, que tende a não escalar bem."
+      },
+      {
+        "title": "Use `Intl.NumberFormat`/`Intl.DateTimeFormat` em vez de formatar números e datas manualmente.",
+        "detail": "Datas, moedas e números formatados variam significativamente por locale — separador decimal (vírgula vs ponto), ordem de dia/mês/ano, símbolo de moeda antes ou depois do valor. Usar `Intl.NumberFormat`/`Intl.DateTimeFormat`, nativos do JavaScript, delega essa complexidade pro próprio navegador, que já implementa essas regras corretamente pra centenas de locales — evita reinventar (e provavelmente errar em algum caso de borda) regras de formatação que o browser já resolve de graça.",
+        "code": "new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(1234.5);\n// \"R$ 1.234,50\"\n\nnew Intl.DateTimeFormat('en-US').format(new Date());\n// \"1/15/2025\""
+      },
+      {
+        "title": "Teste a troca de idioma e confira se o layout aguenta textos longos.",
+        "detail": "Troque o idioma e confira se textos mais longos em outros idiomas (o alemão, por exemplo, é notoriamente mais verboso que o inglês pra conceitos equivalentes) não estouram o layout de botões e labels — um botão que cabe perfeitamente \"Save\" em inglês pode quebrar visualmente com \"Speichern\" em alemão se o layout não tiver flexibilidade suficiente."
+      },
+      {
+        "title": "Reconheça quando um idioma exige mais que tradução: RTL.",
+        "detail": "Idiomas escritos da direita pra esquerda (RTL — árabe, hebraico) exigem mais que só traduzir o texto: o **layout inteiro** pode precisar espelhar (menu à direita em vez de à esquerda, ícones de navegação invertidos). Isso é um investimento de engenharia significativamente maior que adicionar um idioma LTR (left-to-right) comum — avalie se RTL é relevante pro seu público-alvo antes de assumir esse escopo.",
+        "advanced": "CSS moderno com propriedades lógicas (`margin-inline-start` em vez de `margin-left`, por exemplo) facilita bastante suporte a RTL quando aplicado desde o início do projeto — é uma prática que vale considerar mesmo antes de precisar de RTL de fato, já que o custo de adotar cedo é bem menor que refatorar depois."
+      },
+      {
+        "title": "Projeto — internacionalize uma tela do app com dois idiomas e formatação regional correta.",
+        "detail": "Vamos aplicar tradução, formatação de moeda e teste de layout numa tela real do app construído ao longo da trilha."
+      },
+      {
+        "title": "Projeto — passo 1: extraia os textos de uma tela pra arquivos de tradução.",
+        "detail": "Escolha uma tela do app (por exemplo, a listagem de produtos do tópico \"App Home\") e mova todos os textos fixos pra arquivos `pt-BR.json` e `en.json`.",
+        "code": "// pt-BR.json\n{ \"products.empty\": \"Nenhum produto encontrado\", \"products.load_more\": \"Carregar mais\" }"
+      },
+      {
+        "title": "Projeto — passo 2: implemente o hook de tradução e use-o na tela.",
+        "detail": "Crie o hook simples de tradução e substitua os textos hardcoded pelas chamadas correspondentes.",
+        "code": "const t = useTranslation(locale);\nreturn <p>{t('products.empty')}</p>;"
+      },
+      {
+        "title": "Projeto — passo 3: formate preços com `Intl.NumberFormat` considerando o locale ativo.",
+        "detail": "Se a tela exibe algum valor monetário, use `Intl.NumberFormat` com a moeda e o locale corretos, em vez de concatenar manualmente um símbolo de moeda a um número.",
+        "code": "new Intl.NumberFormat(locale, { style: 'currency', currency: 'BRL' }).format(preco);"
+      },
+      {
+        "title": "Projeto — passo 4: alterne entre os dois idiomas e confirme visualmente o layout.",
+        "detail": "Troque o idioma ativo entre português e inglês, e confirme que tanto os textos quanto a formatação de números mudam corretamente, sem nenhum elemento visual quebrando com os novos textos.",
+        "advanced": "Esse projeto conclui a trilha completa de Quality — revisite os tópicos anteriores (Accessibility, Performance, Mobile support) na mesma tela testada aqui, se quiser um exercício final combinando todos os eixos de qualidade cobertos."
+      }
+    ]
+  },
+  "categoryId": "quality",
+  "categoryLabel": "Quality"
+}

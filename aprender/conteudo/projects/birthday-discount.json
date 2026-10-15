@@ -1,0 +1,196 @@
+{
+  "id": "birthday-discount",
+  "kind": "app",
+  "title": "Desconto de aniversário",
+  "subtitle": "Um app que dá desconto automático no aniversário do cliente e avisa isso com um banner no tema — do scaffold até o checklist de segurança.",
+  "stages": [
+    {
+      "id": "proj-1",
+      "title": "1. Criar o app",
+      "goal": "Ter um app Shopify rodando localmente, instalado numa dev store.",
+      "build": "Esse vai ser o esqueleto de tudo. Sem ele, nenhuma das próximas etapas roda.",
+      "code": [
+        {
+          "label": "Instalar CLI e criar o app",
+          "code": "npm install -g @shopify/cli\nshopify app init\ncd birthday-discount\nshopify app dev"
+        }
+      ],
+      "expected": "O terminal mostra uma URL de preview e o app aparece instalado na sua dev store, com a Home padrão do template.",
+      "related": [
+        "scaffold",
+        "dev-env",
+        "build-app"
+      ]
+    },
+    {
+      "id": "proj-2",
+      "title": "2. Guardar a data de aniversário do cliente",
+      "goal": "Criar um metafield customizado no cliente pra guardar a data de nascimento.",
+      "build": "Sem esse dado não tem como saber quando aplicar o desconto. Crie a definição do metafield e teste gravando um valor manualmente.",
+      "code": [
+        {
+          "label": "Definir o metafield",
+          "code": "mutation {\n  metafieldDefinitionCreate(definition: {\n    name: \"Aniversário\",\n    namespace: \"birthday_app\",\n    key: \"date_of_birth\",\n    type: \"date\",\n    ownerType: CUSTOMER\n  }) { createdDefinition { id } }\n}"
+        },
+        {
+          "label": "Gravar num cliente de teste",
+          "code": "mutation {\n  metafieldsSet(metafields: [{\n    ownerId: \"gid://shopify/Customer/123\",\n    namespace: \"birthday_app\", key: \"date_of_birth\",\n    type: \"date\", value: \"1990-05-20\"\n  }]) { userErrors { message } }\n}"
+        }
+      ],
+      "expected": "Numa query desse cliente, o campo metafield(namespace: \"birthday_app\", key: \"date_of_birth\") retorna a data que você gravou.",
+      "related": [
+        "metafields",
+        "graphql",
+        "auth"
+      ]
+    },
+    {
+      "id": "proj-3",
+      "title": "3. Tela no admin pra configurar o desconto",
+      "goal": "Uma página no App Home onde o merchant define o percentual de desconto de aniversário.",
+      "build": "Grave essa configuração como metafield, mas no dono Shop — é a config global do app, diferente do metafield por cliente do passo anterior.",
+      "code": [
+        {
+          "label": "Salvar a config global",
+          "code": "mutation {\n  metafieldsSet(metafields: [{\n    ownerId: \"gid://shopify/Shop/1\",\n    namespace: \"birthday_app\", key: \"discount_percent\",\n    type: \"number_integer\", value: \"15\"\n  }]) { userErrors { message } }\n}"
+        }
+      ],
+      "expected": "Um formulário simples no App Home (TextField + botão salvar do Polaris) que lê e grava esse valor.",
+      "related": [
+        "app-home",
+        "metafields"
+      ]
+    },
+    {
+      "id": "proj-4",
+      "title": "4. Function de desconto automático",
+      "goal": "Uma Shopify Function que aplica o desconto quando hoje é o aniversário do cliente logado.",
+      "build": "A Function recebe o **carrinho** e o **cliente** como `input`, compara mês/dia da data salva com a data de hoje, e devolve o desconto (via `operations`) se bater.",
+      "code": [
+        {
+          "label": "shopify.extension.toml — declarar o target",
+          "code": "[[extensions.targeting]]\ntarget = \"cart.lines.discounts.generate.run\"\ninput_query = \"src/cart_lines_discounts_generate_run.graphql\"\nexport = \"cartLinesDiscountsGenerateRun\""
+        },
+        {
+          "label": "src/cart_lines_discounts_generate_run.js",
+          "code": "export function cartLinesDiscountsGenerateRun(input) {\n  const dob = input.cart.buyerIdentity?.customer?.metafield?.value;\n  const today = new Date();\n  const birthday = dob ? new Date(dob) : null;\n  const isBirthday = birthday\n    && birthday.getMonth() === today.getMonth()\n    && birthday.getDate() === today.getDate();\n\n  if (!isBirthday) return { operations: [] };\n\n  return {\n    operations: [{\n      orderDiscountsAdd: {\n        selectionStrategy: \"FIRST\",\n        candidates: [{\n          message: \"Feliz aniversário! 15% OFF\",\n          targets: [{ orderSubtotal: { excludedCartLineIds: [] } }],\n          value: { percentage: { value: \"15.0\" } }\n        }]\n      }\n    }]\n  };\n}"
+        }
+      ],
+      "expected": "Ativando a Function numa loja de teste e trocando a data de nascimento do cliente de teste pra hoje, o carrinho aplica 15% de desconto automaticamente.",
+      "related": [
+        "functions",
+        "discounts",
+        "graphql"
+      ]
+    },
+    {
+      "id": "proj-5",
+      "title": "5. Registrar quando o desconto foi usado",
+      "goal": "Um webhook de orders/create que verifica se o pedido usou o desconto de aniversário e grava isso.",
+      "build": "Assim você evita que o mesmo cliente use o desconto duas vezes no mesmo ano.",
+      "code": [
+        {
+          "label": "Registrar o webhook",
+          "code": "[webhooks]\napi_version = \"2025-01\"\n\n[[webhooks.subscriptions]]\ntopics = [\"orders/create\"]\nuri = \"/webhooks/orders/create\""
+        },
+        {
+          "label": "Validar e gravar (esqueleto)",
+          "code": "export async function action({ request }) {\n  const { payload } = await authenticate.webhook(request);\n  const usedBirthdayDiscount = payload.discount_codes?.some(\n    d => d.code === \"BIRTHDAY\"\n  );\n  if (usedBirthdayDiscount) {\n    // gravar metafield \"last_birthday_discount_used\" no cliente\n  }\n  return new Response();\n}"
+        }
+      ],
+      "expected": "Depois de um pedido de teste com o desconto aplicado, o metafield do cliente atualiza pra registrar o uso.",
+      "related": [
+        "webhooks",
+        "auth",
+        "metafields"
+      ]
+    },
+    {
+      "id": "proj-6",
+      "title": "6. Bloquear reuso no mesmo ano",
+      "goal": "Fazer a Function do passo 4 checar também o metafield de uso antes de aplicar o desconto de novo.",
+      "build": "Combine a checagem de data de aniversário com a checagem de \"já usou este ano\" — só aplica se as duas passarem.",
+      "code": [
+        {
+          "label": "Checagem combinada (pseudocódigo)",
+          "code": "const lastUsedYear = input.cart.buyerIdentity?.customer?.usageMetafield?.value;\nconst thisYear = new Date().getFullYear().toString();\nconst alreadyUsed = lastUsedYear === thisYear;\n\nif (!isBirthday || alreadyUsed) return { operations: [] };"
+        }
+      ],
+      "expected": "Testando duas compras no mesmo dia de aniversário, só a primeira recebe o desconto — a segunda não.",
+      "related": [
+        "functions",
+        "metafields",
+        "graphql"
+      ]
+    },
+    {
+      "id": "proj-7",
+      "title": "7. Banner no tema anunciando o desconto",
+      "goal": "Uma section customizada que mostra o aviso de aniversário quando o cliente logado faz aniversário hoje.",
+      "build": "A section usa o objeto customer do Liquid pra ler o metafield direto no storefront, sem precisar de chamada extra.",
+      "code": [
+        {
+          "label": "sections/birthday-banner.liquid",
+          "code": "{% if customer %}\n  {% assign dob = customer.metafields.birthday_app.date_of_birth.value %}\n  {% if dob and dob.month == 'now' | date: '%-m' and dob.day == 'now' | date: '%-d' %}\n    <div class=\"birthday-banner\">\n      🎉 Hoje é seu aniversário! Ganhe {{ settings.birthday_discount }}% off\n    </div>\n  {% endif %}\n{% endif %}\n\n{% schema %}\n{ \"name\": \"Banner de aniversário\", \"settings\": [] }\n{% endschema %}"
+        }
+      ],
+      "expected": "Logado como o cliente de teste com aniversário hoje, o banner aparece no topo da home; noutro dia, ele some.",
+      "related": [
+        "theme-sections",
+        "liquid",
+        "theme-config"
+      ]
+    },
+    {
+      "id": "proj-8",
+      "title": "8. Traduzir o banner",
+      "goal": "Extrair o texto do banner pra locale, deixando pronto pra outros idiomas.",
+      "build": "Isso também prepara o tema pra lojas multi-idioma sem precisar duplicar código.",
+      "code": [
+        {
+          "label": "locales/pt-BR.json",
+          "code": "{ \"birthday_app\": { \"banner\": \"🎉 Hoje é seu aniversário! Ganhe {{ percent }}% off\" } }"
+        },
+        {
+          "label": "Uso na section",
+          "code": "{{ 'birthday_app.banner' | t: percent: settings.birthday_discount }}"
+        }
+      ],
+      "expected": "Trocando o idioma da loja, o texto do banner muda junto — sem precisar editar a section.",
+      "related": [
+        "theme-locales",
+        "liquid"
+      ]
+    },
+    {
+      "id": "proj-9",
+      "title": "9. Checar performance e acessibilidade do banner",
+      "goal": "Confirmar que o banner não pesa a página e que é acessível por teclado e leitor de tela.",
+      "build": "Um banner mal feito (imagem pesada, sem contraste) pode derrubar a nota de performance da loja inteira.",
+      "code": [
+        {
+          "label": "Rodar Lighthouse",
+          "code": "npx lighthouse https://sua-loja.myshopify.com"
+        }
+      ],
+      "expected": "O banner não reduz o score de performance, tem contraste mínimo de 4.5:1 e é lido corretamente por um leitor de tela.",
+      "related": [
+        "performance",
+        "accessibility"
+      ]
+    },
+    {
+      "id": "proj-10",
+      "title": "10. Checklist final antes de publicar",
+      "goal": "Revisar segurança e compliance antes de considerar o projeto pronto.",
+      "build": "Confirme, item por item:\n- HMAC validado no webhook de `orders/create`\n- Escopos mínimos no app (`read_customers`, `write_discounts` — nada além disso)\n- Dado sensível (data de nascimento) tratado com cuidado (LGPD)\n- Webhooks obrigatórios de compliance (`customers/redact`, `shop/redact`) implementados",
+      "code": [],
+      "expected": "Você consegue responder **\"sim\"** a todos os itens do checklist acima antes de considerar o app pronto pra produção.",
+      "related": [
+        "security",
+        "compliance",
+        "non-deceptive"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,60 @@
+{
+  "id": "functions-payment",
+  "title": "Functions: personalização de pagamento",
+  "desc": "Esconda, renomeie e reordene formas de pagamento no checkout, com regras por valor, cliente ou empresa.",
+  "plan": {
+    "objetivo": "Usar a Payment Customization pra ajustar quais formas de pagamento aparecem e em que ordem, inclusive regras específicas de B2B.",
+    "prereq": "Shopify Functions",
+    "tempo": "3h",
+    "doc": "https://shopify.dev/docs/api/functions/latest/payment-customization",
+    "steps": [
+      {
+        "title": "Entenda o escopo.",
+        "detail": "Como na entrega, a Function **não adiciona** gateways: ela **filtra e apresenta** os métodos que já estão configurados na loja. Casos típicos: esconder boleto em pedido pequeno, mover Pix pro topo, renomear métodos, exigir revisão manual em pedido B2B grande."
+      },
+      {
+        "title": "Conheça o target e as operações.",
+        "detail": "Target: `cart.payment-methods.transform.run`. Operações:\n\n- **`paymentMethodHide`** — esconde (`paymentMethodId`; `placements` opcional, só Plus).\n- **`paymentMethodMove`** — reordena (`paymentMethodId` + `index`).\n- **`paymentMethodRename`** — muda o nome (`paymentMethodId` + `name`).\n- **`paymentTermsSet`** — condições de pagamento (net, fixo ou por evento) — **Plus**.\n- **`orderReviewAdd`** — exige revisão manual antes de concluir o pedido (`reason`) — **Plus + B2B**."
+      },
+      {
+        "title": "Registre a extensão e a input query.",
+        "detail": "A query traz os métodos disponíveis (`paymentMethods { id name }`), o total e a identidade do comprador (pra saber se é B2B).",
+        "code": "[[extensions]]\nname = \"Regras de pagamento\"\nhandle = \"regras-pagamento\"\ntype = \"function\"\n\n  [[extensions.targeting]]\n  target = \"cart.payment-methods.transform.run\"\n  input_query = \"src/cart_payment_methods_transform_run.graphql\"\n  export = \"cart-payment-methods-transform-run\"\n\nquery CartPaymentMethodsTransformRunInput {\n  cart {\n    cost {\n      totalAmount {\n        amount\n      }\n    }\n    buyerIdentity {\n      purchasingCompany {\n        company {\n          name\n        }\n      }\n    }\n  }\n  paymentMethods {\n    id\n    name\n  }\n}"
+      },
+      {
+        "title": "Esconda, mova e renomeie.",
+        "detail": "Percorra os métodos e aplique as regras. Aqui: boleto só a partir de R$ 50, cartão no fim da lista para B2B e Pix renomeado.",
+        "code": "// src/cart_payment_methods_transform_run.js\nexport function cartPaymentMethodsTransformRun(input) {\n  const operations = [];\n  const total = Number(input.cart.cost.totalAmount.amount);\n  const isB2B = Boolean(input.cart.buyerIdentity?.purchasingCompany);\n\n  for (const method of input.paymentMethods) {\n    const name = method.name.toLowerCase();\n\n    // 1) boleto só a partir de R$ 50\n    if (name.includes(\"boleto\") && total < 50) {\n      operations.push({ paymentMethodHide: { paymentMethodId: method.id } });\n    }\n\n    // 2) B2B: cartão de crédito vai pro fim da lista\n    if (isB2B && name.includes(\"cartão\")) {\n      operations.push({ paymentMethodMove: { paymentMethodId: method.id, index: 99 } });\n    }\n\n    // 3) renomeia o Pix\n    if (name.includes(\"pix\")) {\n      operations.push({\n        paymentMethodRename: { paymentMethodId: method.id, name: \"Pix (aprovação imediata)\" },\n      });\n    }\n  }\n\n  return { operations };\n}",
+        "advanced": "Comparar pelo **nome** do método é frágil (idioma, gateway). Use o **id** quando possível, e trate o nome como conveniência."
+      },
+      {
+        "title": "Recursos exclusivos de B2B e Plus.",
+        "detail": "Em lojas Plus, com B2B, você pode exigir aprovação manual do pedido e definir condições de pagamento (net 30, entrada + saldo). O pedido fica aguardando revisão do lojista antes de ser concluído.",
+        "code": "// Só Shopify Plus + B2B: exige revisão manual do lojista antes de concluir o pedido\noperations.push({\n  orderReviewAdd: { reason: \"Primeiro pedido acima de R$ 20.000 — conferir crédito\" },\n});",
+        "advanced": "Condições de pagamento são incompatíveis com assinaturas."
+      },
+      {
+        "title": "Limites e boas práticas.",
+        "detail": "- Até **25** Functions de personalização de pagamento por loja.\n- **Nunca** deixe o comprador sem nenhuma forma de pagamento: se sua regra puder esconder todos, o checkout trava. Sempre garanta um método de fallback.\n- Regras simples e previsíveis: o suporte precisa conseguir explicar por que um método sumiu."
+      },
+      {
+        "title": "Projeto — regras de pagamento por valor e por tipo de comprador.",
+        "detail": "Vai esconder boleto abaixo de R$ 50 e reordenar métodos para B2B."
+      },
+      {
+        "title": "Projeto — passo 1: gere e implemente.",
+        "detail": "Gere a extensão de personalização de pagamento e implemente o código do passo 4."
+      },
+      {
+        "title": "Projeto — passo 2: teste local.",
+        "detail": "Rode `shopify app function run` com um input de total 30 (boleto some) e outro com total 120 (boleto aparece), listando os métodos em `paymentMethods`."
+      },
+      {
+        "title": "Projeto — passo 3: valide no checkout real.",
+        "detail": "Deploy, ative em Configurações > Checkout e compre com carrinhos de R$ 30 e R$ 120. Depois repita como comprador B2B e confira a ordem dos métodos."
+      }
+    ]
+  },
+  "categoryId": "data",
+  "categoryLabel": "Data and logic"
+}

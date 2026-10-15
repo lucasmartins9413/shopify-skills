@@ -1,0 +1,67 @@
+{
+  "id": "channels",
+  "title": "Sales channels",
+  "desc": "Distribua produtos para marketplaces, redes sociais e outros canais de venda.",
+  "plan": {
+    "objetivo": "Entender o modelo de publicações (Publication) como mecanismo de visibilidade por canal, publicar produtos programaticamente e lidar com requisitos de dados específicos de cada canal.",
+    "prereq": "Product merchandising",
+    "tempo": "3h",
+    "doc": "https://shopify.dev/docs/apps/build/sales-channels",
+    "steps": [
+      {
+        "title": "Entenda o problema: um produto pode (e deve) estar em vários lugares ao mesmo tempo.",
+        "detail": "Uma loja Shopify moderna raramente vende só através do próprio site — o mesmo catálogo costuma ser distribuído também pra marketplaces (Amazon, Mercado Livre), redes sociais (Instagram, TikTok Shop) e outros canais. O desafio é que cada canal pode ter regras próprias de visibilidade, formatação de dados e requisitos de catálogo — o produto \"existe\" uma vez na Shopify, mas precisa aparecer (ou não) de forma independente em cada canal conectado.",
+        "advanced": "Seu app pode **ser** um sales channel — ou seja, outros merchants instalam seu app especificamente pra distribuir produtos através de uma plataforma externa que ele integra, seguindo exatamente o modelo de Publication descrito neste tópico."
+      },
+      {
+        "title": "Entenda o modelo de `Publication`: a unidade de visibilidade por canal.",
+        "detail": "Uma **Publication** representa um canal de venda dentro da Shopify — pode ser a própria loja online, o POS, ou um app de canal instalado. Um produto (ou coleção) pode estar associado a **múltiplas publicações ao mesmo tempo**, cada uma com visibilidade independente: publicado num canal, oculto em outro, sem nenhuma relação forçada entre os dois estados.",
+        "advanced": "Isso significa que remover um produto de um canal não afeta sua visibilidade em nenhum outro — cada Publication controla seu próprio estado de visibilidade de forma completamente isolada."
+      },
+      {
+        "title": "Configure um sales channel de teste conectado ao app.",
+        "detail": "Um sales channel de teste pode ser o próprio app apontando pra **Storefront API**, simulando um canal externo (marketplace, rede social) que exibe e vende os produtos da loja usando a mesma API pública usada por temas e pelo Storefront MCP visto anteriormente na trilha."
+      },
+      {
+        "title": "Publique um produto no canal via `publishablePublish`.",
+        "detail": "`publishablePublish` associa um produto (ou coleção) a uma publicação específica (o canal), tornando-o visível ali.",
+        "code": "mutation {\n  publishablePublish(\n    id: \"gid://shopify/Product/1\",\n    input: {publicationId: \"gid://shopify/Publication/1\"}\n  ) { userErrors { message } }\n}",
+        "advanced": "Sincronização de estoque entre canais **não é automática por padrão** — se o mesmo produto vende no site e num marketplace externo simultaneamente, seu app precisa decidir a estratégia de sincronização (tempo real via webhooks, ou em lote periódico), senão corre o risco de vender o mesmo estoque duas vezes (overselling)."
+      },
+      {
+        "title": "Confirme a visibilidade do produto no canal de destino.",
+        "detail": "Consulte o produto pedindo o campo `publishedOnPublication` (ou `resourcePublicationsV2`, dependendo da versão de API) pra confirmar que ele está visível especificamente nesse canal — não assuma que publicar significa visível em todo lugar, sempre confirme o estado real.",
+        "code": "query {\n  product(id: \"gid://shopify/Product/1\") {\n    publishedOnPublication(publicationId: \"gid://shopify/Publication/1\")\n  }\n}"
+      },
+      {
+        "title": "Entenda requisitos de dados específicos de cada canal.",
+        "detail": "Alguns canais têm requisitos próprios de dados além dos campos padrão do produto — por exemplo, categoria do Google Shopping, GTIN (código de barras universal), ou dimensões físicas exatas pra cálculo de frete num marketplace. Produtos incompletos (faltando um campo exigido) ficam **ocultos só naquele canal específico**, sem afetar sua visibilidade nos outros — o que pode confundir quem espera que \"publicado\" signifique \"visível em todo lugar automaticamente\".",
+        "advanced": "Ao integrar com um canal externo real, documente claramente pro merchant quais campos são obrigatórios pra aquele canal específico — é uma fonte comum de \"por que meu produto não aparece lá\" que não tem nada a ver com a publicação em si, e sim com dados faltando."
+      },
+      {
+        "title": "Projeto — publique um produto num canal de teste e trate o caso de dado faltando.",
+        "detail": "Vamos simular um canal com um requisito extra de dado (GTIN), e ver o comportamento tanto do caminho de sucesso quanto do caminho onde o produto fica oculto por falta de informação."
+      },
+      {
+        "title": "Projeto — passo 1: publique um produto de teste numa publicação existente.",
+        "detail": "Use `publishablePublish` pra associar um produto qualquer a uma publicação disponível na sua dev store (pode ser a própria loja online, se não tiver outro canal configurado).",
+        "code": "mutation {\n  publishablePublish(\n    id: \"gid://shopify/Product/<id>\",\n    input: {publicationId: \"gid://shopify/Publication/<id>\"}\n  ) { userErrors { message } }\n}"
+      },
+      {
+        "title": "Projeto — passo 2: confirme a visibilidade via query.",
+        "detail": "Rode a query de confirmação de `publishedOnPublication` e valide que o retorno é `true` pra essa publicação específica."
+      },
+      {
+        "title": "Projeto — passo 3: simule um requisito de dado obrigatório (ex: GTIN) na sua lógica.",
+        "detail": "No seu próprio código (não na Shopify em si, já que isso simula a regra de um canal externo), escreva uma checagem que considera o produto \"incompleto pro canal\" se o campo de código de barras estiver vazio.",
+        "code": "const barcode = variant.barcode;\nif (!barcode) {\n  console.warn(`Produto ${product.title} está sem GTIN — não elegível para este canal.`);\n}"
+      },
+      {
+        "title": "Projeto — passo 4: preencha o campo faltante e confirme que o produto passa a ser elegível.",
+        "detail": "Adicione um valor de GTIN/barcode à variante testada, rode a checagem novamente, e confirme que ela agora passa — fechando o ciclo de \"identificar requisito → corrigir dado → validar elegibilidade\"."
+      }
+    ]
+  },
+  "categoryId": "commerce",
+  "categoryLabel": "Commerce"
+}

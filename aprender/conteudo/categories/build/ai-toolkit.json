@@ -1,0 +1,65 @@
+{
+  "id": "ai-toolkit",
+  "title": "Shopify AI Toolkit",
+  "desc": "Conecte seu assistente de IA à documentação da Shopify, aos schemas de API e a recursos de desenvolvimento.",
+  "plan": {
+    "objetivo": "Entender o que é o Model Context Protocol (MCP), conectar um assistente de IA à documentação/schema real da Shopify, e saber verificar quando confiar (ou não) na resposta dele.",
+    "prereq": "Set up your development environment",
+    "tempo": "1h",
+    "doc": "https://shopify.dev/docs/apps/build/ai-toolkit",
+    "steps": [
+      {
+        "title": "Qual problema o MCP resolve, na prática?",
+        "detail": "Um assistente de IA \"puro\" responde só com o que aprendeu durante o treinamento — que tem data de corte e não inclui mudanças recentes de schema, campos novos ou depreciações. Pra ajudar de verdade com desenvolvimento Shopify, ele precisa de acesso a informação **atual**: o schema GraphQL exato da versão de API que você está usando, a documentação mais recente, exemplos reais.\n\nO **MCP (Model Context Protocol)** resolve isso como um protocolo padronizado: um \"servidor MCP\" expõe ferramentas que um assistente pode chamar durante a conversa — por exemplo, \"buscar a definição do tipo `ProductInput` no schema atual\" — e usa o resultado real, em vez de tentar lembrar de memória.",
+        "advanced": "MCP não é exclusivo da Shopify — é um protocolo aberto adotado por vários assistentes de IA e ferramentas de desenvolvimento; o `@shopify/dev-mcp` é a implementação específica da Shopify desse protocolo, expondo schema e documentação da plataforma."
+      },
+      {
+        "title": "Ligue o servidor MCP no seu editor.",
+        "detail": "Na prática, isso significa habilitar um servidor MCP dentro do editor ou cliente de IA que você usa (VS Code, Cursor, Claude Code, etc.). A configuração costuma ser um bloco de servidor MCP no arquivo de config do próprio editor — o exemplo abaixo usa `npx` pra baixar e rodar o servidor sob demanda, sem precisar instalar nada globalmente antes.",
+        "code": "{\n  \"mcpServers\": {\n    \"shopify-dev\": {\n      \"command\": \"npx\",\n      \"args\": [\"-y\", \"@shopify/dev-mcp\"]\n    }\n  }\n}",
+        "advanced": "Assistentes conectados via MCP ainda erram em detalhes de schema muito recentes (a documentação pode não estar totalmente indexada) — confira sempre uma resposta crítica contra o **GraphiQL** real da sua dev store antes de confiar 100%."
+      },
+      {
+        "title": "Faça o teste de sanidade: pergunte os campos obrigatórios de um tipo real.",
+        "detail": "Peça ao assistente os **campos obrigatórios** de um input type específico, como `ProductInput` ou `DiscountAutomaticInput`. Se a resposta bater com o que o GraphiQL mostra pro mesmo tipo, você sabe que a conexão MCP está trazendo dado real, não achismo do modelo.",
+        "code": "Pergunta: \"Quais campos são obrigatórios em DiscountAutomaticInput\n           na versão de API atual?\"\n\n→ compare a resposta com o painel de schema do GraphiQL",
+        "advanced": "Perguntas citando o **nome exato do tipo GraphQL** (ex: `DiscountAutomaticInput`, não \"input de desconto automático\") tendem a puxar o schema certo via MCP com muito mais precisão do que descrições vagas em linguagem natural."
+      },
+      {
+        "title": "Peça código de verdade, não só descrição de campos.",
+        "detail": "Além de consultar schema, um bom uso do assistente conectado é pedir um trecho de código completo pra uma tarefa concreta — e depois rodar esse código de verdade contra sua dev store, em vez de assumir que está correto só porque parece plausível.",
+        "code": "Pergunta: \"Escreva uma mutation GraphQL que cria um produto\n           com três variantes (P, M, G).\"\n\n→ cole a resposta num loader/action real e rode com `shopify app dev`",
+        "advanced": "Trate toda sugestão de código de IA (mesmo com MCP conectado) como um **rascunho a validar**, não como resposta final — o assistente pode combinar corretamente um campo de uma versão de API com um padrão de outra, gerando algo que parece coerente mas não roda."
+      },
+      {
+        "title": "Saiba onde o MCP para: ele não substitui o changelog da API.",
+        "detail": "O MCP dá acesso à documentação e ao schema **atuais**, mas não necessariamente ao histórico de mudanças recentes ou aos avisos de depreciação com contexto — versões novas da API podem depreciar campos que o assistente ainda sugere, porque a indexação da documentação demora a refletir a mudança mais recente. Continue acompanhando o [changelog oficial da API](https://shopify.dev/changelog) por conta própria.",
+        "advanced": "Ao fixar a `api_version` no `shopify.app.toml`, peça ao assistente explicitamente \"considerando a API version 2025-01\" (ou a versão que você está usando) — isso reduz a chance de ele sugerir um campo que só existe numa versão mais nova ou mais antiga da API."
+      },
+      {
+        "title": "Projeto — use o assistente conectado pra resolver uma dúvida real de schema.",
+        "detail": "Vamos aplicar o fluxo completo: fazer uma pergunta técnica específica, validar a resposta contra a fonte real, e só então usar o código sugerido."
+      },
+      {
+        "title": "Projeto — passo 1: configure o servidor MCP no seu editor.",
+        "detail": "Adicione o bloco de configuração do `@shopify/dev-mcp` no arquivo de configuração do seu cliente de IA, seguindo o formato específico dele (a sintaxe varia entre VS Code, Cursor, Claude Code, etc., mas o bloco `mcpServers` costuma ser equivalente).",
+        "code": "{ \"mcpServers\": { \"shopify-dev\": { \"command\": \"npx\", \"args\": [\"-y\", \"@shopify/dev-mcp\"] } } }"
+      },
+      {
+        "title": "Projeto — passo 2: pergunte pelos campos obrigatórios de um tipo real do seu projeto.",
+        "detail": "Escolha um input type que você já usa (ou vai usar) no app — por exemplo `ProductInput`, se você seguiu o tópico \"Build an app\" — e pergunte ao assistente quais campos são obrigatórios versus opcionais."
+      },
+      {
+        "title": "Projeto — passo 3: valide a resposta no Admin API Explorer (GraphiQL) da sua dev store.",
+        "detail": "Abra o GraphiQL da sua dev store, procure o mesmo tipo na documentação lateral do schema, e confirme campo por campo se a resposta do assistente estava correta.",
+        "code": "shopify app dev\n# o CLI expõe um link pro GraphiQL da sua dev store durante a sessão"
+      },
+      {
+        "title": "Projeto — passo 4: peça o trecho de código completo e rode-o de verdade.",
+        "detail": "Com os campos confirmados, peça ao assistente o código completo de uma mutation usando exatamente esses campos, cole no seu projeto, e rode contra a dev store pra confirmar que funciona de ponta a ponta — fechando o ciclo de pergunta, validação e uso real."
+      }
+    ]
+  },
+  "categoryId": "build",
+  "categoryLabel": "Build"
+}

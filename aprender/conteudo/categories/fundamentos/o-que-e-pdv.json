@@ -1,0 +1,29 @@
+{
+  "id": "o-que-e-pdv",
+  "title": "O que é PDV (Point of Sale)",
+  "desc": "Como a venda presencial se conecta com a mesma loja online — o mesmo catálogo, o mesmo estoque, um canal de venda a mais.",
+  "plan": {
+    "objetivo": "Entender o que é um sistema de PDV, como ele se conecta ao mesmo catálogo e estoque da loja online, e por que isso é tratado como 'mais um canal de venda' em vez de um sistema separado.",
+    "prereq": "Pedidos e fulfillment",
+    "tempo": "15min",
+    "doc": "https://help.shopify.com/en/manual/sell-in-person",
+    "steps": [
+      {
+        "title": "Entenda o que é PDV e onde ele aparece no dia a dia.",
+        "detail": "**PDV** (Ponto de Venda, ou **POS** — Point of Sale, em inglês) é o sistema usado pra vender **pessoalmente**: numa loja física, banca de feira ou evento. Em vez de um cliente navegando sozinho num navegador, tem um vendedor ou o próprio cliente usando um tablet, celular ou maquininha pra registrar a venda e cobrar na hora — com cartão, dinheiro ou pix, dependendo do mercado.\n\nO PDV resolve o mesmo problema fundamental do checkout online — calcular total, cobrar, registrar a venda — só que otimizado pra ser rápido numa interação cara a cara, em vez de guiar alguém sozinho por várias telas.",
+        "advanced": "Uma maquininha de cartão sozinha, sem sistema por trás, não é um PDV completo — ela só processa o pagamento. Um sistema de PDV de verdade também sabe o que tem em estoque, calcula imposto, aplica desconto e registra a venda como um pedido de verdade."
+      },
+      {
+        "title": "Entenda por que PDV e loja online compartilham o mesmo catálogo e estoque.",
+        "detail": "Na Shopify, o PDV não é um sistema separado com seu próprio catálogo — ele lê e escreve nos **mesmos** produtos, variantes e níveis de estoque da loja online. Vender uma unidade no balcão físico debita o mesmo estoque que apareceria disponível pra compra no site, na mesma hora.\n\nEsse é o conceito de **omnichannel**: o merchant vende por vários canais (site, loja física, redes sociais, marketplaces) enquanto todos enxergam um catálogo e um estoque únicos e sempre atualizados — em vez de precisar sincronizar planilhas separadas entre \"loja do site\" e \"loja física\".",
+        "advanced": "Isso cria um desafio técnico real: se duas pessoas compram a última unidade de um produto ao mesmo tempo (uma pelo site, outra no balcão), o sistema precisa decidir quem \"ganhou\" o estoque e evitar vender duas vezes a mesma unidade — controle de concorrência sobre estoque compartilhado é um problema não-trivial em qualquer plataforma omnichannel."
+      },
+      {
+        "title": "Reconheça o PDV como só mais um canal de venda entre vários possíveis.",
+        "detail": "Do ponto de vista da plataforma, o PDV é tratado como um **canal de venda** (sales channel) — o mesmo conceito genérico usado pra loja online, redes sociais e marketplaces, que é o assunto do próximo tópico desta trilha. Pedidos feitos no PDV aparecem na mesma lista de pedidos do admin, só que marcados com a origem \"Ponto de Venda\" — o que permite ao merchant analisar performance por canal (quanto veio do site vs. quanto veio da loja física, por exemplo)."
+      }
+    ]
+  },
+  "categoryId": "fundamentos",
+  "categoryLabel": "Fundamentos de Ecommerce"
+}

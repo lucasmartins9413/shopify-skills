@@ -1,0 +1,34 @@
+{
+  "id": "anatomia-loja-online",
+  "title": "Anatomia de uma loja online",
+  "desc": "As peças que formam a jornada de compra — home, coleção, produto, carrinho, checkout, conta — e o que cada uma precisa resolver.",
+  "plan": {
+    "objetivo": "Reconhecer as páginas que compõem qualquer storefront e entender o que cada uma precisa resolver pro cliente, antes de aprender a construí-las com temas.",
+    "prereq": "O que é e-commerce",
+    "tempo": "25min",
+    "doc": "https://shopify.dev/docs/storefronts/themes",
+    "steps": [
+      {
+        "title": "Siga a jornada de compra do início ao fim, página por página.",
+        "detail": "Uma compra online quase sempre passa pela mesma sequência de páginas, cada uma com um trabalho específico:\n\n1. **Home**: primeira impressão, direciona pra coleções ou produtos em destaque.\n2. **Coleção (listagem)**: mostra vários produtos, com filtro e ordenação.\n3. **Produto (PDP)**: convence — fotos, preço, variantes, botão de comprar.\n4. **Carrinho**: resumo do que foi escolhido, antes de informar dados pessoais.\n5. **Checkout**: entrega e pagamento, o momento mais sensível de toda a jornada.\n6. **Confirmação / conta do cliente**: reforça confiança e permite acompanhar o pedido depois.\n\nCada uma dessas páginas corresponde, na Shopify, a um **template** dentro de um tema — você vai ver essa mesma lista de novo, com outro nome técnico, na trilha de temas.",
+        "advanced": "PDP é a sigla em inglês pra \"Product Detail Page\" — aparece bastante em discussões de UX e conversão de e-commerce, mesmo fora do universo Shopify."
+      },
+      {
+        "title": "Repare que cada página serve a um objetivo diferente — e otimizar todas do mesmo jeito não funciona.",
+        "detail": "Home e coleção existem pra **guiar** — o objetivo é levar o visitante até um produto que interesse, não fechar venda ali. Já a página de produto existe pra **convencer**: é onde entram prova social (avaliações), fotos de qualidade e informação que tira dúvida sem precisar perguntar a ninguém. Carrinho e checkout existem pra **não perder** quem já decidiu comprar — qualquer fricção nessas duas páginas (formulário longo, custo de frete surpresa, poucas opções de pagamento) custa venda que já estava praticamente fechada.",
+        "advanced": "Times de e-commerce costumam medir cada página da jornada separadamente (taxa de clique na home, taxa de adicionar ao carrinho na PDP, taxa de conclusão no checkout) — um problema de conversão em geral está concentrado numa dessas etapas, não espalhado igualmente por todas."
+      },
+      {
+        "title": "Entenda a conta do cliente como parte da anatomia, não como extra.",
+        "detail": "A **conta do cliente** (customer account) guarda histórico de pedidos, endereços salvos e, dependendo da loja, programas de fidelidade ou acesso B2B. Ela não é obrigatória pra comprar — a maioria das lojas permite **checkout como convidado** — mas afeta retenção: um cliente com conta tende a voltar mais fácil, porque não precisa redigitar endereço e cartão toda vez.",
+        "advanced": "Na Shopify, contas de cliente passaram por uma reformulação relativamente recente (\"customer accounts\" novo, hospedado pela própria Shopify) — ao ler documentação ou código mais antigo, você pode encontrar referências ao modelo anterior; vale sempre checar a data/versão do material."
+      },
+      {
+        "title": "Diferencie o que é conteúdo do merchant do que é comportamento da plataforma.",
+        "detail": "Ao olhar qualquer uma dessas páginas, vale separar duas coisas:\n\n- O que o **merchant controla**: textos, fotos, cores, quais produtos aparecem, layout das seções — isso é o tema, personalizável.\n- O que é **comportamento fixo da plataforma**: como o checkout calcula frete e imposto, como o pagamento é processado, como o estoque é debitado — isso a Shopify controla centralmente, por segurança e conformidade, e nem tema nem a maioria dos apps conseguem reescrever do zero.\n\nEssa distinção evita um mal-entendido comum de quem começa: \"por que eu não consigo mudar completamente o checkout no tema?\" — resposta: porque checkout é comportamento de plataforma, não conteúdo de tema."
+      }
+    ]
+  },
+  "categoryId": "fundamentos",
+  "categoryLabel": "Fundamentos de Ecommerce"
+}

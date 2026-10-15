@@ -1,0 +1,67 @@
+{
+  "id": "accessibility",
+  "title": "Accessibility",
+  "desc": "Torne seu app utilizável por todos, incluindo pessoas com deficiência.",
+  "plan": {
+    "objetivo": "Entender os pilares de acessibilidade web (teclado, contraste, leitor de tela), auditar o app com ferramentas automáticas e manuais, e corrigir problemas reais encontrados.",
+    "prereq": "App Home",
+    "tempo": "3h",
+    "doc": "https://shopify.dev/docs/apps/build/accessibility",
+    "steps": [
+      {
+        "title": "Entenda por que acessibilidade não é \"opcional\" ou \"nice to have\".",
+        "detail": "Acessibilidade garante que pessoas com deficiência visual, motora, auditiva ou cognitiva consigam usar seu app — isso inclui merchants que usam leitores de tela, que navegam só por teclado (por limitação motora), ou que dependem de alto contraste pra enxergar o conteúdo. Além de ser simplesmente a coisa certa a fazer, é um requisito de qualidade avaliado na revisão de apps, e boa parte do trabalho de acessibilidade é resolvido de graça usando os componentes certos (Polaris) em vez de HTML customizado sem cuidado."
+      },
+      {
+        "title": "Navegue pelo app inteiro usando só o teclado.",
+        "detail": "`Tab` deve seguir uma ordem lógica (de cima pra baixo, esquerda pra direita, seguindo a estrutura visual da página) e todo elemento interativo precisa ter **foco visível** — um contorno (outline) ou equivalente que mostra claramente onde o foco está no momento. Nunca use `outline: none` sem substituir por outro indicador visual equivalente; isso remove completamente a capacidade de alguém navegando só por teclado saber onde está na página.",
+        "advanced": "Componentes Polaris já cobrem boa parte da acessibilidade de foco/teclado nativamente — problemas costumam vir de HTML/CSS customizado escrito por cima deles (um `div` clicável sem `tabindex`, por exemplo), não do Polaris em si."
+      },
+      {
+        "title": "Rode um checador automático (axe) na interface.",
+        "detail": "Instale o axe-core (ou use a extensão axe DevTools no navegador) e rode contra a URL do app pra listar violações conhecidas de WCAG (as diretrizes internacionais de acessibilidade web) de forma automatizada.",
+        "code": "axe https://sua-loja.myshopify.com",
+        "advanced": "Ferramentas automáticas como axe pegam só uma fração dos problemas reais — estima-se que cobrem entre 30-50% dos problemas de acessibilidade totais. Combine sempre com teste manual de leitor de tela (VoiceOver no Mac, NVDA no Windows) pra cobrir o que a ferramenta automática não detecta."
+      },
+      {
+        "title": "Teste com um leitor de tela real, não só imagine como seria.",
+        "detail": "Ative o VoiceOver (Cmd+F5 no Mac) ou NVDA (Windows, gratuito) e navegue pelo seu app de olhos fechados (ou olhando pra outro lugar) — isso expõe rapidamente problemas que nenhuma ferramenta automática detecta, como um botão que só tem um ícone sem texto alternativo (`aria-label`), fazendo o leitor de tela anunciar algo tipo \"botão\" sem dizer pra que serve.",
+        "code": "<button aria-label=\"Excluir produto\">\n  <TrashIcon />\n</button>"
+      },
+      {
+        "title": "Corrija problemas de contraste até o mínimo exigido.",
+        "detail": "Contraste insuficiente entre texto e fundo é o problema mais comum encontrado em auditorias. Ajuste a cor até passar no mínimo de **4.5:1** de contraste pra texto normal, ou **3:1** pra texto grande (18px ou maior, em negrito) — essas são as métricas definidas pelas diretrizes WCAG no nível AA, o padrão mais comumente exigido.",
+        "advanced": "Contraste também importa em estados de `:hover`, `:focus` e `:disabled`, não só no texto padrão — muita gente ajusta o contraste do estado normal e esquece de testar esses estados com a mesma régua, deixando exatamente os elementos interativos mais importantes com contraste ruim."
+      },
+      {
+        "title": "Garanta texto alternativo em toda imagem informativa.",
+        "detail": "Toda `<img>` que carrega informação (não é puramente decorativa) precisa de um atributo `alt` descritivo. Imagens puramente decorativas (sem informação relevante) devem ter `alt=\"\"` vazio explicitamente — isso diz ao leitor de tela pra pular a imagem, em vez de tentar descrevê-la ou, pior, ler o nome do arquivo.",
+        "code": "<img src=\"grafico-vendas.png\" alt=\"Gráfico de vendas crescendo 20% no último trimestre\">\n<img src=\"decoracao.svg\" alt=\"\">"
+      },
+      {
+        "title": "Projeto — audite e corrija a tela principal do app em três frentes.",
+        "detail": "Vamos aplicar teclado, checador automático e leitor de tela na Home do app construído ao longo da trilha, corrigindo pelo menos um problema real de cada categoria."
+      },
+      {
+        "title": "Projeto — passo 1: navegue a Home do app só com Tab/Shift+Tab/Enter.",
+        "detail": "Sem usar o mouse, percorra toda a tela usando só o teclado, anotando qualquer elemento que pareça \"pulado\" ou sem indicação visual clara de foco."
+      },
+      {
+        "title": "Projeto — passo 2: rode o axe DevTools e corrija o primeiro problema listado.",
+        "detail": "Instale a extensão axe DevTools no navegador, rode a auditoria na página do app, e corrija o primeiro problema apontado (geralmente os mais fáceis são contraste ou `alt` faltando).",
+        "code": "axe http://localhost:PORTA/app"
+      },
+      {
+        "title": "Projeto — passo 3: teste com VoiceOver/NVDA e identifique um botão sem label claro.",
+        "detail": "Ative o leitor de tela e navegue pela tela, prestando atenção especial a botões que usam só ícone — se algum for anunciado de forma pouco clara (\"botão\" sem contexto), adicione um `aria-label` descritivo."
+      },
+      {
+        "title": "Projeto — passo 4: rode o axe novamente e confirme a redução de violações.",
+        "detail": "Depois das correções dos passos anteriores, rode a auditoria automática de novo e compare o número de violações antes/depois, documentando o progresso.",
+        "advanced": "Trate acessibilidade como um processo contínuo, não uma tarefa \"concluída\" de uma vez — cada nova tela ou componente adicionado ao app deveria passar pelo mesmo processo de checagem antes de ser considerado pronto."
+      }
+    ]
+  },
+  "categoryId": "quality",
+  "categoryLabel": "Quality"
+}

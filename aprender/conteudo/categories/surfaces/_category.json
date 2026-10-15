@@ -1,0 +1,16 @@
+{
+  "id": "surfaces",
+  "label": "Surfaces",
+  "intro": "Estenda múltiplas superfícies da Shopify a partir de um único app, do admin ao checkout, contas de cliente, temas de loja e automações.",
+  "topicCount": 8,
+  "topicIds": [
+    "app-home",
+    "admin",
+    "checkout",
+    "customer-accounts",
+    "flow",
+    "online-store",
+    "pos",
+    "sidekick"
+  ]
+}

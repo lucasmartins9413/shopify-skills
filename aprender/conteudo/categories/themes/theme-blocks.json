@@ -1,0 +1,67 @@
+{
+  "id": "theme-blocks",
+  "title": "Blocks",
+  "desc": "Quebre sections em pedaços menores e reutilizáveis que o merchant pode reordenar.",
+  "plan": {
+    "objetivo": "Criar theme blocks reutilizáveis entre múltiplas sections, entender blocks aninhados e a diferença entre theme blocks e app blocks.",
+    "prereq": "Sections",
+    "tempo": "3h",
+    "doc": "https://shopify.dev/docs/storefronts/themes/architecture/blocks",
+    "steps": [
+      {
+        "title": "Entenda a diferença entre block \"local\" de section e theme block reutilizável.",
+        "detail": "Existem duas formas de declarar blocks numa section:\n\n1. **Blocks definidos dentro do próprio schema da section** — vivem só naquela section, declarados no array `blocks` do `{% schema %}` dela.\n2. **Theme blocks** — arquivos próprios em `blocks/*.liquid`, com seu próprio schema, que podem ser referenciados por **várias sections diferentes**. É a forma mais moderna e reutilizável, e o foco deste tópico.\n\nA regra prática: se um tipo de bloco (ex: \"ícone com texto\") faz sentido em mais de uma section do tema, ele deveria ser um theme block em `blocks/`, não uma definição duplicada dentro de cada section.",
+        "advanced": "Blocks locais de section ainda existem e são válidos — use-os quando o bloco é conceitualmente amarrado só àquela section específica e não faz sentido em nenhum outro contexto do tema."
+      },
+      {
+        "title": "Crie um theme block com seu próprio schema.",
+        "detail": "Um theme block é um arquivo `.liquid` em `blocks/`, estruturalmente muito parecido com uma section: tem HTML/Liquid e termina com `{% schema %}`. A diferença é que ele não é standalone — só existe quando referenciado dentro de uma section (ou de outro block, se aninhado).\n\nDentro do block, `block.settings.*` acessa os valores configurados, exatamente como `section.settings.*` numa section.",
+        "code": "<!-- blocks/icon-text.liquid -->\n<div class=\"icon-text\">\n  {% if block.settings.icon %}\n    <img src=\"{{ block.settings.icon | image_url: width: 48 }}\" alt=\"\">\n  {% endif %}\n  <p>{{ block.settings.text }}</p>\n</div>\n\n{% schema %}\n{\n  \"name\": \"Ícone com texto\",\n  \"settings\": [\n    { \"type\": \"image_picker\", \"id\": \"icon\", \"label\": \"Ícone\" },\n    { \"type\": \"text\", \"id\": \"text\", \"label\": \"Texto\", \"default\": \"Frete grátis\" }\n  ]\n}\n{% endschema %}",
+        "advanced": "Blocks aninhados (um theme block que aceita outros blocks dentro dele) têm um limite de profundidade — não desenhe hierarquias arbitrariamente fundas de \"block dentro de block dentro de block\", isso tende a ficar difícil de manter e pode esbarrar no limite da plataforma."
+      },
+      {
+        "title": "Referencie o theme block dentro de uma section.",
+        "detail": "Na section, declare no schema quais tipos de block ela aceita — pode ser uma lista explícita de tipos, ou `@theme`, que libera **qualquer** theme block do projeto pra ser adicionado ali. Depois, no HTML da section, itere sobre `section.blocks` e renderize cada um com `{% content_for 'block' %}` (ou a tag equivalente da versão do tema que você está usando).",
+        "code": "<!-- sections/feature-list.liquid -->\n<div class=\"feature-list\">\n  {% for block in section.blocks %}\n    {% content_for 'block', id: block.id, type: block.type %}\n  {% endfor %}\n</div>\n\n{% schema %}\n{\n  \"name\": \"Lista de destaques\",\n  \"blocks\": [{ \"type\": \"@theme\" }]\n}\n{% endschema %}",
+        "advanced": "Restringir pra uma lista explícita de tipos (em vez de `@theme` liberado) é geralmente melhor prática em sections publicadas na Theme Store — dá controle sobre o que o merchant pode combinar ali, evitando composições visualmente quebradas."
+      },
+      {
+        "title": "Entenda app blocks: quem os controla, e o que seu tema controla.",
+        "detail": "**App blocks** são blocks fornecidos por apps instalados na loja (ex: um app de reviews adicionando um bloco de avaliações). Seu tema não escreve o conteúdo desse block — ele só declara, no schema da section, que aceita blocks de apps (`\"type\": \"@app\"`), abrindo espaço pro merchant inserir um se tiver o app instalado.",
+        "code": "{% schema %}\n{\n  \"name\": \"Lista de destaques\",\n  \"blocks\": [\n    { \"type\": \"@theme\" },\n    { \"type\": \"@app\" }\n  ]\n}\n{% endschema %}",
+        "advanced": "App blocks só funcionam em templates JSON (Online Store 2.0) — é um dos principais motivos pra migrar um tema legado, já que sem isso o merchant fica impossibilitado de usar boa parte dos apps de personalização visual disponíveis na App Store."
+      },
+      {
+        "title": "Adicione, remova e reordene instâncias do block pelo theme editor.",
+        "detail": "No editor de temas, dentro de uma section que aceita blocks, o merchant usa o botão \"Adicionar bloco\", escolhe o tipo entre os disponíveis, e reordena arrastando. Cada instância adicionada é independente — o mesmo tipo de block pode aparecer várias vezes na mesma section, cada uma com seus próprios valores de settings.",
+        "advanced": "Reaproveitar o mesmo theme block em várias sections do tema economiza manutenção (um bug corrigido corrige em todo lugar), mas exige pensar com cuidado em settings que dependem de contexto — um block de \"ícone com texto\" pode precisar se comportar visualmente diferente dentro de um header versus dentro de uma section de features, por exemplo."
+      },
+      {
+        "title": "Projeto — crie um theme block de destaque e use-o em duas sections diferentes.",
+        "detail": "Vamos criar um theme block \"Ícone com texto\" (o exemplo acima) e comprovar sua reutilização inserindo-o em duas sections diferentes do tema: uma lista de destaques na home, e o footer."
+      },
+      {
+        "title": "Projeto — passo 1: crie o arquivo do block.",
+        "detail": "Crie `blocks/icon-text.liquid` com o conteúdo mostrado anteriormente neste tópico.",
+        "code": "<div class=\"icon-text\">\n  {% if block.settings.icon %}\n    <img src=\"{{ block.settings.icon | image_url: width: 48 }}\" alt=\"\">\n  {% endif %}\n  <p>{{ block.settings.text }}</p>\n</div>\n\n{% schema %}\n{\n  \"name\": \"Ícone com texto\",\n  \"settings\": [\n    { \"type\": \"image_picker\", \"id\": \"icon\", \"label\": \"Ícone\" },\n    { \"type\": \"text\", \"id\": \"text\", \"label\": \"Texto\" }\n  ]\n}\n{% endschema %}"
+      },
+      {
+        "title": "Projeto — passo 2: crie a section \"Lista de destaques\" que aceita esse block.",
+        "detail": "Crie `sections/feature-list.liquid` liberando `@theme` como tipo de block aceito, com um preset já incluindo três instâncias.",
+        "code": "{% schema %}\n{\n  \"name\": \"Lista de destaques\",\n  \"blocks\": [{ \"type\": \"@theme\" }],\n  \"presets\": [{\n    \"name\": \"Lista de destaques\",\n    \"blocks\": [\n      { \"type\": \"icon-text\" },\n      { \"type\": \"icon-text\" },\n      { \"type\": \"icon-text\" }\n    ]\n  }]\n}\n{% endschema %}"
+      },
+      {
+        "title": "Projeto — passo 3: adicione o mesmo tipo de block dentro do footer-group.",
+        "detail": "Abra (ou crie) uma section usada no footer que também declare `{ \"type\": \"@theme\" }` em `blocks`, e adicione manualmente uma instância de \"Ícone com texto\" pelo editor — reaproveitando o mesmo arquivo `blocks/icon-text.liquid` da section anterior, sem duplicar nenhum código.",
+        "advanced": "Se o block parecer visualmente estranho num dos dois contextos, resista ao impulso de duplicar o arquivo — prefira um setting adicional (ex: um `select` de \"tamanho\") que ajuste o CSS por contexto, mantendo um único arquivo fonte da verdade."
+      },
+      {
+        "title": "Projeto — passo 4: confirme a independência das instâncias.",
+        "detail": "No editor, configure valores diferentes em cada instância do block (na lista de destaques e no footer) e confirme que elas não interferem entre si — cada instância de block guarda seus próprios settings, mesmo compartilhando o mesmo arquivo de definição.",
+        "code": "shopify theme dev --store=sua-loja-dev.myshopify.com"
+      }
+    ]
+  },
+  "categoryId": "themes",
+  "categoryLabel": "Temas (Storefronts)"
+}

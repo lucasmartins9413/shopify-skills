@@ -1,0 +1,69 @@
+{
+  "id": "pos",
+  "title": "Point of Sale",
+  "desc": "Adicione funcionalidades customizadas ao Shopify POS no iOS e Android.",
+  "plan": {
+    "objetivo": "Entender as restrições específicas de construir para um app mobile nativo (React Native), escolher o tipo certo de POS UI extension e validar em dispositivo real.",
+    "prereq": "App Home",
+    "tempo": "5h",
+    "doc": "https://shopify.dev/docs/apps/build/pos",
+    "steps": [
+      {
+        "title": "Entenda que POS é fundamentalmente diferente das outras superfícies: é mobile nativo.",
+        "detail": "Todas as superfícies vistas até aqui na trilha (admin, checkout, loja online) rodam dentro de um navegador, via iframe ou Liquid. O **Shopify POS** é diferente: é um aplicativo **nativo** de iOS/Android, usado por operadores de loja física pra vender presencialmente. Extensions de POS rodam em **React Native**, não em React web puro — o que significa um subconjunto diferente de componentes disponíveis, e um contexto de uso completamente distinto (tela pequena, uso com uma mão, muitas vezes em ambiente de loja movimentado).",
+        "advanced": "POS UI extensions em React Native têm um subconjunto de componentes suportados pela própria Shopify — nem toda biblioteca RN comum (por exemplo, bibliotecas de gráfico mais pesadas, ou que dependem de módulos nativos não incluídos) funciona nesse ambiente controlado."
+      },
+      {
+        "title": "Escolha entre os tipos de extension de POS.",
+        "detail": "POS UI extensions têm tipos específicos, cada um pensado pra um padrão de interação físico:\n- **Smart grid tile** — um ícone/atalho na tela inicial do POS, que o operador toca pra abrir sua funcionalidade.\n- **Modal** — uma tela que abre sobre o fluxo de venda atual, geralmente acionada a partir de um tile ou de uma ação do carrinho.\n- **Scanner** — integra com o hardware de leitura de código de barras do dispositivo, útil pra fluxos que dependem de escanear produtos fisicamente.",
+        "code": "shopify app generate extension\n# escolha \"POS UI extension\""
+      },
+      {
+        "title": "Configure o `target` no `shopify.extension.toml`.",
+        "detail": "Assim como outras extensions, o `target` define onde exatamente ela aparece — pra um smart grid tile na tela inicial, por exemplo, o valor segue um padrão específico do POS.",
+        "code": "[[extensions.targeting]]\ntarget = \"pos.home.tile.render\"",
+        "advanced": "Tiles do POS competem por espaço visual na home do aplicativo — muitos apps instalados na mesma loja podem empurrar o seu pra fora da primeira tela visível, exigindo scroll do operador. Pense nisso ao decidir a importância relativa da sua funcionalidade."
+      },
+      {
+        "title": "Implemente a lógica considerando o contexto de uso físico.",
+        "detail": "Diferente de um admin usado numa mesa com teclado e monitor grande, o POS é operado numa tela de tablet/celular, muitas vezes com o operador de pé, atendendo um cliente ao mesmo tempo. Priorize interações rápidas, poucos toques, texto legível a distância — e teste literalmente segurando o dispositivo como um operador faria, não só olhando um simulador na mesa.",
+        "advanced": "Erros de rede em campo (loja física com Wi-Fi instável) são mais comuns em POS do que em admin/desktop — trate falhas de conexão de forma explícita na UI, em vez de assumir que a extension sempre terá conectividade estável."
+      },
+      {
+        "title": "Teste no simulador de POS.",
+        "detail": "O simulador do POS roda no navegador, permitindo iterar rapidamente sem precisar de um dispositivo físico a cada mudança pequena de código.",
+        "code": "shopify app dev\n# o CLI expõe um link pro simulador de POS durante a sessão"
+      },
+      {
+        "title": "Valide em um dispositivo real conectado à mesma dev store.",
+        "detail": "Um dispositivo real precisa estar logado na mesma dev store usada no desenvolvimento pra testar a extension de verdade. Isso é essencial porque o simulador **não reproduz 100%** do comportamento do hardware real.",
+        "advanced": "O simulador não reproduz fielmente hardware como leitor de cartão, impressora de recibo ou o scanner de código de barras — sempre valide em dispositivo real antes de considerar uma funcionalidade que depende desses recursos como pronta."
+      },
+      {
+        "title": "Projeto — construa um smart grid tile que consulta o estoque de um produto por código de barras.",
+        "detail": "Vamos criar uma extension prática pra um cenário comum de loja física: o operador escaneia um produto e vê rapidamente o estoque disponível, sem precisar sair da tela de venda."
+      },
+      {
+        "title": "Projeto — passo 1: gere o smart grid tile.",
+        "detail": "Rode o gerador escolhendo POS UI extension do tipo tile, confirmando o target de home.",
+        "code": "shopify app generate extension\n# target: pos.home.tile.render"
+      },
+      {
+        "title": "Projeto — passo 2: configure o tile pra abrir um modal com o scanner.",
+        "detail": "Ao tocar no tile, abra um modal que ativa a leitura de código de barras usando os componentes de scanner disponíveis na extension."
+      },
+      {
+        "title": "Projeto — passo 3: busque o estoque do produto escaneado via GraphQL.",
+        "detail": "Com o código de barras lido, consulte o produto correspondente via Admin API e exiba o campo `totalInventory`.",
+        "code": "query($barcode: String!) {\n  productVariants(first: 1, query: $barcode) {\n    nodes { product { title } inventoryQuantity }\n  }\n}"
+      },
+      {
+        "title": "Projeto — passo 4: teste no simulador e depois num dispositivo físico.",
+        "detail": "Valide primeiro no simulador com um código de barras digitado manualmente (já que o simulador não tem câmera real), e depois, se tiver acesso a um dispositivo físico, teste escaneando um produto de verdade com a câmera.",
+        "advanced": "Se o comportamento divergir entre simulador e dispositivo real, confie no dispositivo real como referência — o simulador é uma ferramenta de iteração rápida, não uma réplica perfeita do hardware."
+      }
+    ]
+  },
+  "categoryId": "surfaces",
+  "categoryLabel": "Surfaces"
+}

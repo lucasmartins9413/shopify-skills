@@ -1,0 +1,66 @@
+{
+  "id": "functions-delivery",
+  "title": "Functions: personalização de entrega",
+  "desc": "Esconda, renomeie e reordene as opções de frete no checkout com base em carrinho, endereço e regras do lojista.",
+  "plan": {
+    "objetivo": "Usar a Delivery Customization pra controlar quais opções de entrega o comprador vê e como elas aparecem.",
+    "prereq": "Shopify Functions",
+    "tempo": "3h",
+    "doc": "https://shopify.dev/docs/api/functions/latest/delivery-customization",
+    "steps": [
+      {
+        "title": "Entenda o escopo: personalizar, não criar.",
+        "detail": "A Delivery Customization **não cria tarifas de frete** — quem calcula as opções são as suas configurações de envio, transportadoras e apps de frete. A Function **filtra e apresenta** o que já existe: esconde uma opção, renomeia com o prazo, muda a ordem.",
+        "advanced": "Pra **criar** opções novas de retirada, existem as APIs de pickup (Local Pickup / Pickup Point Delivery Option Generator), ainda em versão instável."
+      },
+      {
+        "title": "Conheça o target e as três operações.",
+        "detail": "Target: `cart.delivery-options.transform.run`. Saídas:\n\n- **`deliveryOptionHide`** — remove a opção (por `deliveryOptionHandle`).\n- **`deliveryOptionMove`** — muda a posição (`deliveryOptionHandle` + `index`).\n- **`deliveryOptionRename`** — troca o título exibido (`deliveryOptionHandle` + `title`).",
+        "advanced": "O que identifica cada opção é o **handle**, não o título. Títulos podem mudar com o idioma ou com a transportadora; para regras estáveis, prefira o handle."
+      },
+      {
+        "title": "Registre a extensão e a input query.",
+        "detail": "A query pede o subtotal e os grupos de entrega: cada grupo traz o endereço e as opções disponíveis (`handle`, `title`, `cost`).",
+        "code": "[[extensions]]\nname = \"Regras de entrega\"\nhandle = \"regras-entrega\"\ntype = \"function\"\n\n  [[extensions.targeting]]\n  target = \"cart.delivery-options.transform.run\"\n  input_query = \"src/cart_delivery_options_transform_run.graphql\"\n  export = \"cart-delivery-options-transform-run\"\n\nquery CartDeliveryOptionsTransformRunInput {\n  cart {\n    cost {\n      subtotalAmount {\n        amount\n      }\n    }\n    deliveryGroups {\n      deliveryAddress {\n        countryCode\n        provinceCode\n      }\n      deliveryOptions {\n        handle\n        title\n        cost {\n          amount\n        }\n      }\n    }\n  }\n}"
+      },
+      {
+        "title": "Esconda e renomeie opções.",
+        "detail": "Percorra os grupos e opções e aplique suas regras. Aqui: esconder o expresso abaixo de R$ 200 e renomear o \"padrão\" com o prazo.",
+        "code": "// src/cart_delivery_options_transform_run.js\nexport function cartDeliveryOptionsTransformRun(input) {\n  const operations = [];\n  const subtotal = Number(input.cart.cost.subtotalAmount.amount);\n\n  for (const group of input.cart.deliveryGroups) {\n    for (const option of group.deliveryOptions) {\n      const title = option.title?.toLowerCase() ?? \"\";\n\n      // 1) esconde o frete expresso em pedidos pequenos\n      if (title.includes(\"expresso\") && subtotal < 200) {\n        operations.push({ deliveryOptionHide: { deliveryOptionHandle: option.handle } });\n        continue;\n      }\n\n      // 2) renomeia com o prazo\n      if (title.includes(\"padrão\")) {\n        operations.push({\n          deliveryOptionRename: {\n            deliveryOptionHandle: option.handle,\n            title: `${option.title} (3 a 5 dias úteis)`,\n          },\n        });\n      }\n    }\n  }\n\n  return { operations };\n}"
+      },
+      {
+        "title": "Reordene as opções.",
+        "detail": "`deliveryOptionMove` leva uma opção a uma posição da lista — útil pra destacar a retirada na loja ou a opção mais barata.",
+        "code": "// reordena: coloca a opção \"retirada\" na segunda posição da lista\noperations.push({\n  deliveryOptionMove: { deliveryOptionHandle: retirada.handle, index: 1 },\n});"
+      },
+      {
+        "title": "Respeite as regras de proteção do checkout.",
+        "detail": "A Shopify limita o que a Function pode fazer com o frete: **a opção mais barata precisa continuar sendo a primeira selecionada por padrão**, e você **não pode** pré-selecionar automaticamente uma opção mais cara. Isso evita empurrar frete caro sem o comprador escolher.",
+        "advanced": "Até **25** Functions de personalização de entrega por loja."
+      },
+      {
+        "title": "Cuidado com regras por endereço.",
+        "detail": "Regras como \"esconder frete X para caixa postal\" ou \"para tal estado\" dependem de dados do endereço (`provinceCode`, `countryCode`…). Nas tarifas nativas da Shopify, alguns dados podem não estar disponíveis; **transportadoras via carrier service** costumam trazer mais informação.",
+        "advanced": "Teste com endereços reais dos estados que você quer tratar — a regra que \"funciona\" em SP pode falhar em um estado que o carrier devolve com outro formato."
+      },
+      {
+        "title": "Projeto — regras de frete por valor de pedido.",
+        "detail": "Vai esconder o expresso em pedidos pequenos e renomear o padrão com prazo."
+      },
+      {
+        "title": "Projeto — passo 1: cadastre tarifas de teste.",
+        "detail": "Em Configurações > Envio, crie duas tarifas manuais: \"Entrega padrão\" e \"Entrega expressa\"."
+      },
+      {
+        "title": "Projeto — passo 2: gere, implemente e rode localmente.",
+        "detail": "Gere a extensão de personalização de entrega, use o código do passo 4 e teste com `shopify app function run` um input com subtotal 150 e outro com 300."
+      },
+      {
+        "title": "Projeto — passo 3: publique e valide no checkout.",
+        "detail": "Deploy, ative em Configurações > Checkout. Compre com R$ 150 (sem expresso) e R$ 300 (com expresso), e confirme que o padrão exibe \"(3 a 5 dias úteis)\"."
+      }
+    ]
+  },
+  "categoryId": "data",
+  "categoryLabel": "Data and logic"
+}

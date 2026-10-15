@@ -1,0 +1,71 @@
+{
+  "id": "app-home",
+  "title": "App Home",
+  "desc": "Construa a interface principal do seu app no admin da Shopify com React Router e App Bridge, ou como uma UI extension hospedada pela Shopify.",
+  "plan": {
+    "objetivo": "Construir a interface principal do app com React Router, App Bridge e componentes Polaris, entendendo por que ela precisa seguir os padrões visuais e de navegação do admin.",
+    "prereq": "Build an app",
+    "tempo": "5h",
+    "doc": "https://shopify.dev/docs/apps/build/app-home",
+    "steps": [
+      {
+        "title": "Entenda o que é App Home e por que ela precisa \"parecer nativa\".",
+        "detail": "**App Home** é a tela principal do seu app, carregada quando o merchant clica no ícone dele no menu do admin. Como ela roda dentro de um `<iframe>` inserido diretamente no admin, a expectativa do merchant é que ela pareça e se comporte como qualquer outra página nativa da Shopify — mesma tipografia, mesmos espaçamentos, mesmos padrões de navegação. Um app com uma interface visualmente destoante (fontes diferentes, botões com estilo próprio) quebra essa ilusão de continuidade e é percebido como mais amador, mesmo que a funcionalidade por trás seja excelente.\n\nÉ exatamente pra resolver isso que existem **Polaris** (o sistema de design da Shopify, com componentes React prontos) e **App Bridge** (a camada de comunicação entre seu iframe e o admin ao redor) — usando os dois corretamente, você ganha a aparência nativa de graça, sem escrever CSS customizado do zero.",
+        "advanced": "Também existe a opção de construir a App Home como uma **UI extension hospedada pela Shopify** (em vez de uma rota React Router no seu próprio servidor) — um modelo mais recente, com menos flexibilidade de layout mas hospedagem gerenciada pela própria Shopify. Para a maioria dos apps novos, o modelo React Router + Polaris continua sendo o caminho mais flexível e documentado."
+      },
+      {
+        "title": "Abra a rota principal do app gerado.",
+        "detail": "É o arquivo que carrega quando o merchant abre seu app no admin — geralmente `app/routes/app._index.jsx` — e já vem, no template gerado, com um exemplo de tabela do Polaris e uma chamada de exemplo à Admin API.",
+        "advanced": "Evite fazer `fetch` direto no client (navegador) pra Admin API — sempre passe pelo backend do app (`loader`/`action`), que já tem o token de acesso e sabe autenticar a chamada corretamente, como visto no tópico de Authentication."
+      },
+      {
+        "title": "Adicione um componente Polaris exibindo dados reais via GraphQL.",
+        "detail": "Componentes Polaris renderizam automaticamente no mesmo estilo visual do admin da Shopify — cores, espaçamentos, tipografia — sem você escrever CSS customizado. A biblioteca cobre desde elementos básicos (botões, campos de texto) até estruturas complexas como tabelas com paginação.",
+        "code": "import { IndexTable } from '@shopify/polaris';"
+      },
+      {
+        "title": "Entenda por que listas grandes precisam de paginação desde o início.",
+        "detail": "Um componente `IndexTable` renderizando centenas ou milhares de linhas de uma vez trava o iframe do admin — o navegador do merchant precisa processar todo esse DOM dentro de um espaço já limitado. A Admin GraphQL API já é paginada por natureza (usando `first`/`after`, o padrão de cursor-based pagination do GraphQL) — use isso desde a primeira versão da tela, não como uma otimização a adicionar depois que o problema aparecer.",
+        "code": "query {\n  products(first: 20, after: $cursor) {\n    nodes { id title }\n    pageInfo { hasNextPage endCursor }\n  }\n}",
+        "advanced": "`IndexTable` com muitas linhas sem paginação trava o iframe do admin de forma perceptível — teste sua tela desde cedo com um volume de dados realista (dezenas ou centenas de itens), não só com os poucos produtos de exemplo de uma dev store vazia."
+      },
+      {
+        "title": "Use App Bridge pra navegação, modais e notificações consistentes com o admin.",
+        "detail": "**App Bridge** é a biblioteca que conecta seu frontend, rodando dentro do iframe, aos recursos nativos do admin ao redor — navegação (`Redirect`), modais (`Modal`) e toasts de notificação (`Toast`). Usar esses componentes em vez de reimplementar sua própria versão garante que a experiência (por exemplo, o visual de uma notificação de \"salvo com sucesso\") seja idêntica à de qualquer outra parte do admin.",
+        "code": "import { useAppBridge } from '@shopify/app-bridge-react';\n\nconst shopify = useAppBridge();\nshopify.toast.show('Salvo com sucesso');"
+      },
+      {
+        "title": "Rode `shopify app dev` e confira a página dentro do admin.",
+        "detail": "Toda mudança salva recarrega a página automaticamente dentro do iframe do admin, graças ao túnel do `shopify app dev` — o mesmo fluxo de hot reload já visto nos tópicos de setup do ambiente.",
+        "code": "shopify app dev",
+        "advanced": "Erros de hidratação no React Router (quando o HTML renderizado no servidor não bate exatamente com o que o React tenta montar no cliente) só aparecem no console do navegador, não no terminal do CLI — abra o DevTools do navegador ao depurar problemas visuais estranhos que não geram erro no terminal."
+      },
+      {
+        "title": "Projeto — construa uma tela de listagem de produtos paginada, com toast de feedback.",
+        "detail": "Vamos consolidar os conceitos vistos: uma tabela Polaris com dados reais, paginação via cursor, e um toast de App Bridge confirmando uma ação."
+      },
+      {
+        "title": "Projeto — passo 1: implemente o `loader` com paginação por cursor.",
+        "detail": "Ajuste o `loader` da rota principal pra aceitar um parâmetro de cursor via query string, e buscar a próxima página de produtos com base nele.",
+        "code": "export async function loader({ request }) {\n  const url = new URL(request.url);\n  const cursor = url.searchParams.get(\"cursor\");\n  const { admin } = await authenticate.admin(request);\n  const response = await admin.graphql(`#graphql\n    query($cursor: String) {\n      products(first: 10, after: $cursor) {\n        nodes { id title }\n        pageInfo { hasNextPage endCursor }\n      }\n    }`, { variables: { cursor } });\n  return (await response.json()).data;\n}"
+      },
+      {
+        "title": "Projeto — passo 2: renderize a tabela com um botão \"Carregar mais\".",
+        "detail": "Use `IndexTable` do Polaris pra exibir os produtos, e um botão que navega passando o `endCursor` retornado como próximo cursor.",
+        "code": "import { IndexTable, Button } from '@shopify/polaris';\nimport { useLoaderData, useNavigate } from 'react-router';\n\nexport default function Index() {\n  const { products, pageInfo } = useLoaderData();\n  const navigate = useNavigate();\n  return (\n    <>\n      <IndexTable /* ...configuração com products */ />\n      {pageInfo.hasNextPage && (\n        <Button onClick={() => navigate(`?cursor=${pageInfo.endCursor}`)}>\n          Carregar mais\n        </Button>\n      )}\n    </>\n  );\n}"
+      },
+      {
+        "title": "Projeto — passo 3: adicione um toast confirmando o carregamento de uma nova página.",
+        "detail": "Use `useAppBridge` pra disparar um toast simples toda vez que uma nova página de produtos for carregada com sucesso.",
+        "code": "const shopify = useAppBridge();\n// dentro de um useEffect que observa a mudança de 'products':\nshopify.toast.show(`${products.length} produtos carregados`);"
+      },
+      {
+        "title": "Projeto — passo 4: teste com volume realista de produtos.",
+        "detail": "Se sua dev store tiver poucos produtos, crie alguns adicionais (ou use `productCreate` em lote via script) até ter o suficiente pra passar por pelo menos duas páginas, e confirme que a paginação funciona corretamente sem travar o iframe.",
+        "advanced": "Considere criar um pequeno script de seed que gera dezenas de produtos de teste via API — é reutilizável em qualquer tópico futuro da trilha que precise de volume de dados realista pra testar performance ou paginação."
+      }
+    ]
+  },
+  "categoryId": "surfaces",
+  "categoryLabel": "Surfaces"
+}

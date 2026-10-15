@@ -1,0 +1,65 @@
+{
+  "id": "theme-templates",
+  "title": "Templates",
+  "desc": "Controle o que é renderizado em cada tipo de página com arquivos de template.",
+  "plan": {
+    "objetivo": "Entender a anatomia de um template JSON, criar templates alternativos e saber quando (não) usar cada um.",
+    "prereq": "Layouts",
+    "tempo": "2h",
+    "doc": "https://shopify.dev/docs/storefronts/themes/architecture/templates",
+    "steps": [
+      {
+        "title": "Entenda o que um template resolve: \"o que aparece\", não \"como aparece\".",
+        "detail": "Cada tipo de recurso da Shopify (produto, coleção, página, blog, artigo, carrinho, busca, a home) precisa de um template correspondente em `templates/`. O nome do arquivo segue o padrão `<tipo-de-recurso>.json` — `product.json`, `collection.json`, `index.json` (a home), `page.json`, e assim por diante.\n\nUm template JSON **não contém HTML nem lógica de apresentação**. Ele só lista: quais sections aparecem nessa página, em que ordem, e quais settings cada uma recebe por padrão. A lógica de \"como\" cada section se parece fica inteiramente no arquivo da section — o template é puramente uma lista de composição.",
+        "code": "// templates/product.json (simplificado)\n{\n  \"sections\": {\n    \"main\": {\n      \"type\": \"main-product\",\n      \"settings\": { \"show_vendor\": true }\n    },\n    \"related-products\": {\n      \"type\": \"related-products\"\n    }\n  },\n  \"order\": [\"main\", \"related-products\"]\n}",
+        "advanced": "Templates JSON e templates Liquid legados (`product.liquid`) não são intercambiáveis livremente — um tema não pode ter as duas versões ativas ao mesmo tempo pro mesmo tipo de recurso. Migrar de Liquid pra JSON exige extrair toda a lógica que estava hardcoded no `.liquid` pra dentro de sections com schema (veja o tópico \"Migrar para Online Store 2.0\")."
+      },
+      {
+        "title": "Distinga a chave usada em `sections` da chave usada em `order`.",
+        "detail": "Repare que no JSON acima, `sections` é um **objeto** (mapa de identificador → configuração), e `order` é um **array** de identificadores. A ordem visual das sections na página é sempre ditada por `order` — a ordem em que as chaves aparecem dentro de `sections` é só estética no arquivo, não afeta o render.",
+        "advanced": "Um erro comum: adicionar uma section nova em `sections` e esquecer de incluir seu identificador em `order`. O resultado não é um erro visível — a section simplesmente não aparece na página, porque nunca é \"chamada\" pelo array de ordem."
+      },
+      {
+        "title": "Crie um template alternativo pra uma variação de página.",
+        "detail": "Templates alternativos seguem o padrão `<tipo>.<nome>.json` — por exemplo, `product.featured.json` ou `page.contato.json`. Eles convivem com o template padrão do mesmo tipo, e ficam disponíveis pro merchant escolher individualmente, por produto ou página, no admin.\n\nIsso é útil pra páginas de produto que precisam de um layout genuinamente diferente (ex: produtos com configurador 3D, ou uma landing page de lançamento com estrutura só sua), sem forçar essa diferença em **todo** produto da loja.",
+        "code": "// templates/product.lancamento.json\n{\n  \"sections\": {\n    \"hero\": { \"type\": \"launch-hero\" },\n    \"main\": { \"type\": \"main-product\" }\n  },\n  \"order\": [\"hero\", \"main\"]\n}",
+        "advanced": "Existe um limite documentado de quantos templates alternativos cabem por tipo de recurso — não é ilimitado. Em lojas com muita variação de layout por produto, prefira resolver a diferença com lógica condicional dentro da própria section (usando um setting do tipo \"select\", por exemplo) em vez de multiplicar templates alternativos."
+      },
+      {
+        "title": "Associe um template alternativo a um recurso pelo admin.",
+        "detail": "No admin: Produtos → escolha um produto → seção \"Tema\" na barra lateral → selecione o template alternativo no menu suspenso. O mesmo padrão vale pra páginas (Online Store → Páginas) e outros tipos de recurso que suportam templates alternativos.",
+        "advanced": "Atribuir templates alternativos manualmente, produto a produto, não escala bem pra catálogos grandes — se a lógica pode ser expressa como uma condição (\"produtos da coleção X usam layout Y\"), resolver isso dentro da section com Liquid é mais sustentável a longo prazo."
+      },
+      {
+        "title": "Entenda o `index.json` como caso especial: o template da home.",
+        "detail": "A home da loja é tratada como um tipo de recurso próprio, com o template `index.json` — sem `.default` ou nome especial, é literalmente `index.json`. Ela costuma ser o template com mais liberdade de composição, já que não representa um recurso único (produto, página) mas sim um espaço livre de sections escolhidas pelo merchant.",
+        "advanced": "`index.json` normalmente já vem com várias sections por padrão nos temas de referência — ao começar um tema do zero (Skeleton), esse arquivo tende a estar quase vazio, esperando que você monte a composição da home."
+      },
+      {
+        "title": "Projeto — crie um template alternativo de produto do zero.",
+        "detail": "Vamos criar, no seu tema de trabalho, um template alternativo de produto pensado pra uma categoria específica — por exemplo, produtos digitais/downloads, que não precisam de seção de frete."
+      },
+      {
+        "title": "Projeto — passo 1: copie o `product.json` padrão com um novo nome.",
+        "detail": "Duplique o arquivo existente pra criar a base do template alternativo.",
+        "code": "cp templates/product.json templates/product.digital.json"
+      },
+      {
+        "title": "Projeto — passo 2: remova a section que não se aplica a esse tipo de produto.",
+        "detail": "Edite `templates/product.digital.json` removendo a entrada de frete/entrega tanto de `sections` quanto de `order` — lembre da regra vista no passo 2 deste tópico: os dois precisam estar sincronizados."
+      },
+      {
+        "title": "Projeto — passo 3: suba o tema e associe o template a um produto de teste.",
+        "detail": "Envie a mudança pro preview local, depois associe `product.digital` a um produto específico da sua dev store pelo admin.",
+        "code": "shopify theme dev --store=sua-loja-dev.myshopify.com"
+      },
+      {
+        "title": "Projeto — passo 4: confirme visualmente a diferença entre os dois templates.",
+        "detail": "Abra, lado a lado, um produto comum (usando `product.json`) e o produto de teste (usando `product.digital.json`), e confirme que a seção removida realmente não aparece só nesse segundo caso.",
+        "advanced": "Se a seção continuar aparecendo, confira se o cache do navegador não está servindo uma versão antiga do preview — force um reload completo (Ctrl+Shift+R / Cmd+Shift+R) antes de assumir que o template está errado."
+      }
+    ]
+  },
+  "categoryId": "themes",
+  "categoryLabel": "Temas (Storefronts)"
+}

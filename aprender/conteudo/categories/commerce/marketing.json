@@ -1,0 +1,67 @@
+{
+  "id": "marketing",
+  "title": "Marketing",
+  "desc": "Acompanhe o comportamento do cliente com web pixels e gerencie atividades de marketing.",
+  "plan": {
+    "objetivo": "Entender por que Web Pixels rodam isolados num sandbox, implementar o rastreio de eventos padrão e reconhecer os limites de confiabilidade do modelo.",
+    "prereq": "GraphQL",
+    "tempo": "3h",
+    "doc": "https://shopify.dev/docs/apps/build/marketing",
+    "steps": [
+      {
+        "title": "Entenda o problema: rastrear comportamento sem comprometer o checkout.",
+        "detail": "Apps de marketing frequentemente precisam saber quando um evento de negócio acontece — uma página vista, um checkout iniciado, uma compra concluída — pra alimentar ferramentas de análise ou publicidade (Meta Ads, Google Analytics). Historicamente, isso significava inserir scripts de terceiros diretamente nas páginas da loja, incluindo o checkout — um risco real de segurança e performance, já que qualquer script mal comportado ali poderia degradar ou até comprometer a experiência de compra.\n\n**Web Pixels** resolvem isso rodando o script de rastreio isolado, dentro de um **Web Worker** próprio — um ambiente de execução separado da thread principal da página, sem acesso direto ao `document`/`window` dela. Isso garante que um pixel com bug (ou malicioso) não consiga travar, adulterar ou espionar o restante da página, incluindo o checkout.",
+        "advanced": "Esse isolamento também significa que pixels não têm acesso ao DOM nem a cookies de terceiros por padrão — um design pensado pra continuar funcionando de forma previsível mesmo com bloqueadores agressivos de rastreamento (ad blockers, Safari ITP), que tendem a restringir justamente esse tipo de acesso tradicional."
+      },
+      {
+        "title": "Gere um Web Pixel via extension.",
+        "detail": "Gere a extension pelo CLI escolhendo o tipo correspondente — ela já vem com a estrutura básica de assinatura de eventos configurada.",
+        "code": "shopify app generate extension\n# selecione \"Web pixel extension\" na lista de tipos"
+      },
+      {
+        "title": "Assine eventos padrão do Shopify.",
+        "detail": "Web Pixels assinam eventos **padrão**, já definidos e disparados automaticamente pela Shopify em pontos-chave da jornada do comprador, direto no `src/index.js` da extension. Os mais usados no dia a dia são: `page_viewed`, `product_viewed`, `checkout_started` e `checkout_completed`.",
+        "code": "analytics.subscribe('checkout_completed', (event) => {\n  const { checkout } = event.data;\n  fetch('https://seu-backend.com/track', {\n    method: 'POST',\n    body: JSON.stringify({\n      orderId: checkout.order?.id,\n      total: checkout.totalPrice?.amount\n    })\n  });\n});"
+      },
+      {
+        "title": "Diferencie eventos padrão de eventos customizados.",
+        "detail": "Além dos eventos padrão (disparados automaticamente pela Shopify), é possível ter **eventos customizados** — mas eles não vêm de graça: exigem que outra parte do seu app ou tema chame `analytics.publish()` explicitamente em algum momento da jornada. O pixel sozinho, sem essa publicação ativa em outro lugar, só recebe os eventos padrão já existentes.",
+        "advanced": "Se você planeja rastrear um evento de negócio muito específico do seu app (por exemplo, \"cliente usou o configurador de produto customizado\"), lembre que isso exige duas peças coordenadas: o `analytics.publish()` chamado de onde o evento acontece, e a assinatura correspondente no pixel — implementar só uma das duas partes não gera rastreio nenhum."
+      },
+      {
+        "title": "Verifique os eventos disparados numa compra de teste.",
+        "detail": "Abra a aba **Network** do DevTools numa compra de teste e confirme que a requisição do pixel saiu com os dados certos — filtre pelo domínio do seu backend de tracking pra achar rápido entre o volume normal de requisições de uma página de checkout."
+      },
+      {
+        "title": "Entenda por que falhas de pixel são silenciosas — e por que isso é intencional.",
+        "detail": "Falhas de rede no pixel **não bloqueiam** o checkout — isso é uma decisão de design deliberada, boa pra experiência do comprador (um pixel quebrado nunca deveria impedir alguém de comprar). Mas o lado negativo é que você **perde dados de conversão silenciosamente** se não monitorar ativamente a taxa de erro do próprio endpoint de tracking — nenhum alarme automático avisa que o pixel parou de funcionar.",
+        "advanced": "Configure monitoramento próprio (logs, alertas) na taxa de sucesso do seu endpoint de tracking — é a única forma de saber que o pixel está de fato funcionando em produção, já que o comportamento de falha silenciosa é intencional e não vai aparecer como erro em lugar nenhum visível ao merchant."
+      },
+      {
+        "title": "Projeto — implemente rastreio completo do funil, de visualização a compra.",
+        "detail": "Vamos assinar três eventos em sequência (visualização de produto, início de checkout, checkout concluído) e confirmar cada um deles disparando de verdade numa jornada de teste completa."
+      },
+      {
+        "title": "Projeto — passo 1: gere o Web Pixel e assine os três eventos.",
+        "detail": "No `src/index.js` da extension gerada, adicione as três assinaturas, cada uma enviando pro mesmo endpoint de teste com um campo identificando o tipo de evento.",
+        "code": "analytics.subscribe('product_viewed', (event) => track('product_viewed', event));\nanalytics.subscribe('checkout_started', (event) => track('checkout_started', event));\nanalytics.subscribe('checkout_completed', (event) => track('checkout_completed', event));\n\nfunction track(name, event) {\n  fetch('https://seu-backend.com/track', {\n    method: 'POST',\n    body: JSON.stringify({ name, data: event.data })\n  });\n}"
+      },
+      {
+        "title": "Projeto — passo 2: percorra a jornada completa numa dev store.",
+        "detail": "Visualize um produto, inicie o checkout, e complete a compra com o Bogus Gateway — abra o DevTools durante todo o percurso pra observar as três requisições saindo em sequência.",
+        "code": "shopify app dev --store=sua-loja-dev.myshopify.com"
+      },
+      {
+        "title": "Projeto — passo 3: confirme os três eventos no seu backend de teste.",
+        "detail": "Se você tiver um endpoint simples recebendo esses dados (pode ser só um log no console de um servidor local), confirme que os três eventos chegaram, na ordem certa, com os dados esperados em cada um."
+      },
+      {
+        "title": "Projeto — passo 4: simule uma falha de rede e observe que o checkout continua normalmente.",
+        "detail": "Desligue temporariamente o endpoint de destino (ou aponte pra uma URL inválida) e complete uma nova compra de teste — confirme que o checkout conclui normalmente mesmo com o pixel falhando silenciosamente, validando na prática o comportamento descrito acima.",
+        "advanced": "Depois desse teste, lembre de reconectar o endpoint real e confirmar que voltou a funcionar — é fácil esquecer uma configuração de teste \"quebrada de propósito\" ligada depois do experimento."
+      }
+    ]
+  },
+  "categoryId": "commerce",
+  "categoryLabel": "Commerce"
+}

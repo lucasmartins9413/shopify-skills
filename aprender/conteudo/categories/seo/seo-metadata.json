@@ -1,0 +1,70 @@
+{
+  "id": "seo-metadata",
+  "title": "Metadata de SEO no tema",
+  "desc": "Implemente title, meta description e canonical URL exatamente como a documentação oficial da Shopify recomenda.",
+  "plan": {
+    "objetivo": "Implementar corretamente os três elementos de metadata que todo tema precisa ter no <head> — título, meta description e canonical URL — usando os objects oficiais do Liquid.",
+    "prereq": "Fundamentos de SEO para e-commerce",
+    "tempo": "2h30",
+    "doc": "https://shopify.dev/docs/storefronts/themes/seo/metadata",
+    "steps": [
+      {
+        "title": "Entenda por que esses três elementos, especificamente, importam tanto.",
+        "detail": "Título, meta description e canonical são os três elementos que o Google lê **antes mesmo de renderizar a página** — eles vêm do HTML bruto, no `<head>`, e formam a primeira impressão que o motor de busca (e o usuário, no resultado de busca) tem daquela URL:\n\n- O **título** costuma ser o texto azul clicável no resultado de busca, e um dos sinais de relevância mais fortes que você controla diretamente.\n- A **meta description** não afeta ranking diretamente, mas influencia a taxa de clique (CTR) — um resumo bem escrito faz mais gente clicar no seu resultado em vez do concorrente.\n- O **canonical** resolve conteúdo duplicado, dizendo ao Google \"esta é a versão oficial desta página\", mesmo quando ela é acessível por múltiplas URLs (parâmetros de filtro, variantes, etc.).\n\nOs três já vêm implementados no Dawn e em qualquer tema Online Store 2.0 moderno — mas se você está migrando um tema legado, construindo do zero, ou customizando o `theme.liquid`, precisa saber exatamente onde e como eles entram."
+      },
+      {
+        "title": "Implemente o título da página com o object `page_title`.",
+        "detail": "O Liquid expõe o título já calculado pra cada tipo de página através do object `page_title` — ele já resolve automaticamente pra título do produto, da coleção, do artigo, etc., dependendo de onde a página está. Você só precisa envolvê-lo na tag `<title>` e adicionar contexto extra (tags ativas, número de página, nome da loja).",
+        "code": "<title>\n  {{ page_title -}}\n  {%- if current_tags %} &ndash; tagged \"{{ current_tags | join: ', ' }}\"{% endif -%}\n  {%- if current_page != 1 %} &ndash; Page {{ current_page }}{% endif -%}\n  {%- unless page_title contains shop.name %} &ndash; {{ shop.name }}{% endunless -%}\n</title>",
+        "advanced": "Repare no `unless page_title contains shop.name` — ele evita duplicar o nome da loja no título quando a página já o inclui (comum na home). Sem essa checagem, títulos ficam redundantes (\"Minha Loja – Minha Loja\") em algumas páginas."
+      },
+      {
+        "title": "Implemente a meta description com o object `page_description`.",
+        "detail": "Assim como `page_title`, o Liquid expõe `page_description` já resolvido pro contexto da página atual — vem da descrição SEO configurada pelo merchant no admin (produto, coleção, página, artigo) ou de um fallback calculado pela Shopify quando o merchant não preencheu nada. Sempre envolva a saída num `{% if %}`, porque nem toda página necessariamente tem uma description disponível.",
+        "code": "{% if page_description %}\n  <meta name=\"description\" content=\"{{ page_description | escape }}\" />\n{% endif %}",
+        "advanced": "Sempre use o filtro `escape` na description — texto de merchant pode conter aspas ou caracteres especiais que, sem escapar, quebrariam o atributo HTML do `<meta>`."
+      },
+      {
+        "title": "Implemente o canonical URL com o object global `canonical_url`.",
+        "detail": "O Liquid expõe `canonical_url` como um object **global** (disponível em qualquer página, sem precisar calcular nada) — ele já resolve pra URL canônica correta daquele recurso específico, considerando inclusive o domínio principal configurado na loja.",
+        "code": "<link rel=\"canonical\" href=\"{{ canonical_url }}\" />",
+        "advanced": "Nunca hardcode o domínio no canonical (`https://minhaloja.com/...` escrito à mão) — use sempre `canonical_url` ou construa a partir de `request.origin`, porque lojas com múltiplos domínios (mercados internacionais, domínio de teste vs. produção) quebram silenciosamente com URLs fixas."
+      },
+      {
+        "title": "Entenda quando (raramente) vale sobrescrever o canonical padrão.",
+        "detail": "Em geral, o canonical automático do Liquid está correto — mas existe um caso legítimo de override: quando uma página é acessível por múltiplas URLs que representam **exatamente o mesmo conteúdo** e você quer apontar todas pra uma só, além do que a Shopify já resolve automaticamente (por exemplo, um produto que aparece em duas coleções diferentes, cada uma gerando uma URL distinta pro mesmo produto).",
+        "code": "{% if collection and product %}\n  <link rel=\"canonical\" href=\"{{ shop.url }}{{ product.url }}\" />\n{% else %}\n  <link rel=\"canonical\" href=\"{{ canonical_url }}\" />\n{% endif %}",
+        "advanced": "Sobrescrever o canonical com muita liberdade é uma fonte comum de bugs de indexação — só faça isso com uma razão específica e documentada, testando depois no Google Search Console que a página realmente foi indexada pela URL esperada."
+      },
+      {
+        "title": "Valide os três elementos direto no HTML renderizado, não só no código.",
+        "detail": "Depois de implementar, sempre confirme no **HTML final entregue ao navegador** (\"Ver código-fonte\", não o DevTools que já pode ter sido alterado por JS) — é comum um `{% if %}` mal condicionado fazer a tag simplesmente não aparecer em certos tipos de página, sem nenhum erro visível no preview do editor."
+      },
+      {
+        "title": "Projeto — implemente e valide a metadata completa em três tipos de página diferentes.",
+        "detail": "Vamos aplicar os três elementos no `layout/theme.liquid` do seu tema de trabalho (o mesmo da trilha de Temas) e confirmar em produto, coleção e página institucional."
+      },
+      {
+        "title": "Projeto — passo 1: adicione (ou confirme) o bloco de metadata no `<head>` do `theme.liquid`.",
+        "detail": "Cole exatamente o bloco de título + description + canonical mostrado nesta trilha dentro do `<head>`, antes de `content_for_header` ou logo depois, seguindo a mesma posição usada pelo Dawn.",
+        "code": "<title>\n  {{ page_title -}}\n  {%- if current_tags %} &ndash; tagged \"{{ current_tags | join: ', ' }}\"{% endif -%}\n  {%- if current_page != 1 %} &ndash; Page {{ current_page }}{% endif -%}\n  {%- unless page_title contains shop.name %} &ndash; {{ shop.name }}{% endunless -%}\n</title>\n{% if page_description %}\n  <meta name=\"description\" content=\"{{ page_description | escape }}\" />\n{% endif %}\n<link rel=\"canonical\" href=\"{{ canonical_url }}\" />"
+      },
+      {
+        "title": "Projeto — passo 2: preencha título e description SEO de um produto de teste pelo admin.",
+        "detail": "No admin, abra um produto → seção \"Otimização para mecanismos de busca\" → preencha título e descrição customizados, diferentes do título/descrição normais do produto."
+      },
+      {
+        "title": "Projeto — passo 3: confirme no código-fonte que os valores customizados aparecem.",
+        "detail": "Abra a página desse produto e veja o código-fonte — o `<title>` e a `<meta name=\"description\">` devem refletir exatamente o que você preencheu no admin, não o título/descrição padrão do produto.",
+        "code": "shopify theme dev --store=sua-loja-dev.myshopify.com"
+      },
+      {
+        "title": "Projeto — passo 4: repita a checagem numa coleção e numa página institucional.",
+        "detail": "Confirme que os três elementos aparecem corretamente também nesses dois outros tipos de página, e que o canonical de cada uma aponta pra própria URL (não pra home ou pra outra página por engano).",
+        "advanced": "Um canonical apontando pro lugar errado é pior que não ter canonical nenhum — ele ativamente diz ao Google pra ignorar a página em favor de outra, então valide esse caso com atenção redobrada."
+      }
+    ]
+  },
+  "categoryId": "seo",
+  "categoryLabel": "SEO"
+}

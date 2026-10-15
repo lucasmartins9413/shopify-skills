@@ -1,0 +1,74 @@
+{
+  "id": "theme-b2b-liquid",
+  "title": "Tema para clientes B2B",
+  "desc": "Detecte o comprador B2B no Liquid, mostre empresa e localização, esconda preços de visitantes e decida entre loja mista e dedicada.",
+  "plan": {
+    "objetivo": "Adaptar um tema pra vender no atacado: identificar o comprador B2B no Liquid, deixar ele escolher a localização da empresa, controlar o que cada tipo de visitante vê e escolher entre loja mista (B2B + varejo) ou dedicada.",
+    "prereq": "B2B",
+    "tempo": "4h",
+    "doc": "https://shopify.dev/docs/storefronts/themes/pricing-payments/b2b",
+    "steps": [
+      {
+        "title": "Entenda as duas formas de montar uma loja B2B.",
+        "detail": "A Shopify descreve dois cenários:\n\n- **Loja mista (blended)** — a mesma loja atende consumidores finais e compradores B2B. O tema precisa **mostrar conteúdo diferente** pra cada público.\n- **Loja dedicada** — só B2B. Dá pra **restringir o acesso** a compradores logados (a Shopify menciona apps de terceiros pra travar partes da loja) e usar um tema já pensado pra isso, como o **Trade**.\n\nEssa escolha muda quase tudo no tema: numa mista você vive de condicionais; numa dedicada, de gate de login e fluxos de pedido rápido.",
+        "advanced": "Os temas gratuitos da Shopify Trade e Horizon já são compatíveis com recursos B2B. Antes de construir do zero, abra os dois numa dev store com B2B ativo e veja o que já vem pronto."
+      },
+      {
+        "title": "Como um comprador vira \"B2B\": company, location e contato.",
+        "detail": "Revise o modelo (tópico B2B): uma **company** tem uma ou mais **locations** (cada uma com endereço, catálogo e termos de pagamento) e **contatos** (os clientes que compram por ela). Numa compra, o comprador atua **em uma location específica** — é ela que define preço, catálogo e condições.\n\nNo tema, tudo isso aparece por objetos Liquid ligados ao `customer`."
+      },
+      {
+        "title": "Detecte o comprador B2B com customer.b2b?.",
+        "detail": "A propriedade `customer.b2b?` é verdadeira quando o cliente logado é um comprador B2B. É a base de toda personalização.",
+        "code": "{% if customer.b2b? %}\n  <p>Bem-vindo, comprador B2B!</p>\n{% else %}\n  <p>Compra no varejo</p>\n{% endif %}",
+        "advanced": "`customer.b2b?` só é verdadeiro **com o cliente logado**. Visitante anônimo sempre cai no ramo \"não B2B\" — por isso qualquer texto tipo \"faça login pra ver preços de atacado\" precisa tratar esse caso."
+      },
+      {
+        "title": "Mostre a empresa e a localização atual.",
+        "detail": "Três objetos importam: `customer.current_company` (a empresa ativa), `customer.current_location` (a localização em que ele está comprando) e `customer.company_available_locations` (todas as que ele pode usar).",
+        "code": "{% if customer.b2b? %}\n  <p>\n    Comprando por {{ customer.current_company.name }}\n    — {{ customer.current_location.name }}\n  </p>\n{% endif %}"
+      },
+      {
+        "title": "Construa um seletor de localização.",
+        "detail": "Uma empresa com várias filiais precisa trocar de localização (e, com isso, de preços e endereço). Só mostre o seletor se houver mais de uma localização disponível, e use o link pronto de cada uma (`url_to_set_as_current`).",
+        "code": "{% if customer.b2b? %}\n  <p>Você está comprando para {{ customer.current_location.name }}</p>\n\n  {% if customer.company_available_locations.size > 1 %}\n    <ul>\n      {% for location in customer.company_available_locations %}\n        {% unless location.current? %}\n          <li><a href=\"{{ location.url_to_set_as_current }}\">{{ location.name }}</a></li>\n        {% endunless %}\n      {% endfor %}\n    </ul>\n  {% endif %}\n{% endif %}",
+        "advanced": "Trocar de localização muda o **catálogo aplicado**, então os preços na tela mudam junto. Se você guarda algo em cache no cliente (preço, carrinho), invalide ao trocar."
+      },
+      {
+        "title": "Mostre conteúdo por empresa ou por tipo de comprador.",
+        "detail": "Você pode variar conteúdo pela empresa atual — útil pra mensagens contratuais, banners de condições especiais ou informações de entrega.",
+        "code": "{% if customer.current_company.name == 'Shopify' %}\n  <h3>Frete incluído.</h3>\n{% endif %}",
+        "advanced": "Comparar pelo **nome** é frágil (o nome pode mudar). Pra regra de negócio de verdade, use um metafield da company/location e teste esse valor."
+      },
+      {
+        "title": "Esconda preços de quem não é comprador B2B.",
+        "detail": "Muito atacadista não quer preço público. Em loja mista ou dedicada, troque o preço por um convite ao login quando o visitante não for B2B — e ofereça um formulário de contato pra quem ainda não tem conta.",
+        "code": "{% if customer.b2b? %}\n  {{ product.price | money }}\n{% else %}\n  <a href=\"{{ routes.account_login_url }}\">Entre para ver os preços</a>\n{% endif %}\n\n{% unless customer.b2b? %}\n  {% form 'contact' %}\n    <!-- formulário de pedido de cadastro B2B -->\n  {% endform %}\n{% endunless %}",
+        "advanced": "Esconder no tema **não protege o dado**: o preço ainda pode ser lido por quem inspeciona a resposta ou consulta a Storefront API pública. Se o preço é sensível de verdade, a restrição precisa ser de acesso à loja, não só de visual."
+      },
+      {
+        "title": "Não edite o código de um tema da Theme Store: use Custom Liquid.",
+        "detail": "Se você usa um tema pronto da Theme Store (Trade, Horizon, Dawn…), a orientação da Shopify é **não alterar o código do tema** pra personalizar B2B, e sim usar seções **Custom Liquid** no editor. Assim o tema continua elegível a atualizações automáticas.",
+        "advanced": "Se você está construindo o **seu** tema (é o caso desta trilha), edite à vontade — mas mantenha a lógica B2B em snippets/blocks isolados pra facilitar reaproveitar depois."
+      },
+      {
+        "title": "Projeto — construa o cabeçalho B2B de uma loja mista.",
+        "detail": "Vai fazer um snippet que muda o topo da loja conforme o visitante: anônimo, cliente de varejo ou comprador B2B."
+      },
+      {
+        "title": "Projeto — passo 1: crie o snippet com os três estados.",
+        "detail": "Crie `snippets/b2b-topbar.liquid`: anônimo → link \"Entrar\"; logado não-B2B → nada; B2B → nome da empresa + localização. Renderize no layout com `{% render 'b2b-topbar' %}`."
+      },
+      {
+        "title": "Projeto — passo 2: adicione o seletor de localização.",
+        "detail": "Inclua o seletor do passo anterior. Na dev store, crie uma company com **duas locations** e confira que só aparece a opção da outra localização, nunca a atual."
+      },
+      {
+        "title": "Projeto — passo 3: oculte preços de visitantes e teste como comprador.",
+        "detail": "Aplique a regra de ocultar preço no card de produto. Teste três navegadores/perfis: anônimo (vê \"Entre para ver os preços\"), cliente de varejo e o contato B2B (vê o preço). Use o mesmo produto nos três."
+      }
+    ]
+  },
+  "categoryId": "themes",
+  "categoryLabel": "Temas (Storefronts)"
+}

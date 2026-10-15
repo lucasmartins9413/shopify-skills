@@ -1,0 +1,71 @@
+{
+  "id": "scaffold",
+  "title": "Scaffold an app",
+  "desc": "Use o Shopify CLI pra gerar, em minutos, a estrutura completa de um app — autenticação, banco de dados e primeira rota já prontos.",
+  "plan": {
+    "objetivo": "Entender o que é um app Shopify, instalar o CLI e gerar a estrutura completa de um projeto, sabendo exatamente o que cada peça faz.",
+    "prereq": "Nenhum — este é o ponto de partida de toda a trilha.",
+    "tempo": "2h",
+    "doc": "https://shopify.dev/docs/apps/build/scaffold-app",
+    "steps": [
+      {
+        "title": "Antes de instalar qualquer coisa: o que é, de fato, um app Shopify?",
+        "detail": "Pensa assim: um **tema** vive *dentro* da loja — é um conjunto de arquivos Liquid que a própria Shopify hospeda e renderiza. Um **app** é o oposto: é um servidor seu, rodando fora da Shopify, em qualquer infraestrutura que você escolher, que se conecta à loja de fora pra dentro através de uma API autenticada (principalmente a Admin GraphQL API).\n\nO merchant instala seu app como quem instala um plugin — mas por trás dessa instalação simples, o fluxo real é uma requisição vindo do navegador dele até o *seu* backend. Segura essa imagem na cabeça:",
+        "code": "Navegador do merchant\n        │\n        ▼\n   Admin da Shopify  ──iframe──►  SEU app (seu servidor)\n        │                              │\n        └────────── Admin API ◄───────┘\n            (o app fala com a Shopify,\n             nunca o contrário)",
+        "advanced": "Um mesmo app pode ser instalado em milhares de lojas diferentes ao mesmo tempo — seu backend precisa ser **multi-tenant** desde o primeiro dia: toda query ao seu próprio banco de dados deve ser filtrada pela loja (`shop`) que fez a requisição, nunca assumindo que existe só uma loja usando o app."
+      },
+      {
+        "title": "Instale o Shopify CLI — a ferramenta que você vai usar o resto da trilha inteira.",
+        "detail": "O Shopify CLI é quem faz o trabalho pesado por você: gera o projeto, abre um túnel HTTPS até o seu `localhost`, autentica contra o Partner/Dev Dashboard e cuida do deploy. Antes de instalar, confira dois pré-requisitos — e não pula essa parte, porque quase todo bug estranho de CLI no início da trilha vem justamente de uma versão de Node desatualizada:\n\n- **Node.js** numa LTS ativa (18 ou mais recente).\n- **npm** já vem junto com o Node.",
+        "code": "node --version\n# v20.11.0  (qualquer 18+ serve)\n\nnpm install -g @shopify/cli",
+        "advanced": "Fixe a versão do CLI em pipelines de CI com `--version` explícito (ex: `npm install -g @shopify/cli@3.70.0`) — sem isso, cada build puxa a versão mais recente do momento, e um comando que funcionava ontem pode mudar de comportamento hoje sem aviso."
+      },
+      {
+        "title": "Rode `shopify app init` e gere o projeto de verdade.",
+        "detail": "Esse comando é o coração deste tópico. Ele baixa um template completo, roda o `npm install` sozinho e já deixa o projeto conectado à Shopify. Durante a execução, o CLI faz três perguntas — responda assim:\n\n1. **Nome do app** — vira o nome da pasta e o nome exibido dentro do admin da loja.\n2. **Template** — escolha *React Router* (o padrão recomendado hoje); ele já vem com autenticação, sessão e webhooks configurados.\n3. **Organização/Partner account** — a conta onde o app fica registrado.",
+        "code": "shopify app init\n\n# ? App name: meu-primeiro-app\n# ? Which template? React Router (recommended)\n# ? Organization: sua-conta-partner",
+        "advanced": "O template usa **Prisma + SQLite** por padrão em desenvolvimento — rápido de rodar localmente, já que o banco é só um arquivo `.sqlite` dentro da pasta do projeto. Isso não escala pra produção multi-tenant: antes de publicar de verdade, troque o `datasource` do `schema.prisma` pra Postgres ou MySQL."
+      },
+      {
+        "title": "Repare no que o template já resolveu por você, sem escrever uma linha.",
+        "detail": "Antes de mexer no código, vale parar pra entender o problema que já foi resolvido: pra um app conversar com a Admin API, ele precisa de um **access token** daquela loja específica — normalmente algo que você obteria através de um fluxo OAuth inteiro. O template já vem com isso pronto:\n\n- uma tabela `Session` no banco, guardando o token de cada loja instalada;\n- o helper `authenticate.admin(request)`, que valida a sessão da requisição atual e devolve um client GraphQL já autenticado;\n- os webhooks obrigatórios de compliance (`app/uninstalled`, `customers/data_request`, etc.) já registrados.\n\nOu seja: na primeira vez que você rodar o app, ele já consegue chamar a Admin API autenticado — sem você ter escrito nenhum código de login.",
+        "code": "// dentro de qualquer rota, isso já funciona de graça:\nexport async function loader({ request }) {\n  const { admin } = await authenticate.admin(request);\n  // `admin` já está autenticado com o token certo da loja certa\n}",
+        "advanced": "Esse comportamento é chamado de **managed installation** — a Shopify cuida do fluxo OAuth completo baseado só nos escopos declarados no `shopify.app.toml`. Você raramente precisa tocar em código de OAuth manualmente, a menos que esteja construindo um app standalone fora do padrão embutido."
+      },
+      {
+        "title": "Abra a pasta gerada e localize as três peças que importam.",
+        "detail": "Não precisa ler o projeto inteiro agora — foca nesses três pontos, porque é neles que você vai voltar toda hora daqui pra frente:\n\n- `app/routes/` — cada arquivo aqui vira uma rota (ex: `app._index.jsx` é a Home do app).\n- `app/shopify.server.js` — configura a autenticação e exporta o `authenticate.admin()` que você acabou de ver.\n- `shopify.app.toml` — o arquivo de configuração central: nome, `client_id`, URL e escopos de API.",
+        "code": "meu-app/\n├── app/\n│   ├── routes/\n│   │   └── app._index.jsx\n│   └── shopify.server.js\n├── extensions/        (vazia por enquanto)\n├── prisma/\n│   └── schema.prisma\n└── shopify.app.toml",
+        "advanced": "`shopify.app.toml` pode ter uma versão por ambiente (ex: `shopify.app.staging.toml`, `shopify.app.production.toml`) — útil quando você tem múltiplos `client_id` e quer alternar entre eles com `shopify app config use <nome>` em vez de editar o arquivo à mão."
+      },
+      {
+        "title": "Feche o loop: rode `shopify app info` e confirme que está tudo certo.",
+        "detail": "Esse comando resume o estado atual do projeto — é o primeiro lugar pra olhar quando algo parece errado, antes mesmo de tentar rodar o app.",
+        "code": "shopify app info\n\n# App name: meu-primeiro-app\n# Client ID: a1b2c3d4...\n# Access scopes: write_products\n# Dev store: minha-dev-store.myshopify.com",
+        "advanced": "Se `shopify app info` mostrar um `client_id` diferente do esperado, é sinal de que o projeto está conectado ao app errado no Dashboard — normalmente porque `shopify app init` foi rodado logado numa conta/organização diferente da pretendida."
+      },
+      {
+        "title": "Projeto — gere seu primeiro app do zero e confirme cada peça.",
+        "detail": "Agora é sua vez. Vamos consolidar os passos acima num fluxo único, do comando de instalação até confirmar que o projeto está corretamente conectado à Shopify."
+      },
+      {
+        "title": "Projeto — passo 1: instale o CLI e gere o app.",
+        "detail": "Rode os dois comandos em sequência, escolhendo React Router como template quando solicitado.",
+        "code": "npm install -g @shopify/cli\nshopify app init"
+      },
+      {
+        "title": "Projeto — passo 2: encontre os três pontos-chave nos arquivos gerados.",
+        "detail": "Entre na pasta gerada e confirme, olhando diretamente os arquivos: onde fica a rota principal, onde fica a configuração de autenticação e onde ficam os escopos declarados.",
+        "code": "cd meu-app\ncat shopify.app.toml"
+      },
+      {
+        "title": "Projeto — passo 3: confirme a conexão com `shopify app info`.",
+        "detail": "Rode o comando e verifique se o nome do app e a organização batem com o que você esperava ao responder as perguntas do `init`. Se bateu, seu ambiente está pronto pra seguir pro próximo tópico.",
+        "code": "shopify app info",
+        "advanced": "Guarde esse projeto — ele é a base usada pelos próximos tópicos da trilha (Set up your development environment, Build an app), então vale manter ele funcionando em vez de recriar do zero a cada tópico."
+      }
+    ]
+  },
+  "categoryId": "build",
+  "categoryLabel": "Build"
+}

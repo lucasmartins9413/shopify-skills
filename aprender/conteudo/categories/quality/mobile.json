@@ -1,0 +1,66 @@
+{
+  "id": "mobile",
+  "title": "Mobile support",
+  "desc": "Garanta que seu app funcione bem no Shopify mobile.",
+  "plan": {
+    "objetivo": "Entender as particularidades do WebView mobile do admin, testar fluxos completos em tela pequena, e priorizar funcionalidade essencial em vez de esconder recursos no mobile.",
+    "prereq": "App Home",
+    "tempo": "2h",
+    "doc": "https://shopify.dev/docs/apps/build/mobile-support",
+    "steps": [
+      {
+        "title": "Entenda por que muitos merchants gerenciam a loja principalmente pelo celular.",
+        "detail": "Diferente de um desenvolvedor, que provavelmente testa e usa o admin num monitor grande, muitos merchants — especialmente donos de pequenos negócios — gerenciam boa parte da operação diária pelo aplicativo mobile do admin: conferir pedidos novos, ajustar estoque, responder mensagens, tudo do celular, muitas vezes entre outras tarefas do dia a dia. Um app que só funciona bem em desktop está efetivamente incompleto pra uma fatia significativa dos merchants."
+      },
+      {
+        "title": "Entenda como o WebView do app mobile difere do navegador desktop.",
+        "detail": "O app do admin mobile (iOS/Android) carrega seu app embutido da mesma forma que o navegador desktop — via `WebView`, um componente que renderiza conteúdo web dentro de um app nativo — mas com tela bem menor e sem as mesmas dev tools completas à mão pra depurar diretamente no dispositivo.",
+        "advanced": "O `WebView` do app mobile pode ter um motor de renderização ligeiramente diferente (ou uma versão diferente) do navegador desktop que você usa pra desenvolver — teste CSS que depende de features mais recentes (`:has()`, container queries) separadamente em mobile, já que o suporte pode não ser idêntico ao Chrome desktop mais atual."
+      },
+      {
+        "title": "Teste os fluxos principais na tela pequena, não só a tela inicial.",
+        "detail": "É comum testar só a primeira tela de um app em mobile e assumir que o resto \"deve funcionar\" — mas problemas de layout tendem a aparecer justamente em fluxos mais complexos: formulários com muitos campos, tabelas com muitas colunas, modais aninhados. Teste o fluxo de ponta a ponta em tela pequena, não só a superfície.",
+        "advanced": "Formulários com muitos campos lado a lado (um `InlineStack` do Polaris sem `wrap` configurado) costumam quebrar primeiro — são um bom lugar pra começar a busca por problemas quando o tempo de teste é limitado."
+      },
+      {
+        "title": "Ajuste responsividade com os componentes do próprio Polaris.",
+        "detail": "Prefira usar media queries com moderação, e priorize os componentes responsivos nativos do Polaris (`Grid`, `InlineStack` com `wrap`) em vez de reimplementar responsividade do zero — eles já têm breakpoints e comportamentos testados especificamente pro contexto do admin, incluindo mobile.",
+        "code": "import { InlineStack } from '@shopify/polaris';\n\n<InlineStack gap=\"400\" wrap>\n  {/* itens que quebram linha automaticamente em telas pequenas */}\n</InlineStack>"
+      },
+      {
+        "title": "Cuidado com gestos de sistema colidindo com componentes customizados.",
+        "detail": "Gestos de swipe do sistema operacional (voltar, trocar de app) podem colidir com carrosséis ou sliders customizados implementados no app — se o app tem algum componente de arrastar/deslizar próprio, teste especificamente se ele não conflita com gestos nativos do dispositivo.",
+        "advanced": "Prefira componentes de terceiros já testados com esse tipo de comportamento tratado (bibliotecas de carrossel maduras, com muito uso em produção) em vez de implementar gestos touch do zero — é uma área cheia de casos de borda sutis específicos de plataforma (iOS vs Android se comportam diferente em detalhes de gesto)."
+      },
+      {
+        "title": "Priorize funcionalidade essencial no mobile, em vez de escondê-la.",
+        "detail": "É tentador, sob pressão de prazo, simplesmente esconder funcionalidades complexas no mobile (\"essa parte só funciona no desktop\") — mas um app \"desktop only\" em partes importantes pesa contra a avaliação de qualidade na revisão da App Store, e frustra diretamente os merchants que dependem do celular no dia a dia. Priorize adaptar a funcionalidade essencial pra caber na tela pequena, mesmo que de forma simplificada, em vez de simplesmente removê-la."
+      },
+      {
+        "title": "Projeto — teste e ajuste um formulário do app para tela pequena.",
+        "detail": "Vamos pegar uma tela do app construído ao longo da trilha (idealmente uma com formulário ou tabela) e garantir que funciona corretamente em largura de tela mobile."
+      },
+      {
+        "title": "Projeto — passo 1: abra a tela no DevTools em modo de emulação mobile.",
+        "detail": "Use o modo de dispositivo do Chrome DevTools (ícone de celular/tablet na barra de ferramentas) pra simular uma largura de tela mobile real, e navegue até a tela escolhida.",
+        "code": "shopify app dev --store=sua-loja-dev.myshopify.com"
+      },
+      {
+        "title": "Projeto — passo 2: identifique elementos que quebram ou estouram a largura.",
+        "detail": "Percorra a tela em largura reduzida e anote qualquer elemento que force scroll horizontal, sobreponha outro elemento, ou fique ilegível/cortado."
+      },
+      {
+        "title": "Projeto — passo 3: substitua layouts fixos por componentes responsivos do Polaris.",
+        "detail": "Para cada problema encontrado, troque o layout fixo (ex: um `div` com `display: flex` sem wrap) por um componente Polaris equivalente com comportamento responsivo nativo (`InlineStack wrap`, `Grid`).",
+        "code": "// antes: quebra em telas pequenas\n<div style={{ display: 'flex' }}>...</div>\n\n// depois: se adapta automaticamente\n<InlineStack gap=\"400\" wrap>...</InlineStack>"
+      },
+      {
+        "title": "Projeto — passo 4: se possível, teste no simulador de dispositivo do app mobile do admin.",
+        "detail": "Se tiver acesso a um dispositivo real ou simulador com o app mobile da Shopify instalado, abra o app nele e confirme visualmente que as correções feitas no DevTools se traduzem corretamente pro WebView real do dispositivo.",
+        "advanced": "Diferenças sutis entre o modo de emulação do Chrome DevTools e o WebView real do app mobile são possíveis — trate a emulação como uma primeira passada rápida, e o teste em dispositivo/simulador real como a validação final antes de considerar a tela pronta."
+      }
+    ]
+  },
+  "categoryId": "quality",
+  "categoryLabel": "Quality"
+}

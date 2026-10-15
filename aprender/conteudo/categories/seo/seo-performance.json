@@ -1,0 +1,69 @@
+{
+  "id": "seo-performance",
+  "title": "Performance como fator de SEO",
+  "desc": "Core Web Vitals, indexação mobile-first e as otimizações de tema com maior impacto real em ranking.",
+  "plan": {
+    "objetivo": "Entender por que velocidade de carregamento é um fator direto de ranking (Core Web Vitals), o que é indexação mobile-first, e aplicar as otimizações de tema com maior impacto real.",
+    "prereq": "Fundamentos de SEO para e-commerce",
+    "tempo": "3h",
+    "doc": "https://shopify.dev/docs/storefronts/themes/best-practices/performance",
+    "steps": [
+      {
+        "title": "Entenda por que o Google trata velocidade como sinal de ranking, não só de UX.",
+        "detail": "Historicamente, performance era \"só\" uma questão de experiência do usuário — um site lento perdia clientes, mas não necessariamente posição no Google. Isso mudou: o Google usa métricas de performance real, chamadas **Core Web Vitals**, como sinal direto de ranking, especialmente pra buscas mobile. A lógica por trás: o Google quer mandar usuários pra páginas que carregam rápido e não \"pulam\" visualmente enquanto carregam — resultados ruins de performance geram experiências ruins, e isso é algo que o Google pode medir diretamente, em escala, pra todo o índice."
+      },
+      {
+        "title": "Conheça as três métricas de Core Web Vitals.",
+        "detail": "### LCP — Largest Contentful Paint\nTempo até o **maior elemento visível** (geralmente uma imagem de hero ou o título principal) terminar de carregar. Meta: abaixo de 2.5s.\n\n### INP — Interaction to Next Paint\nTempo de resposta entre uma interação do usuário (clique, toque) e a próxima atualização visual na tela. Meta: abaixo de 200ms.\n\n### CLS — Cumulative Layout Shift\nO quanto elementos da página \"pulam\" de posição durante o carregamento (uma imagem que carrega depois do texto e empurra tudo pra baixo, por exemplo). Meta: abaixo de 0.1.\n\nEssas três métricas, medidas com dados reais de usuários (não só em laboratório), formam a base de como o Google avalia a experiência de carregamento de uma página."
+      },
+      {
+        "title": "Entenda indexação mobile-first: o Google \"vê\" a versão mobile do seu site.",
+        "detail": "Desde a migração pra **indexação mobile-first**, o Google usa a versão **mobile** da sua página como referência principal pra ranking — não a versão desktop. Isso significa que qualquer conteúdo escondido no mobile (por espaço de tela, ou por decisão de design), qualquer atraso de carregamento específico do mobile, afeta diretamente como o Google entende e ranqueia aquela página, mesmo que a versão desktop esteja perfeita.",
+        "advanced": "Isso conecta diretamente com o tópico \"Mobile support\" da trilha de Quality — um app ou tema que funciona mal no mobile não é só um problema de UX isolado, é um problema de SEO real, porque é a versão que o Google efetivamente avalia."
+      },
+      {
+        "title": "Aplique a otimização de maior impacto: imagens responsivas com `image_url` e `srcset`.",
+        "detail": "Imagens não otimizadas são a causa mais comum de LCP ruim em lojas de e-commerce (que são, por natureza, visualmente pesadas). Use sempre o filtro `image_url` com larguras específicas, e o atributo `srcset` pra servir o tamanho certo de imagem pro dispositivo de cada usuário, em vez de sempre a versão de resolução máxima.",
+        "code": "<img\n  src=\"{{ product.featured_image | image_url: width: 800 }}\"\n  srcset=\"\n    {{ product.featured_image | image_url: width: 400 }} 400w,\n    {{ product.featured_image | image_url: width: 800 }} 800w,\n    {{ product.featured_image | image_url: width: 1200 }} 1200w\n  \"\n  sizes=\"(min-width: 768px) 50vw, 100vw\"\n  alt=\"{{ product.featured_image.alt | escape }}\"\n  loading=\"lazy\"\n  width=\"800\"\n  height=\"800\"\n/>"
+      },
+      {
+        "title": "Reserve espaço pra imagens com `width`/`height`, prevenindo CLS.",
+        "detail": "Repare, no exemplo acima, os atributos `width` e `height` explícitos — eles permitem ao navegador reservar o espaço da imagem **antes** dela carregar, evitando que o resto do conteúdo \"pule\" quando a imagem finalmente aparece. Sem isso, cada imagem carregando é uma oportunidade de piorar o CLS."
+      },
+      {
+        "title": "Use `loading=\"lazy\"` fora da dobra, mas nunca na imagem principal do hero.",
+        "detail": "`loading=\"lazy\"` atrasa o carregamento de imagens até elas ficarem perto da área visível — ótimo pra imagens mais abaixo na página (grade de produtos relacionados, footer). Mas na imagem **principal**, visível assim que a página carrega (o hero, a imagem principal do produto), lazy loading **piora** o LCP, porque atrasa justamente o maior elemento que o Google está medindo.",
+        "advanced": "Use `fetchpriority=\"high\"` na imagem principal acima da dobra, em vez de `loading=\"lazy\"` — isso sinaliza ao navegador pra priorizar esse recurso específico, ajudando diretamente na métrica de LCP."
+      },
+      {
+        "title": "Audite scripts de terceiros — apps e pixels são a segunda causa mais comum de lentidão.",
+        "detail": "Cada app instalado que injeta um script no `content_for_header` tem custo de performance. Rode uma auditoria periódica com Lighthouse e identifique quais apps/scripts pesam mais — desinstalar um app raramente usado que carrega um script de 300kb pode ter mais impacto em Core Web Vitals do que qualquer otimização manual de código.",
+        "code": "npx lighthouse https://sua-loja.myshopify.com --view"
+      },
+      {
+        "title": "Projeto — otimize as imagens de uma página de produto e meça o ganho real.",
+        "detail": "Vamos aplicar `image_url` + `srcset` + dimensões explícitas numa página de produto do tema de trabalho, e comparar o Lighthouse antes/depois."
+      },
+      {
+        "title": "Projeto — passo 1: rode o Lighthouse na página de produto atual e anote o LCP e o CLS.",
+        "detail": "Registre os números de LCP e CLS antes de qualquer mudança — essa é sua linha de base de comparação.",
+        "code": "npx lighthouse https://sua-loja-dev.myshopify.com/products/produto-teste --view"
+      },
+      {
+        "title": "Projeto — passo 2: adicione `srcset` e dimensões explícitas na imagem principal do produto.",
+        "detail": "Ajuste o markup da imagem principal seguindo o exemplo desta trilha, usando `fetchpriority=\"high\"` em vez de lazy loading, já que é a imagem acima da dobra."
+      },
+      {
+        "title": "Projeto — passo 3: adicione `loading=\"lazy\"` nas imagens da seção de produtos relacionados, mais abaixo na página.",
+        "detail": "Confirme que essas imagens (fora da área visível inicial) usam lazy loading, já que atrasar o carregamento delas não afeta o LCP."
+      },
+      {
+        "title": "Projeto — passo 4: rode o Lighthouse de novo e compare com a linha de base.",
+        "detail": "Registre os novos números de LCP e CLS, e documente a diferença — mesmo pequena, essa comparação de \"antes/depois\" é o hábito mais importante pra validar que uma otimização teve efeito real, não só teórico.",
+        "advanced": "Meça sempre num ambiente o mais parecido possível com produção (rede real, não localhost) — o túnel de desenvolvimento mascara boa parte da latência real que um usuário/o Googlebot vai experimentar."
+      }
+    ]
+  },
+  "categoryId": "seo",
+  "categoryLabel": "SEO"
+}

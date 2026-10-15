@@ -1,0 +1,69 @@
+{
+  "id": "online-store",
+  "title": "Online store",
+  "desc": "Adicione funcionalidades dinâmicas aos temas de loja online dos merchants.",
+  "plan": {
+    "objetivo": "Entender a diferença entre app blocks e app embeds, como eles se conectam ao tema do merchant via theme app extensions, e como versionar o schema com segurança.",
+    "prereq": "App Home",
+    "tempo": "4h",
+    "doc": "https://shopify.dev/docs/apps/build/online-store",
+    "steps": [
+      {
+        "title": "Entenda o problema: seu app não controla o tema do merchant.",
+        "detail": "Diferente de outras extensions (que aparecem em superfícies fixas controladas pela Shopify, como o admin ou o checkout), a **loja online** é o tema do merchant — código Liquid que ele escolheu, comprou ou personalizou, e que seu app não pode simplesmente editar. **Theme app extensions** resolvem isso oferecendo um mecanismo seguro: seu app declara blocos de funcionalidade, e é o **merchant** quem decide, pelo editor de temas, onde e se colocar cada um — sem você precisar tocar diretamente no código Liquid dele.",
+        "advanced": "Esse modelo dá ao merchant controle total sobre onde a funcionalidade aparece, mas também significa que você não pode garantir que ela **será** adicionada — parte do trabalho de um app de loja online é orientar claramente o merchant sobre como ativá-la, muitas vezes com instruções na própria Home do app."
+      },
+      {
+        "title": "Diferencie app blocks de app embeds.",
+        "detail": "Theme app extensions têm dois formatos:\n- **App blocks** — aparecem diretamente na lista de sections/blocks do editor de temas, e o merchant os adiciona manualmente numa posição específica da página (ex: um bloco de \"avaliações\" numa página de produto).\n- **App embed blocks** — ficam **ocultos** até o merchant ativá-los explicitamente nas configurações do tema (não aparecem como algo pra \"adicionar\" numa posição — são ativados globalmente, tipicamente pra funcionalidades que não têm uma posição visual fixa, como um script de chat ou um pixel).\n\nEscolha o formato certo dependendo se a funcionalidade tem uma posição visual específica (block) ou é mais um \"liga/desliga\" global (embed).",
+        "code": "shopify app generate extension\n# escolha \"Theme app extension\"",
+        "advanced": "App blocks e embeds só existem em temas **Online Store 2.0** — temas vintage (Liquid puro, sem templates JSON, cobertos em detalhe na trilha de Temas) não suportam esse tipo de extension de forma alguma."
+      },
+      {
+        "title": "Escreva o schema Liquid do bloco, exatamente como uma section de tema.",
+        "detail": "Tecnicamente, um app block é escrito com a mesma sintaxe de uma section de tema comum (Liquid + `{% schema %}`) — se você já passou pela trilha de Temas, essa parte é reconhecível. A diferença é que ele vive dentro da sua extension de app, não no repositório do tema, e é distribuído junto com o app.",
+        "code": "<div class=\"minha-extensao\">\n  <p>{{ block.settings.texto }}</p>\n</div>\n\n{% schema %}\n{\n  \"name\": \"Bloco do meu app\",\n  \"target\": \"section\",\n  \"settings\": [\n    { \"type\": \"text\", \"id\": \"texto\", \"label\": \"Texto\" }\n  ]\n}\n{% endschema %}"
+      },
+      {
+        "title": "Adicione o bloco a uma seção no editor de temas.",
+        "detail": "No editor de temas da dev store, vá em \"Adicionar seção\" (pra app blocks) ou nas configurações gerais do tema, seção de app embeds (pra embeds), e procure pelo nome do seu app na lista.",
+        "advanced": "Testar só no tema padrão (Dawn) esconde bugs de CSS que aparecem em temas de terceiros com estilos globais conflitantes — sempre que possível, teste também em pelo menos um tema comprado/customizado antes de considerar a extension pronta."
+      },
+      {
+        "title": "Entenda que settings do schema viram parte do `settings_data.json` da loja.",
+        "detail": "Assim como settings de qualquer section de tema, os valores que o merchant preenche no seu app block ficam guardados em `settings_data.json`, específico daquela loja — não no seu código. Isso significa que **mudar o schema depois** (renomear um `id`, mudar o tipo de um setting) pode deixar valores antigos órfãos, exatamente como discutido no tópico \"Config\" da trilha de Temas.",
+        "advanced": "Trate qualquer mudança de schema já publicada como uma migração cuidadosa: adicione novos settings livremente, mas evite renomear ou remover `id`s existentes sem um plano de transição, já que lojas que já configuraram o bloco antigo vão manter dados presos ao schema anterior."
+      },
+      {
+        "title": "Ajuste o schema e valide no preview antes de publicar.",
+        "detail": "Depois de qualquer mudança no schema ou no CSS/JS do bloco, valide no preview local (`shopify app dev`) antes de fazer deploy — como o bloco entra em temas de merchants reais depois de publicado, o custo de um erro visível ali é mais alto do que numa tela isolada do seu próprio app.",
+        "code": "shopify app dev --store=sua-loja-dev.myshopify.com"
+      },
+      {
+        "title": "Projeto — construa um app block de \"selo de garantia\" configurável para páginas de produto.",
+        "detail": "Vamos criar um bloco simples que o merchant pode adicionar à página de produto, com texto e ícone configuráveis — um exemplo representativo do tipo de funcionalidade visual que apps de loja online costumam oferecer."
+      },
+      {
+        "title": "Projeto — passo 1: gere a theme app extension.",
+        "detail": "Rode o gerador e escolha o tipo de extension de tema.",
+        "code": "shopify app generate extension\n# Theme app extension"
+      },
+      {
+        "title": "Projeto — passo 2: escreva o bloco com dois settings (texto e ícone).",
+        "detail": "Implemente o arquivo Liquid do block com um texto configurável e uma seleção de ícone entre algumas opções pré-definidas.",
+        "code": "<div class=\"selo-garantia\">\n  <span class=\"selo-garantia__icone\">{{ block.settings.icone }}</span>\n  <p>{{ block.settings.texto }}</p>\n</div>\n\n{% schema %}\n{\n  \"name\": \"Selo de garantia\",\n  \"target\": \"section\",\n  \"settings\": [\n    { \"type\": \"text\", \"id\": \"texto\", \"label\": \"Texto\", \"default\": \"Garantia de 30 dias\" },\n    {\n      \"type\": \"select\",\n      \"id\": \"icone\",\n      \"label\": \"Ícone\",\n      \"options\": [\n        { \"value\": \"🛡️\", \"label\": \"Escudo\" },\n        { \"value\": \"✅\", \"label\": \"Check\" }\n      ],\n      \"default\": \"🛡️\"\n    }\n  ]\n}\n{% endschema %}"
+      },
+      {
+        "title": "Projeto — passo 3: adicione o bloco a uma página de produto real, pelo editor.",
+        "detail": "Com o app rodando localmente, abra o editor de temas da dev store numa página de produto, adicione o app block na posição desejada, e configure texto e ícone.",
+        "code": "shopify app dev --store=sua-loja-dev.myshopify.com"
+      },
+      {
+        "title": "Projeto — passo 4: teste em dois produtos diferentes com configurações distintas.",
+        "detail": "Adicione o bloco em duas páginas de produto diferentes com textos/ícones diferentes, e confirme que cada instância mantém sua própria configuração — validando que o schema funciona corretamente como settings por instância, não um valor global compartilhado."
+      }
+    ]
+  },
+  "categoryId": "surfaces",
+  "categoryLabel": "Surfaces"
+}

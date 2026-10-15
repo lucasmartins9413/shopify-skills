@@ -1,0 +1,74 @@
+{
+  "id": "theme-github",
+  "title": "Git e GitHub",
+  "desc": "Versione o tema com Git e conecte o repositório à loja pra sincronizar automaticamente — o padrão de hoje em vez de editar direto no admin.",
+  "plan": {
+    "objetivo": "Aprender o mínimo de Git necessário pra acompanhar esse fluxo, conectar um tema de verdade a um repositório GitHub pelo admin, e saber exatamente quando usar o Shopify CLI e quando deixar o Git ser a fonte única da verdade.",
+    "prereq": "Shopify CLI (temas)",
+    "tempo": "3h",
+    "doc": "https://shopify.dev/docs/storefronts/themes/tools/github",
+    "steps": [
+      {
+        "title": "Entenda por que conectar o tema ao GitHub virou padrão.",
+        "detail": "Editar um tema direto no editor do admin (ou publicar via CLI direto pra loja em produção) funciona pra um teste rápido, mas não escala pra um projeto de verdade: não existe histórico de quem mudou o quê, nenhuma mudança passa por revisão antes de ir ao ar, e reverter um erro depende de alguém lembrar exatamente o que foi alterado. Conectar o tema a um repositório GitHub resolve isso de uma vez: cada mudança vira um commit rastreável, muda pela loja só depois de um Pull Request revisado, e reverter é literalmente voltar pra um commit anterior.",
+        "advanced": "Isso é sobre o código do tema em si — não confunda com o processo de review da Shopify pra publicar na Theme Store, que é uma etapa completamente separada e não usa essa conexão direta com GitHub."
+      },
+      {
+        "title": "Domine o mínimo de Git pra acompanhar esse fluxo.",
+        "detail": "Se você nunca usou Git, esses comandos bastam pra seguir o resto deste tópico: iniciar um repositório, gravar mudanças num commit, e enviar esse commit pra um repositório remoto. Tudo mais avançado (rebase, cherry-pick, submodules) pode esperar — não é o que trava esse fluxo específico.",
+        "code": "git init\ngit add .\ngit commit -m \"primeiro commit do tema\"\ngit branch -M main\ngit remote add origin https://github.com/sua-conta/seu-tema.git\ngit push -u origin main",
+        "advanced": "Rode `git status` antes de todo commit — é o jeito mais simples de perceber que está prestes a commitar um arquivo que não devia (chave de API num `.env`, pasta `node_modules`). Um `.gitignore` decente evita a maioria desses acidentes."
+      },
+      {
+        "title": "Garanta que o repositório segue a estrutura de pastas de um tema.",
+        "detail": "A integração da Shopify só reconhece a estrutura padrão de um tema buildless direto na raiz do repositório — `assets/`, `config/`, `layout/`, `locales/`, `sections/`, `snippets/`, `templates/` e, em temas mais novos, `blocks/`. Pastas fora desse padrão são ignoradas na sincronização, então colocar o tema dentro de um subdiretório de monorepo sem nenhuma configuração extra não funciona.",
+        "code": "meu-tema/\n├── assets/\n├── blocks/\n├── config/\n├── layout/\n├── locales/\n├── sections/\n├── snippets/\n└── templates/"
+      },
+      {
+        "title": "Conecte o repositório a um tema ainda não publicado, pelo admin.",
+        "detail": "Em Loja Online > Temas > Adicionar tema > Conectar do GitHub, escolha a organização (ou conta pessoal), o repositório e a branch. Essa conexão só pode ser feita a partir de um tema **ainda não publicado**, e exige que a conta usada tenha permissão de \"Gerenciar temas\" — colaborador de fora do repositório (sem ser dono nem membro com acesso de escrita) não consegue conectar nada.",
+        "advanced": "Cada branch só pode ser conectada a um tema por vez, e depois de desconectada não dá pra reconectar essa mesma branch ao mesmo tema de novo — se for reorganizar isso, planeje pra não precisar desfazer."
+      },
+      {
+        "title": "Entenda que a sincronização é automática e sem revisão.",
+        "detail": "Depois de conectado, os dois lados ficam vivos ao mesmo tempo: um `push` na branch conectada atualiza o tema na loja sozinho (o card do tema passa a mostrar o novo horário de \"Salvo por último\"); e uma edição feita direto no editor do admin gera um commit automático nessa mesma branch (edições salvas com poucos segundos de diferença viram um commit só, assinado por quem salvou por último). Não existe uma tela de diff pra aprovar antes de qualquer um dos dois lados — a sincronização é direta.",
+        "advanced": "Isso é uma faca de dois gumes: deixar o merchant editar no admin depois de conectar ao GitHub é conveniente pra ajustes rápidos, mas gera commits fora do seu fluxo normal de Pull Request. Alinhe com o time se o admin fica liberado pra edição direta nesse tema ou não."
+      },
+      {
+        "title": "Defina onde entra o Shopify CLI nesse fluxo.",
+        "detail": "`shopify theme dev` continua sendo o jeito certo de testar localmente — ele sobe um preview isolado e não publica nada na loja de verdade. O que muda é o `shopify theme push`: rodá-lo direto contra um tema já conectado ao GitHub cria uma divergência, porque a Shopify não tem como saber que aquele push específico não veio do Git. Trate o Git como fonte única da verdade: depois de validar com `theme dev`, publique commitando e dando push na branch conectada — não com `theme push`.",
+        "code": "shopify theme dev --store=sua-loja-dev.myshopify.com"
+      },
+      {
+        "title": "Proteja a branch conectada com Pull Requests e Theme Check no CI.",
+        "detail": "Configure proteção de branch no GitHub pra branch conectada (normalmente `main`) exigindo Pull Request antes de qualquer merge, e rode `shopify theme check` automaticamente em cada PR com a action oficial da Shopify. Assim, nenhuma mudança chega na loja sem passar pelo linter primeiro — o mesmo Theme Check que você já roda localmente.",
+        "code": "# .github/workflows/theme-check.yml\nname: Theme Check\non: [pull_request]\njobs:\n  theme-check:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n      - uses: Shopify/theme-check-action@v2",
+        "advanced": "Combine isso com o tópico de Theme Check: os mesmos erros que a action pega no CI são os que o linter já aponta no seu editor — a diferença é que a action bloqueia o merge, o editor só avisa."
+      },
+      {
+        "title": "Projeto — conecte um tema de teste ao GitHub do zero.",
+        "detail": "Vamos passar pelo fluxo completo: subir um tema local pra um repositório novo, conectar esse repositório a um tema ainda não publicado da sua loja de dev, e confirmar a sincronização nos dois sentidos com uma mudança real via Pull Request."
+      },
+      {
+        "title": "Projeto — passo 1: crie o repositório e suba o tema inicial.",
+        "detail": "Clone o Horizon (ou outro tema base) localmente, inicialize o Git nessa pasta e suba o primeiro commit pra um repositório novo no GitHub.",
+        "code": "shopify theme init meu-tema-git --clone-url https://github.com/Shopify/horizon.git\ncd meu-tema-git\ngit init\ngit add .\ngit commit -m \"tema inicial\"\ngit branch -M main\ngit remote add origin https://github.com/sua-conta/meu-tema-git.git\ngit push -u origin main"
+      },
+      {
+        "title": "Projeto — passo 2: conecte esse repositório a um tema não publicado da loja.",
+        "detail": "No admin da sua loja de dev, vá em Loja Online > Temas > Adicionar tema > Conectar do GitHub, e selecione o repositório e a branch `main` que você acabou de criar."
+      },
+      {
+        "title": "Projeto — passo 3: abra uma branch, mude algo pequeno e suba por Pull Request.",
+        "detail": "Crie uma branch nova, altere um texto visível (por exemplo o título de uma section na home), commite, dê push e abra um Pull Request pra `main`. Se você configurou a action do passo anterior, o Theme Check roda automaticamente nesse PR.",
+        "code": "git checkout -b ajuste-home\n# edite algo em sections/\ngit add .\ngit commit -m \"ajusta título da home\"\ngit push -u origin ajuste-home"
+      },
+      {
+        "title": "Projeto — passo 4: dê merge e confirme a sincronização na loja.",
+        "detail": "Depois do Theme Check passar, faça o merge do Pull Request pra `main` e volte no admin: o card do tema conectado deve mostrar um novo horário de \"Salvo por último\", e o preview do tema já reflete a mudança — sem você ter rodado nenhum comando de deploy manual."
+      }
+    ]
+  },
+  "categoryId": "themes",
+  "categoryLabel": "Temas (Storefronts)"
+}

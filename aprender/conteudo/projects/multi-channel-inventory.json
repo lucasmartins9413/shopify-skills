@@ -1,0 +1,173 @@
+{
+  "id": "multi-channel-inventory",
+  "kind": "app",
+  "title": "Sincronizador de estoque multi-canal",
+  "subtitle": "Um app que mantém o estoque sincronizado entre a loja e um canal de venda externo simulado, reagindo em tempo real a mudanças — do primeiro evento assinado até o tratamento de concorrência entre dois canais vendendo o mesmo item.",
+  "stages": [
+    {
+      "id": "mc-inventory-1",
+      "title": "1. Criar o app e declarar os escopos de estoque",
+      "goal": "Ter um app Shopify rodando localmente, com os escopos mínimos de leitura/escrita de estoque já declarados.",
+      "build": "Diferente do projeto de desconto, aqui o app não interage com o comprador — ele é um serviço de sincronização rodando em segundo plano, reagindo a mudanças de estoque. Declare só os escopos que esse tipo de app realmente precisa.",
+      "code": [
+        {
+          "label": "Criar o app e declarar escopos",
+          "code": "shopify app init\ncd estoque-multicanal"
+        },
+        {
+          "label": "shopify.app.toml",
+          "code": "[access_scopes]\nscopes = \"read_products,read_inventory,write_inventory\""
+        }
+      ],
+      "expected": "O app roda localmente (`shopify app dev`) e `shopify app info` mostra exatamente esses três escopos, nada além disso.",
+      "related": [
+        "scaffold",
+        "dev-env",
+        "dev-dashboard"
+      ]
+    },
+    {
+      "id": "mc-inventory-2",
+      "title": "2. Modelar o canal externo como uma segunda dev store",
+      "goal": "Ter um destino real pra sincronizar — uma segunda dev store fazendo o papel de \"canal de venda externo\".",
+      "build": "Um canal de venda de verdade (marketplace, rede social) tem sua própria API e seu próprio conceito de estoque. Pra praticar sem depender de uma integração externa real, use uma segunda dev store como stand-in: ela representa \"o canal\", e seu app vai manter o estoque dela sincronizado com o estoque da loja principal.",
+      "code": [],
+      "expected": "Você tem duas dev stores distintas — a loja principal e o \"canal\" — cada uma com o mesmo produto de teste cadastrado, prontas pra serem sincronizadas.",
+      "related": [
+        "channels",
+        "dev-env"
+      ]
+    },
+    {
+      "id": "mc-inventory-3",
+      "title": "3. Assinar o webhook de mudança de estoque",
+      "goal": "Ser avisado automaticamente sempre que o estoque de um produto muda na loja principal.",
+      "build": "`inventory_levels/update` dispara toda vez que a quantidade disponível de um item muda — venda, ajuste manual no admin, reposição. É o ponto de partida de qualquer sincronização em tempo real.",
+      "code": [
+        {
+          "label": "Registrar o webhook",
+          "code": "[[webhooks.subscriptions]]\ntopics = [\"inventory_levels/update\"]\nuri = \"/webhooks/inventory-update\""
+        }
+      ],
+      "expected": "Ajustando manualmente o estoque de um produto de teste no admin, seu endpoint local recebe a requisição do webhook (visível nos logs do `shopify app dev`).",
+      "related": [
+        "webhooks",
+        "auth"
+      ]
+    },
+    {
+      "id": "mc-inventory-4",
+      "title": "4. Validar HMAC e responder rápido",
+      "goal": "Um endpoint seguro, que confirma a origem do webhook e responde antes de processar a lógica pesada.",
+      "build": "Siga o padrão visto na trilha: valide o HMAC com comparação de tempo constante, responda 200 imediatamente, e só depois processe a sincronização de fato — a Shopify espera resposta rápida, e a chamada pro canal externo (próximo passo) pode ser mais lenta que isso.",
+      "code": [
+        {
+          "label": "Endpoint do webhook",
+          "code": "export async function action({ request }) {\n  const rawBody = await request.text();\n  const hmac = request.headers.get(\"X-Shopify-Hmac-Sha256\");\n  if (!verifyHmac(rawBody, hmac)) return new Response(\"Unauthorized\", { status: 401 });\n\n  const payload = JSON.parse(rawBody);\n  queue.add(\"sync-inventory\", payload); // processamento assíncrono\n  return new Response(null, { status: 200 });\n}"
+        }
+      ],
+      "expected": "O endpoint responde 200 em poucos milissegundos, mesmo quando a sincronização em si (próximo passo) demora mais que isso.",
+      "related": [
+        "webhooks",
+        "security"
+      ]
+    },
+    {
+      "id": "mc-inventory-5",
+      "title": "5. Repassar a nova quantidade pro canal externo",
+      "goal": "Atualizar o estoque do produto correspondente na segunda dev store (o \"canal\").",
+      "build": "Com a nova quantidade em mãos, chame a Admin API da dev store do canal, usando `inventorySetQuantities` pra gravar o novo valor lá — fechando o primeiro ciclo completo de sincronização, ainda que só numa direção.",
+      "code": [
+        {
+          "label": "Gravar a quantidade no canal externo",
+          "code": "mutation {\n  inventorySetQuantities(input: {\n    reason: \"correction\",\n    name: \"available\",\n    quantities: [{\n      inventoryItemId: \"gid://shopify/InventoryItem/1\",\n      locationId: \"gid://shopify/Location/1\",\n      quantity: 42\n    }]\n  }) { userErrors { field message } }\n}"
+        }
+      ],
+      "expected": "Depois de ajustar o estoque na loja principal, o mesmo produto na dev store do canal reflete a nova quantidade em poucos segundos.",
+      "related": [
+        "channels",
+        "graphql"
+      ]
+    },
+    {
+      "id": "mc-inventory-6",
+      "title": "6. Trocar o webhook amplo por um Event granular",
+      "goal": "Reduzir o payload e o ruído, assinando só o campo de quantidade em vez do recurso inteiro.",
+      "build": "`inventory_levels/update` já é relativamente enxuto, mas em recursos maiores (como Order) essa granularidade faz diferença real. Pratique aqui o padrão de Events com `includeFields`, mesmo que o ganho nesse caso específico seja pequeno — o objetivo é fixar a técnica.",
+      "code": [
+        {
+          "label": "Subscription granular",
+          "code": "mutation {\n  webhookSubscriptionCreate(\n    topic: INVENTORY_LEVELS_UPDATE,\n    webhookSubscription: {\n      callbackUrl: \"https://seu-app.com/events/inventory\",\n      includeFields: [\"available\"]\n    }\n  ) { userErrors { field message } }\n}"
+        }
+      ],
+      "expected": "O payload recebido no endpoint de eventos traz só o campo `available`, sem o restante dos dados do inventory level.",
+      "related": [
+        "events"
+      ]
+    },
+    {
+      "id": "mc-inventory-7",
+      "title": "7. Tratar concorrência: evitar overselling entre os dois canais",
+      "goal": "Impedir que o mesmo item seja vendido simultaneamente na loja principal e no canal, quando o estoque está no limite.",
+      "build": "Entre o momento em que o canal externo mostra \"1 disponível\" e o momento em que ele processa a venda, a loja principal pode ter vendido esse mesmo item. Implemente uma checagem simples: antes de confirmar uma venda no canal, seu app relê o estoque atual da loja principal e só libera a venda se ainda houver saldo — uma janela de proteção básica, sabendo que sincronização perfeita em tempo real entre dois sistemas distintos não é garantida.",
+      "code": [
+        {
+          "label": "Checagem antes de confirmar venda no canal (pseudocódigo)",
+          "code": "const current = await getMainStoreInventory(itemId);\nif (current <= 0) {\n  return { error: \"Item esgotado na loja principal — venda no canal bloqueada.\" };\n}"
+        }
+      ],
+      "expected": "Simulando estoque igual a 1 e tentando vender ao mesmo tempo nos dois canais, só uma das duas vendas é confirmada.",
+      "related": [
+        "orders",
+        "channels"
+      ]
+    },
+    {
+      "id": "mc-inventory-8",
+      "title": "8. Controlar quais produtos participam da sincronização",
+      "goal": "Usar o modelo de Publication pra decidir explicitamente quais produtos são sincronizados com o canal.",
+      "build": "Nem todo produto da loja principal deveria necessariamente existir no canal externo. Em vez de sincronizar o catálogo inteiro por padrão, publique explicitamente só os produtos elegíveis — reaproveitando o mesmo mecanismo de `Publication` visto no tópico de Sales channels da trilha.",
+      "code": [
+        {
+          "label": "Publicar um produto elegível",
+          "code": "mutation {\n  publishablePublish(\n    id: \"gid://shopify/Product/1\",\n    input: {publicationId: \"gid://shopify/Publication/1\"}\n  ) { userErrors { message } }\n}"
+        }
+      ],
+      "expected": "Só produtos explicitamente publicados nessa publication entram no fluxo de sincronização — um produto não publicado não gera chamada nenhuma ao canal externo.",
+      "related": [
+        "channels",
+        "merchandising"
+      ]
+    },
+    {
+      "id": "mc-inventory-9",
+      "title": "9. Garantir idempotência no reprocessamento",
+      "goal": "Evitar sincronização duplicada quando a Shopify reentrega o mesmo webhook.",
+      "build": "Como visto no tópico de Webhooks da trilha, entregas são at-least-once — o mesmo evento de estoque pode chegar mais de uma vez. Guarde um identificador do evento já processado (ex: hash do payload + timestamp) e ignore reentregas do mesmo evento, evitando gravar a mesma quantidade duas vezes ou dessincronizar por uma corrida entre duas execuções.",
+      "code": [
+        {
+          "label": "Checagem de idempotência",
+          "code": "const eventKey = `${payload.inventory_item_id}:${payload.updated_at}`;\nconst alreadyProcessed = await db.processedEvents.findUnique({ where: { key: eventKey } });\nif (alreadyProcessed) return; // já sincronizado, ignora"
+        }
+      ],
+      "expected": "Reenviando manualmente o mesmo payload de teste duas vezes, a segunda chamada não dispara uma nova sincronização.",
+      "related": [
+        "webhooks",
+        "events"
+      ]
+    },
+    {
+      "id": "mc-inventory-10",
+      "title": "10. Checklist de segurança e compliance antes de publicar",
+      "goal": "Revisar o app sob a ótica de segurança e conformidade antes de considerá-lo pronto.",
+      "build": "Confirme, item por item:\n- HMAC validado com comparação de tempo constante em todos os webhooks\n- Escopos mínimos (`read_products`, `read_inventory`, `write_inventory` — nada além disso)\n- Rate limiting no endpoint de webhook\n- Webhooks obrigatórios de compliance (`customers/data_request`, `customers/redact`, `shop/redact`) implementados, mesmo esse app não lidando diretamente com dados de cliente",
+      "code": [],
+      "expected": "Você consegue responder \"sim\" a todos os itens do checklist acima antes de considerar o app pronto pra produção.",
+      "related": [
+        "security",
+        "compliance",
+        "performance"
+      ]
+    }
+  ]
+}

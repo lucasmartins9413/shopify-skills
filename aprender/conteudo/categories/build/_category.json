@@ -1,0 +1,16 @@
+{
+  "id": "build",
+  "label": "Build",
+  "intro": "Use o Shopify CLI para gerar um novo projeto de app com tudo que você precisa.",
+  "topicCount": 8,
+  "topicIds": [
+    "scaffold",
+    "build-app",
+    "prisma",
+    "dev-env",
+    "ai-toolkit",
+    "cli",
+    "dev-dashboard",
+    "app-store-launch"
+  ]
+}

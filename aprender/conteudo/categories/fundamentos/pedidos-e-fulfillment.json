@@ -1,0 +1,29 @@
+{
+  "id": "pedidos-e-fulfillment",
+  "title": "Pedidos e fulfillment",
+  "desc": "O que acontece depois que o pagamento é aprovado: o ciclo de vida de um pedido, e o que significa 'fazer o fulfillment' de uma venda.",
+  "plan": {
+    "objetivo": "Entender o ciclo de vida de um pedido depois do pagamento aprovado, e o que é fulfillment (picking, packing, shipping) — a parte operacional da venda que continua depois que o checkout termina.",
+    "prereq": "Pagamentos e gateways",
+    "tempo": "20min",
+    "doc": "https://help.shopify.com/en/manual/fulfillment",
+    "steps": [
+      {
+        "title": "Acompanhe o ciclo de vida de um pedido do pagamento até a entrega.",
+        "detail": "Depois que o checkout termina com pagamento aprovado, nasce um **pedido** (order) no admin, e ele passa por estados que aparecem constantemente em relatórios, apps e webhooks:\n\n1. **Pago** (payment status) — o dinheiro foi confirmado.\n2. **Não atendido** (fulfillment status: unfulfilled) — o pedido existe, mas ainda não foi separado/enviado.\n3. **Atendido** (fulfilled) — o produto saiu pra entrega, geralmente com um código de rastreio.\n4. **Entregue** — confirmado pela transportadora (nem sempre rastreado com precisão, depende da transportadora).\n\nPode haver ainda **cancelamento** (antes do envio) ou **reembolso/devolução** (depois). Pagamento e fulfillment são **dois status independentes** — um pedido pode estar pago e ainda não atendido ao mesmo tempo, e isso é o estado mais comum logo após a compra.",
+        "advanced": "Confundir \"pago\" com \"concluído\" é um erro comum em quem começa a integrar com pedidos via API — um app de automação que dispara uma ação só quando vê `paid` pode agir cedo demais, antes do pedido sequer ter sido separado no estoque."
+      },
+      {
+        "title": "Entenda o que é fulfillment na prática, além do nome técnico.",
+        "detail": "**Fulfillment** é o processo operacional de atender um pedido depois de pago: separar o item no estoque (**picking**), embalar (**packing**), etiquetar e despachar pra transportadora (**shipping**). Uma loja pode fazer isso de formas bem diferentes:\n\n- **Própria** — o merchant mesmo separa e embala, geralmente em lojas menores;\n- **Centro de distribuição terceirizado (3PL)** — uma empresa especializada guarda o estoque e despacha em nome do merchant;\n- **Dropshipping** — o próprio fornecedor envia direto pro cliente final, e o merchant nunca toca fisicamente o produto.\n\nNa Shopify, cada uma dessas formas aparece como um **serviço de fulfillment** (fulfillment service) diferente conectado à loja — e é comum uma mesma loja combinar mais de um ao mesmo tempo (parte do catálogo em estoque próprio, parte via dropshipping).",
+        "advanced": "Apps de dropshipping e de gestão de estoque geralmente se conectam via webhooks de pedido (`orders/create`) e atualizam o status de fulfillment de volta pra Shopify assim que o fornecedor confirma o envio — esse fluxo de ida e volta aparece com detalhe técnico na trilha de dados e automações."
+      },
+      {
+        "title": "Reconheça devolução e reembolso como parte normal do ciclo, não uma exceção.",
+        "detail": "Depois da entrega, ainda pode haver **devolução** (o cliente manda o produto de volta) ou **reembolso** (total ou parcial, com ou sem devolução física — às vezes um merchant reembolsa sem pedir o produto de volta, quando o custo de logística reversa não compensa). Toda loja de um tamanho razoável trata isso como parte esperada da operação, com uma política clara de trocas publicada pro cliente ver antes de comprar — o que, aliás, também ajuda a **reduzir abandono de checkout**: saber que dá pra devolver reduz o risco percebido pelo cliente na hora de decidir comprar."
+      }
+    ]
+  },
+  "categoryId": "fundamentos",
+  "categoryLabel": "Fundamentos de Ecommerce"
+}

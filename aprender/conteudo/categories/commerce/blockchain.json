@@ -1,0 +1,58 @@
+{
+  "id": "blockchain",
+  "title": "Blockchain",
+  "desc": "Adicione tokengating e distribuição de NFTs ao seu app.",
+  "plan": {
+    "objetivo": "Entender o conceito de tokengating, configurar uma regra de acesso baseada em posse de token, e tratar corretamente o caso comum de comprador sem carteira Web3.",
+    "prereq": "GraphQL",
+    "tempo": "2h30",
+    "doc": "https://shopify.dev/docs/apps/build/blockchain",
+    "steps": [
+      {
+        "title": "Entenda o conceito de tokengating aplicado a comércio.",
+        "detail": "**Tokengating** restringe o acesso a produtos ou coleções específicas a clientes que possuem um **token** (geralmente um NFT) específico numa carteira de blockchain conectada à loja. O caso de uso clássico: uma marca vende um NFT de coleção, e os donos desse NFT ganham acesso exclusivo a produtos físicos ou digitais adicionais — a posse do token funciona como \"chave de acesso\" verificável on-chain, sem precisar de um sistema de login tradicional.\n\nA checagem acontece no momento em que o cliente **conecta sua carteira** à loja: a Shopify consulta a blockchain pra confirmar se aquela carteira possui o token exigido, e libera ou bloqueia o acesso ao conteúdo protegido de acordo com o resultado.",
+        "advanced": "Tokengating depende de infraestrutura de blockchain de **terceiros** (RPC providers, os serviços que fazem a ponte entre a aplicação e a rede blockchain) — latência nessa consulta externa afeta diretamente a experiência de checagem do token, que não é instantânea como uma consulta a um banco de dados tradicional."
+      },
+      {
+        "title": "Configure uma regra de tokengating de teste.",
+        "detail": "Configure a regra vinculando uma coleção específica ao **endereço do contrato** do token (o identificador único daquela coleção de NFTs na blockchain) e, opcionalmente, a um `tokenId` específico — se a regra exigir posse de um NFT exato daquela coleção, não qualquer um dela — nas configurações de tokengating da loja."
+      },
+      {
+        "title": "Trate a ausência de carteira conectada como estado normal, não erro.",
+        "detail": "Esse é o ponto de UX mais importante do tópico: nem todo cliente tem uma carteira Web3 instalada ou configurada — a grande maioria dos visitantes de uma loja comum não tem. A loja precisa continuar completamente navegável e utilizável pra quem não tem carteira, com o conteúdo tokengated simplesmente aparecendo como \"bloqueado\" ou \"exclusivo\", nunca travando o resto da experiência de compra.",
+        "advanced": "Trate a ausência de carteira conectada como um **estado normal da UI**, equivalente a \"não logado\" em qualquer outro sistema de acesso condicional — nunca como uma condição de erro que precisa de tratamento excepcional ou mensagem alarmante."
+      },
+      {
+        "title": "Simule o acesso de um cliente com e sem o token exigido.",
+        "detail": "Teste os dois cenários principais: uma carteira **sem** o token (deve bloquear o acesso ao conteúdo protegido, mostrando uma mensagem clara de por que está bloqueado) e outra **com** o token (deve liberar o acesso automaticamente após a conexão)."
+      },
+      {
+        "title": "Documente bem o requisito de acesso pro cliente.",
+        "detail": "Regras de tokengating muito restritivas — ou mal comunicadas — podem esconder produtos até de clientes legítimos que possuem um token de uma coleção parecida, mas não exatamente a exigida (ou um NFT da coleção certa, mas comprado numa carteira diferente da que estão usando no momento). Documente claramente, na própria interface da loja, qual token exato é necessário e como conectar a carteira correta — evita frustração de clientes que tecnicamente têm direito ao acesso mas não conseguem prová-lo por confusão de carteiras."
+      },
+      {
+        "title": "Projeto — mapeie o fluxo de UX de uma coleção com acesso tokengated.",
+        "detail": "Como testar tokengating de verdade exige uma carteira Web3 real com um token específico, este projeto foca em desenhar cuidadosamente o fluxo de experiência — o que é, na prática, a parte mais crítica de acertar nesse tipo de funcionalidade."
+      },
+      {
+        "title": "Projeto — passo 1: desenhe os três estados possíveis da página de coleção.",
+        "detail": "Esboce, em texto ou wireframe simples, os três estados: (1) visitante sem carteira conectada, (2) visitante com carteira conectada mas sem o token exigido, (3) visitante com carteira conectada e com o token."
+      },
+      {
+        "title": "Projeto — passo 2: escreva a mensagem exata exibida em cada estado.",
+        "detail": "Para os estados (1) e (2), escreva a mensagem que orienta claramente o visitante sobre o que fazer — evitando termos técnicos como \"conectar wallet\" sem explicação, pra quem nunca usou uma carteira Web3 antes."
+      },
+      {
+        "title": "Projeto — passo 3: confirme que o restante da loja permanece navegável em todos os três estados.",
+        "detail": "Revise o desenho garantindo que, nos estados (1) e (2), o cliente ainda consegue navegar normalmente pelo resto do catálogo, sem nenhum bloqueio ou interrupção fora da coleção especificamente protegida."
+      },
+      {
+        "title": "Projeto — passo 4: liste os dados que precisariam ser logados/monitorados em produção.",
+        "detail": "Pense em quais métricas ajudariam a entender o uso real dessa funcionalidade depois de publicada — por exemplo, taxa de visitantes que tentam conectar carteira, taxa de sucesso na checagem do token, tempo médio de resposta da consulta à blockchain — dados que ajudariam a diagnosticar se a latência de infraestrutura de terceiros (mencionada no primeiro passo deste tópico) está afetando a experiência real.",
+        "advanced": "Esse tipo de planejamento de observabilidade antes de implementar é especialmente valioso em integrações com infraestrutura de terceiros fora do seu controle direto (como provedores de blockchain), onde problemas de performance são mais prováveis de acontecer e mais difíceis de depurar depois do fato."
+      }
+    ]
+  },
+  "categoryId": "commerce",
+  "categoryLabel": "Commerce"
+}

@@ -1,0 +1,66 @@
+{
+  "id": "metafields",
+  "title": "Metafields",
+  "desc": "Estenda recursos da Shopify com campos customizados e regras de validação.",
+  "plan": {
+    "objetivo": "Entender o modelo de metafields como o mecanismo oficial de extensão de dados da Shopify, criar definições com validação e ler/gravar valores em lote.",
+    "prereq": "GraphQL",
+    "tempo": "3h",
+    "doc": "https://shopify.dev/docs/apps/build/metafields",
+    "steps": [
+      {
+        "title": "Entenda o problema: e se o produto precisar de um campo que a Shopify não tem?",
+        "detail": "O objeto `Product` da Shopify tem campos fixos — título, descrição, preço, imagens. Mas praticamente todo negócio precisa de algum dado a mais e específico do seu nicho: material de fabricação, instruções de cuidado, dimensões técnicas, um código interno de fornecedor. Como a Shopify não pode antecipar toda necessidade possível de todo merchant do mundo, ela oferece **metafields**: um mecanismo genérico de \"campo customizado\" que pode ser anexado a praticamente qualquer recurso (produto, coleção, cliente, pedido, e mais).\n\nCada metafield é identificado por um `namespace` (agrupamento lógico, geralmente o nome do seu app, pra evitar colisão com metafields de outros apps) e uma `key` (o nome do campo em si) — juntos, formam um endereço único, tipo `custom.material` ou `meu-app.codigo-fornecedor`.",
+        "advanced": "Use sempre um namespace específico do seu app (não `custom` genérico) quando o metafield for parte da lógica interna do app, não algo pro merchant editar livremente — isso evita colisão com metafields de outros apps ou do próprio merchant usando o mesmo namespace por coincidência."
+      },
+      {
+        "title": "Defina uma definição de metafield para um recurso.",
+        "detail": "Uma **definição de metafield** (metafield definition) é o \"schema\" daquele campo: declara namespace, key, tipo de dado (texto, número, referência a outro recurso, etc.) e regras de validação. Definições permitem validação automática e fazem o campo aparecer com uma UI dedicada no admin — metafields \"soltos\" sem definição não têm essa interface amigável, e existem só como dado bruto acessível via API.",
+        "code": "mutation {\n  metafieldDefinitionCreate(definition: {\n    name: \"Material\",\n    namespace: \"custom\",\n    key: \"material\",\n    type: \"single_line_text_field\",\n    ownerType: PRODUCT\n  }) {\n    createdDefinition { id }\n    userErrors { field message }\n  }\n}",
+        "advanced": "Definições de metafield permitem validação (ex: só aceitar valores de uma lista pré-definida) e aparecem no admin como um campo editável de verdade na página do recurso — sem a definição, o merchant não consegue editar o valor pela interface visual, só via API ou apps que leem/gravam diretamente."
+      },
+      {
+        "title": "Grave um valor de metafield via mutation GraphQL.",
+        "detail": "Use `metafieldsSet` pra gravar valores num ou mais recursos de uma vez — é uma mutation **em lote** por design, pensada pra gravar vários metafields (do mesmo ou de diferentes recursos) numa única chamada.",
+        "code": "mutation {\n  metafieldsSet(metafields: [{\n    ownerId: \"gid://shopify/Product/1\",\n    namespace: \"custom\", key: \"material\",\n    value: \"algodão\", type: \"single_line_text_field\"\n  }]) { userErrors { message } }\n}",
+        "advanced": "Prefira sempre agrupar várias gravações numa única chamada de `metafieldsSet` (passando múltiplos itens no array) em vez de uma mutation por campo — além de mais eficiente em termos de rate limit, é atômico o suficiente pra reduzir o risco de estado parcialmente gravado."
+      },
+      {
+        "title": "Leia o metafield numa query e exiba no app ou na loja.",
+        "detail": "Peça o campo `metafield(namespace: \"custom\", key: \"material\")` numa query de produto pra ler o valor. Do lado do storefront (tema), o mesmo dado fica acessível via Liquid usando `product.metafields.custom.material`.",
+        "code": "query {\n  product(id: \"gid://shopify/Product/1\") {\n    metafield(namespace: \"custom\", key: \"material\") {\n      value\n      type\n    }\n  }\n}",
+        "advanced": "Mudar o `type` de um metafield depois de criado pode quebrar leituras existentes — trate o tipo como parte do contrato da API, não como um detalhe interno trocável. Se precisar mudar o tipo, planeje uma migração explícita dos valores existentes."
+      },
+      {
+        "title": "Explore tipos de metafield além de texto simples.",
+        "detail": "Metafields suportam bem mais que texto: números, booleanos, datas, JSON estruturado, e até **referências** a outros recursos da loja (ex: um metafield de produto que referencia outro produto, pra modelar \"produtos relacionados\" customizados). Escolher o tipo certo evita ter que fazer parsing manual de strings pra representar dados estruturados.",
+        "code": "{\n  \"type\": \"number_integer\"\n}\n// ou, pra referenciar outro produto:\n{\n  \"type\": \"product_reference\"\n}"
+      },
+      {
+        "title": "Projeto — modele e use um metafield de \"material\" ponta a ponta.",
+        "detail": "Vamos criar a definição, gravar um valor, lê-lo de volta via API, e confirmar que ele aparece corretamente no admin."
+      },
+      {
+        "title": "Projeto — passo 1: crie a definição do metafield.",
+        "detail": "Rode a mutation `metafieldDefinitionCreate` pro namespace/key/tipo escolhidos, associada a produtos.",
+        "code": "mutation {\n  metafieldDefinitionCreate(definition: {\n    name: \"Material\",\n    namespace: \"custom\",\n    key: \"material\",\n    type: \"single_line_text_field\",\n    ownerType: PRODUCT\n  }) { createdDefinition { id } userErrors { field message } }\n}"
+      },
+      {
+        "title": "Projeto — passo 2: confirme que o campo aparece no admin.",
+        "detail": "Abra um produto de teste no admin e confirme que o campo \"Material\" aparece na seção de metafields da página, editável diretamente pela interface."
+      },
+      {
+        "title": "Projeto — passo 3: grave um valor via API e recarregue a página do admin.",
+        "detail": "Use `metafieldsSet` pra gravar um valor via API, depois recarregue a página do produto no admin e confirme que o valor gravado aparece — provando que API e UI leem o mesmo dado.",
+        "code": "mutation {\n  metafieldsSet(metafields: [{\n    ownerId: \"gid://shopify/Product/1\",\n    namespace: \"custom\", key: \"material\",\n    value: \"algodão orgânico\", type: \"single_line_text_field\"\n  }]) { userErrors { message } }\n}"
+      },
+      {
+        "title": "Projeto — passo 4: edite o valor pelo admin e confirme via query.",
+        "detail": "Agora faça o caminho inverso: edite o valor diretamente no admin, e rode a query de leitura pra confirmar que a API reflete a mudança feita pela interface visual.",
+        "code": "query {\n  product(id: \"gid://shopify/Product/1\") {\n    metafield(namespace: \"custom\", key: \"material\") { value }\n  }\n}"
+      }
+    ]
+  },
+  "categoryId": "data",
+  "categoryLabel": "Data and logic"
+}

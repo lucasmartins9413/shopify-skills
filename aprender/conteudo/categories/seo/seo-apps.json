@@ -1,0 +1,63 @@
+{
+  "id": "seo-apps",
+  "title": "SEO em apps: boas práticas e requisitos",
+  "desc": "Se você constrói apps (não temas): como evitar quebrar o SEO de quem instala seu app, e como construir um app de SEO responsável.",
+  "plan": {
+    "objetivo": "Entender as formas comuns de um app prejudicar o SEO de uma loja sem querer, e as boas práticas pra construir (ou avaliar) um app que lida com SEO de forma responsável.",
+    "prereq": "Dados estruturados e rich snippets",
+    "tempo": "2h30",
+    "doc": "https://shopify.dev/docs/apps/build/online-store",
+    "steps": [
+      {
+        "title": "Entenda a diferença de perspectiva: tema versus app em SEO.",
+        "detail": "Até aqui, a trilha tratou principalmente do ponto de vista de quem constrói ou customiza um **tema**. Mas muitos apps também tocam em SEO — de forma direta (apps de otimização de SEO, de schema, de meta tags) ou indireta (qualquer app que injeta um script na loja via theme app extension ou Web Pixel, coberto na trilha de Data and logic e Commerce). A diferença de perspectiva importa: um app não controla o tema inteiro, só os pontos específicos onde é instalado — e isso cria um risco real de **conflito** com o que o tema já faz."
+      },
+      {
+        "title": "Evite duplicar dados estruturados que o tema já gera.",
+        "detail": "Retomando o problema visto no tópico de dados estruturados: se seu app adiciona um `Product` JSON-LD via app block, e o tema **já** tem seu próprio `structured_data` de produto, a página acaba com dois schemas `Product` conflitantes — um erro real e documentado que o Google Search Console sinaliza. Antes de um app adicionar schema, ele deveria, no mínimo, **detectar e avisar** o merchant sobre um schema já existente, em vez de simplesmente empilhar o seu por cima.",
+        "advanced": "Uma abordagem mais robusta: seu app pode oferecer a opção de **substituir** o schema nativo do tema em vez de adicioná-lo — mas isso exige comunicação clara na UI do app sobre o que está acontecendo, pra o merchant não ficar com dois sistemas competindo sem saber."
+      },
+      {
+        "title": "Meça o custo de performance do seu próprio script antes de publicar.",
+        "detail": "Como visto no tópico de performance, cada script de app tem custo real de Core Web Vitals — e isso vale duas vezes mais quando o app em questão é justamente **sobre SEO**, porque o próprio propósito do app pode estar sendo prejudicado pelo script que ele injeta. Rode Lighthouse antes/depois de instalar seu próprio app numa loja de teste, e trate qualquer regressão de LCP/CLS como um bug de prioridade alta, não um detalhe secundário.",
+        "code": "npx lighthouse https://loja-teste.myshopify.com --view"
+      },
+      {
+        "title": "Nunca sobrescreva o canonical ou o robots.txt sem consentimento explícito e visível.",
+        "detail": "Um app que altera `canonical_url` ou o comportamento de rastreamento (via manipulação de robots.txt, ou tags `noindex` injetadas) tem poder de **remover uma loja inteira dos resultados de busca** se algo der errado. Qualquer funcionalidade desse tipo deveria: (1) ser opt-in explícito, nunca ativado por padrão; (2) mostrar claramente, na UI do app, o que está sendo alterado; (3) ter um jeito fácil de reverter."
+      },
+      {
+        "title": "Se o app expõe conteúdo indexável (blog, FAQ, reviews), gere URLs e metadata próprios corretamente.",
+        "detail": "Apps que adicionam conteúdo substancial à loja (um sistema de FAQ, um blog próprio, um wiki de produto) deveriam seguir os mesmos princípios vistos nesta trilha: cada página gerada precisa de title/description próprios, um canonical correto, e idealmente dados estruturados apropriados ao tipo de conteúdo — um app que gera páginas \"invisíveis\" pro SEO desperdiça a chance de gerar tráfego orgânico adicional pro merchant."
+      },
+      {
+        "title": "Documente claramente, na listagem do App Store, o que seu app faz em relação a SEO.",
+        "detail": "Merchants avaliando apps de SEO frequentemente não têm conhecimento técnico profundo do assunto — a listagem do app deveria explicar em linguagem simples exatamente o que ele configura (\"adiciona dados estruturados de produto\", \"customiza o robots.txt pra bloquear X\"), evitando promessas vagas de \"turbine seu SEO\" sem explicar o mecanismo real por trás.",
+        "advanced": "Esse princípio se conecta diretamente ao tópico \"Non-deceptive code\" da trilha de Quality — clareza sobre o que uma funcionalidade realmente faz é tanto uma boa prática de SEO responsável quanto um requisito de revisão da App Store."
+      },
+      {
+        "title": "Projeto — audite um cenário de conflito entre app e tema, e desenhe a solução.",
+        "detail": "Vamos simular, num cenário de texto (sem precisar de um app publicado de verdade), a auditoria completa de um conflito real de SEO entre app e tema."
+      },
+      {
+        "title": "Projeto — passo 1: descreva o cenário — um app de reviews adicionando `AggregateRating`.",
+        "detail": "Imagine um app de avaliações de produto que adiciona um schema `Product` completo (incluindo `AggregateRating`) via app block na página de produto, numa loja cujo tema **já** implementa `{{ product | structured_data }}` nativamente."
+      },
+      {
+        "title": "Projeto — passo 2: identifique o conflito exato gerado.",
+        "detail": "Escreva especificamente o que acontece no HTML final: dois blocos `application/ld+json` com `\"@type\": \"Product\"`, um sem o campo `aggregateRating` (do tema) e outro com ele (do app) — ambos referenciando o mesmo produto."
+      },
+      {
+        "title": "Projeto — passo 3: desenhe a solução do lado do app.",
+        "detail": "Descreva como o app deveria se comportar: detectar o schema existente do tema (por exemplo, checando se já existe um `Product` JSON-LD na página antes de injetar o seu), e, se existir, mesclar o `aggregateRating` no schema já presente em vez de duplicar tudo — ou avisar claramente o merchant sobre a sobreposição, dando a opção de desativar um dos dois."
+      },
+      {
+        "title": "Projeto — passo 4: escreva a mensagem de UI que o app mostraria ao merchant nesse cenário.",
+        "detail": "Redija, em uma ou duas frases, o aviso que apareceria na tela de configuração do app avisando sobre o schema duplicado detectado — praticando exatamente a transparência discutida no passo 5 da teoria.",
+        "advanced": "Esse tipo de exercício — desenhar a solução e a comunicação ao usuário antes de escrever qualquer código — vale a pena repetir sempre que um app tocar em território compartilhado com o tema, não só em SEO."
+      }
+    ]
+  },
+  "categoryId": "seo",
+  "categoryLabel": "SEO"
+}

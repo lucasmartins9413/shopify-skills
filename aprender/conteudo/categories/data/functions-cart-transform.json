@@ -1,0 +1,73 @@
+{
+  "id": "functions-cart-transform",
+  "title": "Functions: Cart Transform (kits e bundles)",
+  "desc": "Expanda, una e reescreva linhas do carrinho: kits que viram componentes, brindes juntados e ajustes de preço e título.",
+  "plan": {
+    "objetivo": "Usar a Function Cart Transform pra montar bundles: vender um item \"kit\" que vira vários componentes no pedido (ou o contrário) sem app de bundle de terceiros.",
+    "prereq": "Shopify Functions",
+    "tempo": "4h",
+    "doc": "https://shopify.dev/docs/api/functions/latest/cart-transform",
+    "steps": [
+      {
+        "title": "Entenda o que o Cart Transform faz.",
+        "detail": "Diferente da validação (que só diz sim/não) e do desconto (que só muda preço), o **Cart Transform reescreve as linhas do carrinho**. Ele roda quando o carrinho muda e devolve operações que **expandem** uma linha em várias, **juntam** várias numa só ou **atualizam** dados de uma linha.",
+        "advanced": "É o mecanismo por trás dos apps de bundle modernos: o comprador vê e paga um item só, e o estoque e o fulfillment enxergam os componentes."
+      },
+      {
+        "title": "Conheça o target e os três tipos de operação.",
+        "detail": "Target: `cart.transform.run`. Operações de saída:\n\n- **`lineExpand`** — troca uma linha por vários itens (o kit vira componentes).\n- **`linesMerge`** — junta várias linhas numa só (com um `parentVariantId` que representa o kit).\n- **`lineUpdate`** — altera título, imagem ou preço de uma linha.",
+        "advanced": "Só **uma** Cart Transform por app por loja. E `lineUpdate` só funciona em lojas **Shopify Plus** ou de desenvolvimento."
+      },
+      {
+        "title": "Registre a extensão.",
+        "detail": "Mesma estrutura das outras Functions — só muda o target.",
+        "code": "[[extensions]]\nname = \"Kits e bundles\"\nhandle = \"kits-bundles\"\ntype = \"function\"\n\n  [[extensions.targeting]]\n  target = \"cart.transform.run\"\n  input_query = \"src/cart_transform_run.graphql\"\n  export = \"cart-transform-run\""
+      },
+      {
+        "title": "Guarde a receita do kit num metafield da variante.",
+        "detail": "Em vez de fixar a composição no código, guarde no metafield da variante-kit um JSON com os componentes e as quantidades **por unidade do kit**. A input query lê esse metafield.",
+        "code": "query CartTransformRunInput {\n  cart {\n    lines {\n      id\n      quantity\n      merchandise {\n        __typename\n        ... on ProductVariant {\n          id\n          title\n          components: metafield(namespace: \"$app:bundle\", key: \"components\") {\n            jsonValue\n          }\n        }\n      }\n    }\n  }\n}",
+        "advanced": "O namespace `$app:bundle` é reservado ao seu app. Assim ninguém edita a receita por engano no admin."
+      },
+      {
+        "title": "Expanda o kit em componentes com lineExpand.",
+        "detail": "Para cada linha cuja variante tem receita, devolva um `lineExpand` apontando pro id da linha, com o array `expandedCartItems` (`merchandiseId` + `quantity`). O comprador continua vendo o kit, e o pedido sai com os componentes.",
+        "code": "// src/cart_transform_run.js\n// Metafield da variante-kit: [{ \"id\": \"gid://shopify/ProductVariant/1\", \"quantity\": 2 }, ...]\nexport function cartTransformRun(input) {\n  const operations = [];\n\n  for (const line of input.cart.lines) {\n    if (line.merchandise.__typename !== \"ProductVariant\") continue;\n\n    const components = line.merchandise.components?.jsonValue;\n    if (!Array.isArray(components) || components.length === 0) continue;\n\n    operations.push({\n      lineExpand: {\n        cartLineId: line.id,\n        title: line.merchandise.title,\n        expandedCartItems: components.map((component) => ({\n          merchandiseId: component.id,\n          quantity: component.quantity, // por unidade do kit\n        })),\n      },\n    });\n  }\n\n  return { operations };\n}"
+      },
+      {
+        "title": "Ajuste o preço do kit.",
+        "detail": "Sem ajuste, o kit custa a soma dos componentes. A expansão aceita um ajuste de preço — por exemplo, um desconto percentual sobre o total, ou preço fixo por unidade nos itens expandidos.",
+        "code": "// ajustando o preço do kit: preço fixo por unidade da linha expandida\n{\n  lineExpand: {\n    cartLineId: line.id,\n    expandedCartItems: components.map((c) => ({ merchandiseId: c.id, quantity: c.quantity })),\n    price: {\n      percentageDecrease: { value: 10 }, // 10% de desconto sobre a soma dos componentes\n    },\n  },\n}",
+        "advanced": "Os formatos exatos dos campos de preço (`percentageDecrease`, `fixedPricePerUnit`) mudam entre versões da API. Valide contra o schema da **sua** versão (`shopify app function schema`) antes de publicar."
+      },
+      {
+        "title": "Junte linhas com linesMerge.",
+        "detail": "O inverso: o comprador coloca camiseta e boné no carrinho e você os junta numa linha \"Kit\". Útil pra venda cruzada em que os itens são vendidos separadamente mas cobrados/apresentados juntos.",
+        "code": "// linesMerge: junta linhas soltas numa só linha \"kit\" (ex.: camiseta + boné)\n{\n  linesMerge: {\n    parentVariantId: \"gid://shopify/ProductVariant/999\",\n    title: \"Kit camiseta + boné\",\n    cartLines: [\n      { cartLineId: camisa.id, quantity: 1 },\n      { cartLineId: bone.id, quantity: 1 },\n    ],\n  },\n}"
+      },
+      {
+        "title": "Conheça as restrições.",
+        "detail": "As três operações são **recusadas quando existem planos de venda** (assinaturas) no carrinho. Além disso, o pedido resultante precisa fazer sentido pro estoque: os componentes precisam existir como variantes rastreadas.",
+        "advanced": "Teste sempre o caminho de edição do pedido e de troca/devolução: a linha expandida se comporta diferente da linha \"kit\" original."
+      },
+      {
+        "title": "Projeto — kit \"Combo Camiseta + Boné\".",
+        "detail": "Vai criar a variante-kit, gravar a receita, escrever a Function e conferir o pedido gerado."
+      },
+      {
+        "title": "Projeto — passo 1: prepare os produtos.",
+        "detail": "Crie a variante \"Combo\" e as variantes componentes (camiseta e boné) com estoque. Grave, via Admin API, o metafield de receita da variante-kit com os dois componentes, quantidade 1 cada."
+      },
+      {
+        "title": "Projeto — passo 2: escreva e teste a Function.",
+        "detail": "Use a query e o código do `lineExpand`. Rode `shopify app function run` com um input de carrinho contendo o combo e confirme que a saída expande em duas linhas."
+      },
+      {
+        "title": "Projeto — passo 3: publique e finalize um pedido.",
+        "detail": "Faça o deploy, ative a transform e compre o combo numa dev store. No admin, confira que o pedido lista os dois componentes e que o estoque de **cada um** foi baixado."
+      }
+    ]
+  },
+  "categoryId": "data",
+  "categoryLabel": "Data and logic"
+}

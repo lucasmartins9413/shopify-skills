@@ -1,0 +1,75 @@
+{
+  "id": "functions",
+  "title": "Shopify Functions",
+  "desc": "Customize lógica de backend para descontos, pagamentos, entrega e validação de carrinho.",
+  "plan": {
+    "objetivo": "Entender por que Functions rodam em WebAssembly dentro do checkout, implementar uma função de exemplo e saber debugar falhas de execução.",
+    "prereq": "Extensions",
+    "tempo": "6h",
+    "doc": "https://shopify.dev/docs/apps/build/functions",
+    "steps": [
+      {
+        "title": "Entenda o problema: lógica de negócio dentro do checkout, sem expor um servidor externo.",
+        "detail": "Antes de Functions existirem, customizar lógica de negócio sensível — como uma regra de desconto complexa, ou uma validação de carrinho — exigia o checkout fazer uma chamada de rede pro servidor do app durante o processo de compra. Isso é arriscado: se o servidor do app estiver lento ou fora do ar, o checkout inteiro trava ou falha pro comprador, mesmo que o problema seja de um app terceiro, não da Shopify.\n\n**Shopify Functions** resolvem isso rodando sua lógica **dentro** da infraestrutura da própria Shopify, compilada pra **WebAssembly (Wasm)** — um formato binário que roda de forma extremamente rápida e isolada, sem depender de uma chamada de rede externa durante o checkout. Você escreve a lógica (em JavaScript/TypeScript ou Rust), o CLI compila pra Wasm, e a Shopify executa esse binário no momento certo (ex: a cada atualização de carrinho).",
+        "advanced": "Esse modelo de execução é o que permite à Shopify garantir SLAs de performance rígidos no checkout — uma Function mal comportada não pode travar a experiência de compra do jeito que uma chamada de rede lenta poderia."
+      },
+      {
+        "title": "Conheça as categorias de Function e seus pontos de extensão (`target`).",
+        "detail": "Functions são organizadas por categoria de negócio, cada uma com seu próprio `target` (ponto de extensão) e formato de input/output:\n- **Descontos** — `cart.lines.discounts.generate.run`, `cart.delivery-options.discounts.generate.run`\n- **Frete/entrega** — ordena ou filtra opções de entrega disponíveis\n- **Métodos de pagamento** — reordena ou oculta opções de pagamento\n- **Validação de carrinho/checkout** — bloqueia o avanço do checkout sob certas condições\n\nCada categoria tem um schema GraphQL próprio de input (o que a Function recebe) e output (o que ela deve devolver) — não são intercambiáveis.",
+        "advanced": "O runtime WebAssembly tem limite estrito de memória e tempo de execução (na casa de milissegundos) — lógica pesada, como loops sobre listas muito grandes ou cálculos complexos, pode estourar esse limite e falhar."
+      },
+      {
+        "title": "Gere uma Function pelo CLI e explore o template.",
+        "detail": "O CLI oferece templates prontos em JavaScript/TypeScript e Rust pra cada categoria, já com o schema de input/output correto configurado.",
+        "code": "shopify app generate extension\n# escolha \"Function\" e depois a categoria (ex: Discounts)"
+      },
+      {
+        "title": "Implemente a lógica seguindo o exemplo de desconto.",
+        "detail": "A função recebe um input JSON (representando o carrinho, produtos, quantidades) e devolve um output JSON com o resultado — no caso de desconto, uma lista de `operations` descrevendo o que aplicar e onde.",
+        "code": "// export precisa bater com o 'export' declarado no target, em shopify.extension.toml\nexport function cartLinesDiscountsGenerateRun(input) {\n  const totalQty = input.cart.lines.reduce((sum, l) => sum + l.quantity, 0);\n  if (totalQty < 3) return { operations: [] };\n\n  return {\n    operations: [{\n      orderDiscountsAdd: {\n        selectionStrategy: \"FIRST\",\n        candidates: [{\n          message: \"10% OFF acima de 3 itens\",\n          targets: [{ orderSubtotal: { excludedCartLineIds: [] } }],\n          value: { percentage: { value: \"10.0\" } }\n        }]\n      }\n    }]\n  };\n}",
+        "advanced": "O input/output é validado contra um schema GraphQL específico da categoria da Function — mudar a forma do JSON retornado sem atualizar/respeitar esse schema quebra o deploy, com uma mensagem de erro que aponta exatamente o campo divergente."
+      },
+      {
+        "title": "Entenda por que Functions sempre retornam algo, mesmo \"vazio\".",
+        "detail": "Repare, no exemplo acima, que a função retorna `{ operations: [] }` (uma lista vazia) quando a condição não é atendida, em vez de não retornar nada ou lançar um erro. Esse é o padrão correto: uma Function deve sempre devolver uma resposta válida no formato esperado — o \"caso de não fazer nada\" ainda é uma resposta válida, só que com uma lista de operações vazia.",
+        "advanced": "Lançar uma exceção (ao invés de retornar uma resposta vazia válida) numa Function é tratado como falha de execução — e, como visto no próximo passo, isso é silencioso pro comprador, então evite deixar código que pode lançar exceção sem tratamento em caminhos comuns da lógica."
+      },
+      {
+        "title": "Publique e ative a Function numa loja de teste.",
+        "detail": "Depois do deploy (`shopify app deploy`), o merchant precisa **ativar** a Function explicitamente nas configurações correspondentes da loja (ex: Configurações → Descontos → Criar desconto, escolhendo o app/Function na lista) — publicar o código não ativa a funcionalidade automaticamente.",
+        "advanced": "Só uma Function por categoria costuma estar ativa por vez numa mesma regra da loja — ativar a sua substitui a anterior naquele contexto específico, não empilha as duas rodando ao mesmo tempo."
+      },
+      {
+        "title": "Debugue erros de execução usando os logs da Function.",
+        "detail": "Erros de runtime ou de schema aparecem nos logs do terminal durante `shopify app dev`; depois do deploy, use os logs de extension do Partner/Dev Dashboard pra investigar falhas em produção.",
+        "code": "shopify app dev\n# fique de olho na saída referente ao handle da sua function",
+        "advanced": "Uma Function que lança exceção ou estoura o limite de memória/tempo falha de forma **silenciosa** pro comprador — o efeito esperado (ex: desconto) simplesmente não é aplicado, sem erro visível na tela do checkout. Trate esse silêncio como um bug a monitorar ativamente pelos logs, nunca como um fallback seguro."
+      },
+      {
+        "title": "Projeto — implemente e teste uma Function de desconto por volume, de ponta a ponta.",
+        "detail": "Vamos construir a Function do exemplo acima (10% de desconto acima de 3 itens) num app real, ativá-la numa dev store e confirmar seu comportamento no carrinho."
+      },
+      {
+        "title": "Projeto — passo 1: gere a Function de desconto.",
+        "detail": "Rode o gerador escolhendo a categoria de desconto por linha de carrinho.",
+        "code": "shopify app generate extension\n# Function > Discounts > cart lines"
+      },
+      {
+        "title": "Projeto — passo 2: implemente a lógica de 10% acima de 3 itens.",
+        "detail": "Substitua o corpo da função gerada pelo código de exemplo mostrado neste tópico, ajustando o `target` se necessário conforme o template gerado."
+      },
+      {
+        "title": "Projeto — passo 3: faça o deploy e ative a Function na dev store.",
+        "detail": "Rode o deploy, depois vá em Configurações → Descontos no admin da dev store e crie um desconto automático escolhendo sua Function na lista.",
+        "code": "shopify app deploy"
+      },
+      {
+        "title": "Projeto — passo 4: teste no carrinho, com menos e com mais de 3 itens.",
+        "detail": "Adicione 2 itens ao carrinho de teste e confirme que nenhum desconto aparece; adicione um terceiro item e confirme que o desconto de 10% é aplicado automaticamente — validando os dois ramos da lógica condicional.",
+        "advanced": "Se o desconto não aparecer mesmo com 3+ itens, confira primeiro se a Function foi de fato ativada na configuração de descontos da loja — código deployado sem essa ativação explícita não tem efeito nenhum no checkout."
+      }
+    ]
+  },
+  "categoryId": "data",
+  "categoryLabel": "Data and logic"
+}

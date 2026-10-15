@@ -1,0 +1,73 @@
+{
+  "id": "theme-architecture",
+  "title": "Key concepts (Architecture)",
+  "desc": "Veja como layout, templates, sections e blocks se encaixam num tema modular.",
+  "plan": {
+    "objetivo": "Entender profundamente como layout, template, sections e blocks se encaixam durante o render de uma página, e por que o tema é organizado dessa forma.",
+    "prereq": "Build a new theme",
+    "tempo": "3h",
+    "doc": "https://shopify.dev/docs/storefronts/themes/architecture",
+    "steps": [
+      {
+        "title": "Entenda o papel fixo de cada pasta do tema.",
+        "detail": "Um tema Online Store 2.0 sempre tem a mesma estrutura de oito pastas/arquivos no primeiro nível. Cada uma tem uma responsabilidade única, e a Shopify reconhece o nome e a posição dessas pastas — não é convenção da comunidade, é contrato da plataforma:\n\n### assets/\nArquivos estáticos: CSS, JavaScript, imagens padrão, fontes. Tudo aqui é servido via CDN e pode ser referenciado no Liquid com o filtro `asset_url`.\n\n### layout/\nA \"casca\" que envolve toda página: `<html>`, `<head>`, header/footer fixos. `layout/theme.liquid` é o único arquivo obrigatório aqui.\n\n### templates/\nUm arquivo por tipo de página (`product.json`, `collection.json`, `index.json`...) — define **quais sections** aparecem naquela página e em que ordem.\n\n### sections/\nMódulos de conteúdo maiores, geralmente com schema editável (um banner, uma grade de produtos, um rodapé). Também guarda os *section groups*.\n\n### blocks/\nPedaços menores e reutilizáveis dentro de sections — um item de FAQ, uma característica de produto, um ícone com texto.\n\n### snippets/\nTrechos de Liquid puro, sem schema, reaproveitados via `{% render %}` — a unidade de reuso mais granular do tema.\n\n### config/\n`settings_schema.json` (o formulário de configurações globais do tema) e `settings_data.json` (os valores salvos daquela loja).\n\n### locales/\nUm arquivo JSON por idioma, com as strings de interface do tema (não o conteúdo de produtos — isso é traduzido em outro lugar, pelo Shopify Translate & Adapt).",
+        "advanced": "Tecnicamente, só `layout/theme.liquid` é obrigatório pra Shopify aceitar o upload de um tema. Mas sem templates mínimos pra product, collection e index, a loja não navega de forma utilizável — na prática, esse conjunto pequeno também é \"obrigatório\"."
+      },
+      {
+        "title": "Siga o caminho completo de uma requisição: layout → template → sections → blocks.",
+        "detail": "Quando alguém acessa `/products/uma-camiseta`, isso acontece, em ordem:\n\n1. A Shopify identifica que é uma página de produto e carrega `templates/product.json`.\n2. Esse JSON diz \"renderize o layout padrão\" (a menos que a página tenha um layout customizado) — então `layout/theme.liquid` começa a ser processado.\n3. Em algum ponto de `theme.liquid` existe a tag `{{ content_for_layout }}` — é ali que o conteúdo do *template* é injetado dentro do layout.\n4. O template lista as sections daquela página, na ordem do array `order` do JSON.\n5. Cada section renderiza seu próprio Liquid, e, se aceitar blocks, itera sobre `section.blocks` renderizando cada um.\n\nEsse fluxo de \"casca contém template contém sections contém blocks\" é a espinha dorsal de todo tema Online Store 2.0 — internalizar essa ordem evita boa parte da confusão inicial de \"por que essa mudança não aparece\".",
+        "code": "<!-- layout/theme.liquid (simplificado) -->\n<html>\n  <head>{% render 'meta-tags' %}</head>\n  <body>\n    {% sections 'header-group' %}\n    {{ content_for_layout }}\n    {% sections 'footer-group' %}\n  </body>\n</html>",
+        "advanced": "Existem limites documentados de tamanho de arquivo e de tempo/recursos de renderização por requisição (o chamado orçamento de performance do tema). Temas com muitos snippets aninhados chamando outros snippets tendem a esbarrar nisso primeiro — veja a [documentação de limites](https://shopify.dev/docs/storefronts/themes/best-practices/performance)."
+      },
+      {
+        "title": "Distinga \"section\" de \"section group\".",
+        "detail": "Uma **section** isolada é um módulo de conteúdo que aparece dentro de um template — ex: um carrossel de produtos em destaque na home. Um **section group** é um arquivo JSON diferente, que define uma área fixa do layout (tipicamente header e footer) como uma lista ordenada de sections, editável pelo merchant sem tocar em `theme.liquid`.\n\nA diferença na prática: sections de template vivem dentro de `templates/*.json`; section groups vivem em `sections/*.json` mas são chamados a partir do **layout**, via `{% sections 'nome-do-group' %}`.",
+        "advanced": "Confundir os dois é comum no início: se você precisa que o merchant reordene blocos de conteúdo numa página específica, é template + sections normais; se é sobre header/footer (áreas que aparecem em toda página), é section group."
+      },
+      {
+        "title": "Entenda por que blocks existem separados de sections.",
+        "detail": "Sections já têm settings (campos configuráveis) — então por que blocks? Porque settings de section descrevem valores **fixos em quantidade** (uma cor, um texto), enquanto blocks descrevem **itens repetíveis e reordenáveis** (cada item de uma lista de FAQ, cada slide de um carrossel).\n\nSem blocks, a alternativa seria hardcodar \"suporte a até 5 itens\" com 5 grupos de settings quase idênticos no schema — funciona, mas trava o merchant num número arbitrário e polui o editor. Com blocks, o merchant adiciona, remove e reordena quantos quiser (até um limite razoável), e cada block só declara o schema de **um item**.",
+        "advanced": "Pense em blocks como \"o item de uma lista\" e settings de section como \"as opções da lista como um todo\" (título da seção, cor de fundo, etc.) — essa divisão mental resolve 90% das dúvidas de onde colocar cada configuração."
+      },
+      {
+        "title": "Descreva a hierarquia inteira com suas próprias palavras.",
+        "detail": "Antes de escrever mais Liquid, escreva num arquivo de texto (ou nas suas anotações aqui mesmo) a hierarquia completa, do seu jeito: o que é layout, o que é template, o que é section, o que é section group, o que é block, e como um se aninha dentro do outro. Esse exercício de reescrever com as próprias palavras expõe rapidamente qualquer parte que você só \"achou que tinha entendido\".",
+        "advanced": "Pense em sections/blocks como componentes reutilizáveis desde o início do projeto — refatorar um tema que cresceu de forma monolítica (tudo hardcoded direto no template) pra um modelo modular depois é bem mais trabalhoso do que planejar isso desde a primeira section."
+      },
+      {
+        "title": "Meça o tempo de render por section com o Theme Inspector.",
+        "detail": "A extensão **Theme Inspector for Shopify Themes** (Chrome DevTools) mostra, numa página real, quanto tempo cada camada da hierarquia — layout, template, cada section — levou pra renderizar no servidor. É a forma mais direta de transformar a teoria desse tópico em números concretos.",
+        "advanced": "Sections que chamam objects \"caros\" (como `all_products` sem filtro, ou coleções grandes sem paginação) tendem a aparecer no topo do relatório do Theme Inspector — meça antes de otimizar às cegas, a intuição costuma errar o alvo."
+      },
+      {
+        "title": "Projeto — mapeie a arquitetura completa de um tema real.",
+        "detail": "Os passos a seguir usam o tema Dawn (ou o tema que você já tem localmente) como estudo de caso: você vai percorrer o caminho de renderização de uma página de produto de ponta a ponta, anotando cada arquivo tocado no processo.",
+        "advanced": "Guarde esse mapeamento — ele vira uma referência rápida sempre que precisar debugar \"de onde vem\" um pedaço de HTML que você não reconhece na página."
+      },
+      {
+        "title": "Projeto — passo 1: se ainda não tem, clone o Dawn como material de estudo.",
+        "detail": "Se seu tema de trabalho é o Skeleton (bem enxuto), clone o Dawn numa pasta separada só pra esse exercício de leitura — ele tem exemplos reais de cada conceito.",
+        "code": "shopify theme init tema-referencia --clone-url https://github.com/Shopify/dawn.git\ncd tema-referencia"
+      },
+      {
+        "title": "Projeto — passo 2: abra `layout/theme.liquid` e localize `content_for_layout`.",
+        "detail": "Ache a linha exata e anote o que vem imediatamente antes e depois dela — normalmente é ali que o header e o footer (via section groups) envolvem o conteúdo da página."
+      },
+      {
+        "title": "Projeto — passo 3: abra `templates/product.json` e liste as sections, em ordem.",
+        "detail": "Anote o array `order` inteiro. Pra cada ID de section listado, ache o arquivo correspondente em `sections/` e escreva uma frase de uma linha sobre o que ele faz."
+      },
+      {
+        "title": "Projeto — passo 4: escolha uma section com blocks e liste os tipos de block aceitos.",
+        "detail": "Dentro do `{% schema %}` dessa section, ache o array `blocks` e anote cada `type` — compare com o que aparece de fato no editor de temas quando você clica em \"Adicionar bloco\" nessa section, numa dev store."
+      },
+      {
+        "title": "Projeto — passo 5: rode o Theme Inspector nessa mesma página de produto.",
+        "detail": "Suba `shopify theme dev`, abra a página de produto com a extensão do Theme Inspector ativa, e confira se o tempo de render de cada section bate com a complexidade que você esperava pelo código lido nos passos anteriores.",
+        "code": "shopify theme dev --store=sua-loja-dev.myshopify.com"
+      }
+    ]
+  },
+  "categoryId": "themes",
+  "categoryLabel": "Temas (Storefronts)"
+}

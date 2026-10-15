@@ -1,0 +1,69 @@
+{
+  "id": "cli",
+  "title": "Shopify CLI for apps",
+  "desc": "Gere apps e extensões, rode servidores de desenvolvimento e faça deploy de projetos pela linha de comando.",
+  "plan": {
+    "objetivo": "Dominar o conjunto completo de comandos do Shopify CLI pra apps — dev, build, deploy, generate extension, config — e o que cada um resolve no ciclo de vida do projeto.",
+    "prereq": "Scaffold an app",
+    "tempo": "2h",
+    "doc": "https://shopify.dev/docs/apps/build/cli-for-apps",
+    "steps": [
+      {
+        "title": "Antes dos detalhes: o mapa mental dos comandos que você vai usar.",
+        "detail": "Você já usou `shopify app init` e `shopify app dev` — dá pra pensar no resto do CLI como uma continuação natural desses dois, organizado por etapa do ciclo de vida do app:",
+        "code": "# desenvolvimento do dia a dia\nshopify app dev              # sobe servidor + túnel + instala na dev store\nshopify app build            # só compila, sem túnel nem instalação\n\n# extensões\nshopify app generate extension\n\n# deploy e versões\nshopify app deploy            # empacota e cria uma nova versão (inativa)\nshopify app release            # publica uma versão já deployada\n\n# ambiente\nshopify app config use <nome>\nshopify app info",
+        "advanced": "Rode `shopify app --help` a qualquer momento — a lista de comandos e flags muda entre versões do CLI, e o help embutido é sempre a fonte mais atual, mais do que qualquer anotação externa (inclusive esta)."
+      },
+      {
+        "title": "`shopify app dev` — o comando que você roda na maior parte do tempo.",
+        "detail": "Por trás de uma única chamada, ele faz cinco coisas ao mesmo tempo: sobe o servidor local, abre o túnel HTTPS, registra essa URL como Application URL temporária no Dashboard, instala o app numa dev store escolhida e observa o sistema de arquivos pra recarregar a cada mudança salva.",
+        "code": "shopify app dev",
+        "advanced": "Use `shopify app dev --reset` quando quiser esquecer as respostas salvas de execuções anteriores (dev store escolhida, configuração usada) e passar por todas as perguntas de novo — útil ao trocar de dev store de teste."
+      },
+      {
+        "title": "Quando você só quer saber se compila: `shopify app build`.",
+        "detail": "Antes de abrir um pull request, ou dentro de um pipeline de CI, você não precisa de túnel nem de instalação numa loja — só precisa saber se o projeto compila sem erro. É pra isso que existe esse comando: mais rápido, e não exige estar autenticado numa dev store específica.",
+        "code": "shopify app build"
+      },
+      {
+        "title": "Gere sua primeira extension com `shopify app generate extension`.",
+        "detail": "O comando pergunta qual **tipo de extension** você quer — admin action/block, checkout UI extension, POS UI extension, Shopify Function, theme app extension, entre outros — e já cria a estrutura de pastas certa dentro de `extensions/`, incluindo um `shopify.extension.toml` com os campos mínimos preenchidos.",
+        "code": "shopify app generate extension\n\n# ? Type of extension? Admin action\n# ? Extension name: minha-primeira-extensao",
+        "advanced": "Extensions geradas fora de um app scaffolded pelo CLI podem não referenciar corretamente o `shopify.app.toml` — gere sempre de dentro da pasta raiz do projeto, nunca copiando uma extension de outro app à mão."
+      },
+      {
+        "title": "Repare bem nisso: `deploy` não é o mesmo que publicar.",
+        "detail": "Rodar `shopify app deploy` empacota o app (incluindo todas as extensions) e cria uma **nova versão** no Partner/Dev Dashboard — mas essa versão fica inativa até ser explicitamente publicada. Essa separação é proposital: dá uma chance de revisar a versão no Dashboard antes que qualquer merchant seja afetado pela mudança.",
+        "code": "shopify app deploy\n\n# ✔ Deployed to Shopify\n# └ Version created (inactive) — release with `shopify app release`",
+        "advanced": "`shopify app deploy --force` pula a confirmação interativa (útil em CI, onde não há terminal pra responder \"yes\") — mas use com cuidado: sem a confirmação manual, um deploy de uma branch errada vira uma versão publicável sem ninguém ter revisado."
+      },
+      {
+        "title": "Alterne entre ambientes sem tocar nos arquivos à mão.",
+        "detail": "Projetos que precisam de configurações diferentes por ambiente (staging vs. produção, cada um com seu próprio `client_id`) usam arquivos `shopify.app.<nome>.toml` adicionais, alternados com `config use`.",
+        "code": "shopify app config use staging\nshopify app config use production"
+      },
+      {
+        "title": "Projeto — pratique o ciclo completo: gerar extension, buildar e criar uma versão de deploy.",
+        "detail": "Vamos simular o fluxo real de adicionar uma funcionalidade nova ao app e prepará-la pra revisão, sem publicá-la de fato."
+      },
+      {
+        "title": "Projeto — passo 1: gere uma extension simples de teste.",
+        "detail": "Rode o comando de geração e escolha um tipo simples (ex: uma admin action) só pra ter algo novo em `extensions/`.",
+        "code": "shopify app generate extension"
+      },
+      {
+        "title": "Projeto — passo 2: confirme que o projeto builda sem erros.",
+        "detail": "Antes de criar uma versão de deploy, valide que tudo compila corretamente — é um passo rápido que evita descobrir um erro de sintaxe só depois do deploy.",
+        "code": "shopify app build"
+      },
+      {
+        "title": "Projeto — passo 3: crie uma versão de deploy, sem publicar.",
+        "detail": "Rode o deploy e confirme, no Partner/Dev Dashboard, que a nova versão aparece listada como inativa — prova de que ela não afeta nenhum merchant automaticamente.",
+        "code": "shopify app deploy",
+        "advanced": "Nomeie a versão com uma mensagem clara quando o CLI perguntar (ex: \"adiciona admin action de teste\") — esse histórico de versões vira uma trilha de auditoria útil conforme o app cresce."
+      }
+    ]
+  },
+  "categoryId": "build",
+  "categoryLabel": "Build"
+}

@@ -1,0 +1,65 @@
+{
+  "id": "markets",
+  "title": "Global markets",
+  "desc": "Construa para vendas multi-mercado com preços, idiomas e domínios customizados.",
+  "plan": {
+    "objetivo": "Entender o modelo de markets como unidade de segmentação de venda internacional, configurar preços específicos por região e lidar com os efeitos colaterais de cache de preço.",
+    "prereq": "Product merchandising",
+    "tempo": "3h",
+    "doc": "https://shopify.dev/docs/apps/build/markets",
+    "steps": [
+      {
+        "title": "Entenda o que é um market e por que ele existe.",
+        "detail": "Uma loja Shopify pode vender pro mundo todo com uma única configuração — mas isso raramente é o ideal: preços em dólar não fazem sentido pra um comprador brasileiro, e um mesmo produto pode ter regras fiscais e de disponibilidade diferentes por país. Um **market** é uma unidade de segmentação que agrupa um conjunto de países sob uma configuração própria de moeda, idioma, preços e (opcionalmente) domínio — permitindo que a mesma loja se apresente de forma diferente e apropriada pra cada região, sem precisar manter lojas Shopify separadas por país.",
+        "advanced": "Markets sobrepostos (o mesmo país presente em dois markets ativos ao mesmo tempo) geram comportamento indefinido — mantenha a cobertura geográfica sempre exclusiva entre markets ativos, sem sobreposição de países."
+      },
+      {
+        "title": "Configure um market adicional pelo admin.",
+        "detail": "Em Configurações → Markets, adicione uma região, escolhendo moeda e (se precisar) um domínio ou subpasta específicos pra esse mercado (ex: `loja.com/fr` pro mercado francês, ou um domínio totalmente separado)."
+      },
+      {
+        "title": "Entenda os dois modelos de preço por market: fixo versus por regra.",
+        "detail": "Um **price list** associado a um market pode funcionar de duas formas:\n- **preços fixos** — você declara explicitamente o preço de cada variante naquele mercado;\n- **preço por regra (`adjustment`)** — você declara um ajuste percentual sobre o preço padrão (ex: +10%), aplicado automaticamente a todas as variantes, sem precisar listar cada uma.\n\nA escolha certa depende da escala do catálogo: regra é bem mais fácil de manter em catálogos grandes, já que não exige reaplicar preço variante por variante toda vez que o catálogo muda.",
+        "code": "mutation {\n  priceListCreate(input: {\n    name: \"Mercado EUA\",\n    currency: USD,\n    parent: { adjustment: { type: PERCENTAGE_INCREASE, value: 10 } }\n  }) {\n    priceList { id }\n    userErrors { field message }\n  }\n}",
+        "advanced": "Price lists podem ser fixos (`prices` explícitos por variante) ou baseados em regra (`parent.adjustment`) — em catálogos com milhares de variantes, o modelo de regra evita a necessidade de sincronizar preço individualmente a cada novo produto lançado."
+      },
+      {
+        "title": "Associe o price list ao market configurado.",
+        "detail": "Depois de criar o price list, associe-o explicitamente ao market — é essa associação que faz o preço correto ser exibido automaticamente pra compradores identificados naquela região."
+      },
+      {
+        "title": "Simule a navegação como cliente desse mercado.",
+        "detail": "Troque a região no seletor de localização da loja (geolocalização automática ou seletor manual, dependendo de como o tema implementa isso) e confira se o preço e o idioma mudam corretamente pro market configurado."
+      },
+      {
+        "title": "Entenda o cache de preço por CDN e por que ele pode confundir seus testes.",
+        "detail": "Páginas de produto costumam ser cacheadas por CDN pra performance. Depois de mudar um price list ou criar um market novo, pode levar alguns minutos até o preço correto aparecer pra todo visitante — isso é **comportamento esperado do cache**, não um bug no seu código ou na configuração. Espere um pouco ou invalide o cache manualmente (se tiver essa opção) antes de concluir que algo está errado.",
+        "advanced": "Ao debugar um preço \"errado\" que persiste depois de uma mudança, teste sempre numa aba anônima ou com cache do navegador desabilitado antes de suspeitar de um problema de configuração — cache de navegador e de CDN são as duas primeiras hipóteses a descartar."
+      },
+      {
+        "title": "Projeto — configure um segundo mercado com preço ajustado e valide a troca.",
+        "detail": "Vamos criar um market pros EUA com preços 10% mais altos que o padrão (compensando custos de operação internacional), e confirmar visualmente a mudança de preço ao simular um comprador dessa região."
+      },
+      {
+        "title": "Projeto — passo 1: crie o market \"Estados Unidos\" pelo admin.",
+        "detail": "Em Configurações → Markets, adicione um novo market cobrindo os EUA, com moeda USD."
+      },
+      {
+        "title": "Projeto — passo 2: crie o price list com ajuste de +10%.",
+        "detail": "Rode a mutation de criação de price list com o ajuste percentual, associando-o ao market recém-criado.",
+        "code": "mutation {\n  priceListCreate(input: {\n    name: \"Mercado EUA\",\n    currency: USD,\n    parent: { adjustment: { type: PERCENTAGE_INCREASE, value: 10 } }\n  }) { priceList { id } userErrors { field message } }\n}"
+      },
+      {
+        "title": "Projeto — passo 3: acesse a loja simulando um visitante americano.",
+        "detail": "Use o seletor de localização/idioma da loja (ou uma ferramenta de simulação de geolocalização, se o navegador permitir) pra ver a loja como um comprador dos EUA veria."
+      },
+      {
+        "title": "Projeto — passo 4: compare o preço exibido com o preço padrão, aguardando o cache se necessário.",
+        "detail": "Confirme que o preço exibido reflete o ajuste de +10% configurado — se não refletir de imediato, aguarde alguns minutos (efeito de cache de CDN) antes de investigar mais a fundo.",
+        "advanced": "Se depois de aguardar o preço ainda não mudar, confirme que o produto testado realmente pertence ao price list criado — price lists não se aplicam automaticamente a produtos novos criados depois da configuração, dependendo de como as regras foram definidas."
+      }
+    ]
+  },
+  "categoryId": "commerce",
+  "categoryLabel": "Commerce"
+}

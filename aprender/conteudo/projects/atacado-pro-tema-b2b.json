@@ -1,0 +1,489 @@
+{
+  "id": "atacado-pro-tema-b2b",
+  "kind": "theme",
+  "title": "Atacado Pro: tema B2B do zero, funcional",
+  "subtitle": "Construa do zero um tema Shopify OS 2.0 completo para venda no atacado: preço por catálogo e por localização, regras de quantidade e volume pricing, pedido rápido por SKU, pedido mínimo, solicitação de cadastro e modo loja dedicada — 16 etapas, com o código real de cada arquivo.",
+  "stages": [
+    {
+      "id": "atacado-pro-1",
+      "title": "1. Definir o escopo e a arquitetura do tema B2B",
+      "goal": "Decidir, antes de escrever código, o que faz de um tema um tema B2B e qual é a lista de peças que você vai construir.",
+      "build": "Um tema B2B **não é um tema de varejo com preço escondido**. O comprador de atacado tem outro comportamento: sabe o SKU que quer, compra em múltiplos (caixas, pallets), espera preço por volume e por empresa, e repete o mesmo pedido todo mês. O tema precisa servir isso.\n\nNeste projeto você vai construir do zero o **Atacado Pro**, um tema OS 2.0 com: preço consciente de B2B (catálogo da localização), faixa de empresa/localização com troca de filial, regra de quantidade e volume pricing na página de produto e no carrinho, **pedido rápido por SKU**, pedido mínimo, página de solicitação de cadastro e um modo de **loja dedicada** que bloqueia visitantes.\n\nDuas decisões de arquitetura guiam tudo: (1) o **servidor calcula preço e regra** — o tema só imprime o que a Shopify devolve pro comprador logado (`variant.price`, `variant.quantity_rule`), nunca recalcula; (2) toda lógica B2B mora em **snippets pequenos** (`price`, `quantity-input`, `b2b-bar`…) reaproveitados em card, produto, carrinho e pedido rápido.",
+      "code": [
+        {
+          "label": "Estrutura final de pastas",
+          "code": "atacado-pro/\n├─ assets/\n│  ├─ base.css              (tokens + componentes)\n│  ├─ collection.js         (filtros/ordenação)\n│  ├─ product.js            (troca de variante)\n│  └─ quick-order.js        (pedido rápido)\n├─ blocks/\n│  └─ benefit.liquid        (theme block da home)\n├─ config/\n│  ├─ settings_schema.json  (cores, fontes, opções B2B)\n│  └─ settings_data.json\n├─ layout/\n│  └─ theme.liquid\n├─ locales/\n│  ├─ pt-BR.default.json\n│  └─ en.json\n├─ sections/\n│  ├─ header.liquid, header-group.json\n│  ├─ footer.liquid, footer-group.json\n│  ├─ hero, benefits, featured-collection, cta   (home)\n│  ├─ main-collection, main-list-collections\n│  ├─ main-product, main-cart\n│  ├─ quick-order, b2b-application\n│  └─ main-search, main-page, main-404\n├─ snippets/\n│  ├─ css-variables.liquid\n│  ├─ price.liquid          (preço consciente de B2B)\n│  ├─ b2b-bar.liquid        (empresa + localização)\n│  ├─ quantity-input.liquid (respeita a regra de quantidade)\n│  ├─ volume-pricing.liquid (faixas de preço)\n│  ├─ product-card.liquid\n│  └─ store-gate.liquid     (modo loja dedicada)\n└─ templates/\n   ├─ index.json, collection.json, list-collections.json\n   ├─ product.json, cart.json, search.json, page.json, 404.json\n   ├─ page.quick-order.json\n   └─ page.solicitar-cadastro.json"
+        }
+      ],
+      "expected": "Você tem a árvore de pastas em mente (ou anotada) e consegue explicar por que preço e regras vêm do servidor e não do JavaScript.",
+      "related": [
+        "theme-b2b-liquid",
+        "theme-b2b-pricing",
+        "b2b",
+        "theme-architecture"
+      ]
+    },
+    {
+      "id": "atacado-pro-2",
+      "title": "2. Configurações do tema: cores, fontes e opções B2B",
+      "goal": "Criar o `settings_schema.json` e os tokens de design (CSS variables) que o resto do tema vai consumir.",
+      "build": "Comece pelas **configurações globais**: é o que permite ao lojista trocar cores e fontes no editor sem tocar em código, e é onde você declara as **opções B2B** do tema — esconder preços de visitantes, pedido mínimo e modo loja dedicada.\n\nOs valores viram **CSS custom properties** num snippet (`css-variables.liquid`), e o `base.css` só usa `var(--color-primary)` etc. Assim o CSS é um arquivo estático (cacheável) e o Liquid só injeta os valores variáveis. As fontes usam `font_face`, que já entrega o `@font-face` correto e hospedado pela Shopify.",
+      "code": [
+        {
+          "label": "config/settings_schema.json",
+          "code": "[\n  {\n    \"name\": \"theme_info\",\n    \"theme_name\": \"Atacado Pro\",\n    \"theme_version\": \"1.0.0\",\n    \"theme_author\": \"Seu nome\",\n    \"theme_documentation_url\": \"https://shopify.dev/docs/storefronts/themes\",\n    \"theme_support_url\": \"https://shopify.dev/docs/storefronts/themes\"\n  },\n  {\n    \"name\": \"Cores\",\n    \"settings\": [\n      { \"type\": \"color\", \"id\": \"color_background\", \"label\": \"Fundo\", \"default\": \"#ffffff\" },\n      { \"type\": \"color\", \"id\": \"color_surface\", \"label\": \"Superfície (cards, faixas)\", \"default\": \"#f3f5f8\" },\n      { \"type\": \"color\", \"id\": \"color_text\", \"label\": \"Texto\", \"default\": \"#111827\" },\n      { \"type\": \"color\", \"id\": \"color_muted\", \"label\": \"Texto secundário\", \"default\": \"#5b6472\" },\n      { \"type\": \"color\", \"id\": \"color_primary\", \"label\": \"Cor primária (botões)\", \"default\": \"#0f4c81\" },\n      { \"type\": \"color\", \"id\": \"color_primary_text\", \"label\": \"Texto sobre a primária\", \"default\": \"#ffffff\" },\n      { \"type\": \"color\", \"id\": \"color_accent\", \"label\": \"Destaque (avisos, selos)\", \"default\": \"#f59e0b\" },\n      { \"type\": \"color\", \"id\": \"color_border\", \"label\": \"Bordas\", \"default\": \"#d8dde5\" }\n    ]\n  },\n  {\n    \"name\": \"Tipografia\",\n    \"settings\": [\n      { \"type\": \"font_picker\", \"id\": \"font_body\", \"label\": \"Fonte do texto\", \"default\": \"assistant_n4\" },\n      { \"type\": \"font_picker\", \"id\": \"font_heading\", \"label\": \"Fonte dos títulos\", \"default\": \"assistant_n7\" }\n    ]\n  },\n  {\n    \"name\": \"Atacado (B2B)\",\n    \"settings\": [\n      {\n        \"type\": \"header\",\n        \"content\": \"Preços\"\n      },\n      {\n        \"type\": \"checkbox\",\n        \"id\": \"hide_prices_for_guests\",\n        \"label\": \"Esconder preços de quem não é comprador B2B\",\n        \"default\": true\n      },\n      {\n        \"type\": \"number\",\n        \"id\": \"min_order_value\",\n        \"label\": \"Pedido mínimo (na moeda da loja)\",\n        \"info\": \"0 desativa. Aviso visual no carrinho; pra garantir de verdade, use uma Function de validação do checkout.\",\n        \"default\": 0\n      },\n      {\n        \"type\": \"header\",\n        \"content\": \"Loja dedicada B2B\"\n      },\n      {\n        \"type\": \"checkbox\",\n        \"id\": \"gate_enabled\",\n        \"label\": \"Exigir login de comprador B2B pra ver a loja\",\n        \"default\": false\n      },\n      {\n        \"type\": \"richtext\",\n        \"id\": \"gate_message\",\n        \"label\": \"Mensagem da tela de acesso\",\n        \"default\": \"<p>Esta loja é exclusiva para clientes empresariais. Entre com a sua conta ou solicite o cadastro.</p>\"\n      },\n      {\n        \"type\": \"url\",\n        \"id\": \"signup_url\",\n        \"label\": \"Link da página de solicitação de cadastro\"\n      }\n    ]\n  }\n]"
+        },
+        {
+          "label": "config/settings_data.json",
+          "code": "{\n  \"current\": {}\n}"
+        },
+        {
+          "label": "snippets/css-variables.liquid",
+          "code": "{%- style -%}\n  {{ settings.font_body | font_face: font_display: 'swap' }}\n  {{ settings.font_heading | font_face: font_display: 'swap' }}\n\n  :root {\n    --color-bg: {{ settings.color_background }};\n    --color-surface: {{ settings.color_surface }};\n    --color-text: {{ settings.color_text }};\n    --color-muted: {{ settings.color_muted }};\n    --color-primary: {{ settings.color_primary }};\n    --color-primary-text: {{ settings.color_primary_text }};\n    --color-accent: {{ settings.color_accent }};\n    --color-border: {{ settings.color_border }};\n\n    --font-body: {{ settings.font_body.family }}, {{ settings.font_body.fallback_families }};\n    --font-body-weight: {{ settings.font_body.weight }};\n    --font-heading: {{ settings.font_heading.family }}, {{ settings.font_heading.fallback_families }};\n    --font-heading-weight: {{ settings.font_heading.weight }};\n  }\n{%- endstyle -%}"
+        },
+        {
+          "label": "assets/base.css",
+          "code": "*, *::before, *::after { box-sizing: border-box; }\nhtml { -webkit-text-size-adjust: 100%; }\nbody {\n  margin: 0;\n  background: var(--color-bg);\n  color: var(--color-text);\n  font-family: var(--font-body);\n  font-weight: var(--font-body-weight);\n  line-height: 1.5;\n}\nimg { max-width: 100%; height: auto; display: block; }\na { color: inherit; }\nh1, h2, h3, h4 { font-family: var(--font-heading); font-weight: var(--font-heading-weight); line-height: 1.2; margin: 0 0 .5em; }\nh1 { font-size: clamp(1.6rem, 3vw, 2.25rem); }\nh2 { font-size: clamp(1.3rem, 2.4vw, 1.75rem); }\np { margin: 0 0 1em; }\n\n.skip-link { position: absolute; left: -999px; top: 0; background: var(--color-primary); color: var(--color-primary-text); padding: .5rem 1rem; z-index: 100; }\n.skip-link:focus { left: 0; }\n\n.container { width: 100%; max-width: 1200px; margin: 0 auto; padding: 0 1rem; }\n.section { padding: 2.5rem 0; }\n.section--surface { background: var(--color-surface); }\n.section__title { margin-bottom: 1.25rem; }\n.rte > :last-child { margin-bottom: 0; }\n\n/* Botões */\n.btn {\n  display: inline-flex; align-items: center; justify-content: center; gap: .5rem;\n  padding: .7rem 1.25rem; border: 1px solid var(--color-primary); border-radius: 6px;\n  background: var(--color-primary); color: var(--color-primary-text);\n  font: inherit; font-weight: 600; text-decoration: none; cursor: pointer;\n}\n.btn:hover { filter: brightness(1.1); }\n.btn[disabled], .btn[aria-disabled=\"true\"] { opacity: .5; cursor: not-allowed; filter: none; }\n.btn--ghost { background: transparent; color: var(--color-primary); }\n.btn--block { width: 100%; }\n\n/* Grade e cards */\n.grid { display: grid; gap: 1.25rem; grid-template-columns: repeat(2, 1fr); }\n@media (min-width: 750px) { .grid { grid-template-columns: repeat(min(var(--cols, 4), 3), 1fr); } }\n@media (min-width: 1000px) { .grid { grid-template-columns: repeat(var(--cols, 4), 1fr); } }\n.card { border: 1px solid var(--color-border); border-radius: 8px; overflow: hidden; background: var(--color-bg); display: flex; flex-direction: column; }\n.card__media { display: block; aspect-ratio: 1; background: var(--color-surface); }\n.card__media img { width: 100%; height: 100%; object-fit: cover; }\n.card__body { padding: .9rem; display: flex; flex-direction: column; gap: .35rem; flex: 1; }\n.card__title { font-size: 1rem; margin: 0; }\n.card__title a { text-decoration: none; }\n.card__meta { color: var(--color-muted); font-size: .85rem; }\n.badge { display: inline-block; background: var(--color-accent); color: #000; font-size: .75rem; font-weight: 700; padding: .1rem .5rem; border-radius: 4px; }\n\n/* Preço */\n.price { display: flex; flex-wrap: wrap; align-items: baseline; gap: .4rem; }\n.price__current { font-weight: 700; font-size: 1.1rem; }\n.price__old { color: var(--color-muted); }\n.price__hint { color: var(--color-muted); flex-basis: 100%; }\n.price__gate { color: var(--color-primary); font-size: .9rem; }\n\n/* Formulários */\n.field { display: flex; flex-direction: column; gap: .3rem; margin-bottom: 1rem; }\n.field label { font-weight: 600; font-size: .9rem; }\ninput[type=\"text\"], input[type=\"email\"], input[type=\"tel\"], input[type=\"search\"], input[type=\"number\"], select, textarea {\n  font: inherit; padding: .6rem .75rem; border: 1px solid var(--color-border); border-radius: 6px; background: var(--color-bg); color: inherit; width: 100%;\n}\ninput:focus-visible, select:focus-visible, textarea:focus-visible, a:focus-visible, button:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }\n.qty { max-width: 8rem; }\n\n/* Avisos */\n.notice { padding: .8rem 1rem; border-radius: 6px; margin-bottom: 1rem; background: var(--color-surface); border-left: 4px solid var(--color-primary); }\n.notice--warn { border-left-color: var(--color-accent); }\n.notice--ok { border-left-color: #16a34a; }\n.notice--error { border-left-color: #dc2626; }\n\n/* Tabelas (pedido rápido, carrinho, volume) */\n.table { width: 100%; border-collapse: collapse; }\n.table th, .table td { text-align: left; padding: .6rem .5rem; border-bottom: 1px solid var(--color-border); vertical-align: middle; }\n.table th { font-size: .8rem; text-transform: uppercase; letter-spacing: .04em; color: var(--color-muted); }\n.table-wrap { overflow-x: auto; }\n\n/* Paginação padrão do Shopify */\n.pagination { display: flex; gap: .4rem; justify-content: center; margin: 2rem 0; flex-wrap: wrap; }\n.pagination a, .pagination span { padding: .4rem .8rem; border: 1px solid var(--color-border); border-radius: 6px; text-decoration: none; }\n.pagination .current { background: var(--color-primary); color: var(--color-primary-text); border-color: var(--color-primary); }"
+        }
+      ],
+      "expected": "Os arquivos existem. Ainda não há nada visível — o snippet e o CSS só serão carregados quando o `theme.liquid` existir na próxima etapa.",
+      "related": [
+        "theme-config",
+        "theme-schema",
+        "theme-snippets"
+      ]
+    },
+    {
+      "id": "atacado-pro-3",
+      "title": "3. Layout base e primeiro shopify theme dev",
+      "goal": "Criar o `layout/theme.liquid` e ver o tema (ainda vazio) rodando na sua dev store.",
+      "build": "O `layout/theme.liquid` é a casca de todas as páginas. Os itens obrigatórios são `{{ content_for_header }}` (a Shopify injeta scripts essenciais, analytics e app embeds) e `{{ content_for_layout }}` (o conteúdo de cada template). Aqui também entram canonical, título/descrição e o link de \"pular para o conteúdo\" (acessibilidade).\n\nO cabeçalho e o rodapé serão **section groups** (`{% sections 'header-group' %}`) — a etapa seguinte cria os arquivos. Até lá, **comente essas duas linhas** ou crie os arquivos vazios, senão o servidor de desenvolvimento reclama de section inexistente. Crie também um `templates/index.json` mínimo pra ter uma home.",
+      "code": [
+        {
+          "label": "Terminal — criar a pasta e subir o servidor de desenvolvimento",
+          "code": "mkdir atacado-pro && cd atacado-pro\nmkdir assets blocks config layout locales sections snippets templates\n\n# (crie os arquivos das etapas 2 e 3, depois:)\nshopify theme dev --store sua-loja-dev.myshopify.com"
+        },
+        {
+          "label": "layout/theme.liquid",
+          "code": "<!doctype html>\n<html lang=\"{{ request.locale.iso_code }}\">\n  <head>\n    <meta charset=\"utf-8\">\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n    <link rel=\"canonical\" href=\"{{ canonical_url }}\">\n    <title>\n      {{- page_title -}}\n      {%- unless page_title contains shop.name %} &ndash; {{ shop.name }}{% endunless -%}\n    </title>\n    {%- if page_description != blank -%}\n      <meta name=\"description\" content=\"{{ page_description | escape }}\">\n    {%- endif -%}\n\n    {% render 'css-variables' %}\n    {{ 'base.css' | asset_url | stylesheet_tag }}\n\n    {{ content_for_header }}\n  </head>\n\n  <body class=\"template-{{ request.page_type | handleize }}\">\n    <a class=\"skip-link\" href=\"#main\">Pular para o conteúdo</a>\n\n    {% sections 'header-group' %}\n\n    <main id=\"main\" tabindex=\"-1\">\n      {{ content_for_layout }}\n    </main>\n\n    {% sections 'footer-group' %}\n  </body>\n</html>"
+        },
+        {
+          "label": "templates/index.json (provisório, será substituído na etapa 7)",
+          "code": "{\n  \"sections\": {},\n  \"order\": []\n}"
+        },
+        {
+          "label": "locales/pt-BR.default.json (provisório, será completado na etapa 15)",
+          "code": "{\n  \"general\": {\n    \"out_of_stock\": \"Esgotado\"\n  }\n}"
+        }
+      ],
+      "expected": "`shopify theme dev` sobe sem erros, abre a URL de preview e mostra uma página em branco com o título da loja. O link \"Pular para o conteúdo\" aparece ao apertar Tab.",
+      "related": [
+        "theme-cli",
+        "theme-layouts",
+        "theme-create"
+      ]
+    },
+    {
+      "id": "atacado-pro-4",
+      "title": "4. O coração B2B: snippets de preço e de empresa/localização",
+      "goal": "Criar os dois snippets que carregam toda a lógica B2B de exibição: `price` e `b2b-bar`.",
+      "build": "O snippet **`price`** decide o que mostrar no lugar do preço. Para o comprador B2B logado, `variant.price` **já é o preço do catálogo da localização atual** — o snippet só imprime. Para os demais, depende da configuração `hide_prices_for_guests`: mostra o convite de login em vez do valor.\n\nRepare no `unless customer.b2b?`: `customer.b2b?` é `nil` para visitante anônimo, e `nil == false` é falso em Liquid — por isso **não** se escreve `customer.b2b? == false`.\n\nO snippet **`b2b-bar`** é a faixa no topo mostrando empresa e localização, com seletor de filial quando a empresa tem mais de uma.",
+      "code": [
+        {
+          "label": "snippets/price.liquid",
+          "code": "{%- comment -%}\n  Preço consciente de B2B.\n  Uso: {% render 'price', product: product %}\n       {% render 'price', variant: variant %}\n\n  Dentro de um contexto B2B logado, variant.price já é o preço do catálogo\n  da localização atual: aqui só decidimos se mostramos ou não.\n{%- endcomment -%}\n{%- liquid\n  assign target = variant | default: product.selected_or_first_available_variant\n\n  assign hide = false\n  if settings.hide_prices_for_guests\n    unless customer.b2b?\n      assign hide = true\n    endunless\n  endif\n-%}\n\n<div class=\"price\">\n  {%- if hide -%}\n    <a class=\"price__gate\" href=\"{{ routes.account_login_url }}\">Entre para ver os preços</a>\n  {%- else -%}\n    {%- if target.compare_at_price > target.price -%}\n      <s class=\"price__old\">{{ target.compare_at_price | money }}</s>\n    {%- endif -%}\n    <span class=\"price__current\">{{ target.price | money }}</span>\n    {%- if customer.b2b? and target.quantity_price_breaks.size > 0 -%}\n      <small class=\"price__hint\">Desconto por volume disponível</small>\n    {%- endif -%}\n  {%- endif -%}\n</div>"
+        },
+        {
+          "label": "snippets/b2b-bar.liquid",
+          "code": "{%- comment -%}\n  Faixa no topo: quem está comprando e por qual localização.\n  Só aparece para comprador B2B logado.\n{%- endcomment -%}\n{%- if customer.b2b? -%}\n  <div class=\"b2b-bar\">\n    <div class=\"container b2b-bar__row\">\n      <span>\n        Comprando por <strong>{{ customer.current_company.name }}</strong>\n        &middot; {{ customer.current_location.name }}\n      </span>\n\n      {%- if customer.company_available_locations.size > 1 -%}\n        <details class=\"b2b-bar__switch\">\n          <summary>Trocar localização</summary>\n          <ul>\n            {%- for location in customer.company_available_locations -%}\n              {%- unless location.current? -%}\n                <li><a href=\"{{ location.url_to_set_as_current }}\">{{ location.name }}</a></li>\n              {%- endunless -%}\n            {%- endfor -%}\n          </ul>\n        </details>\n      {%- endif -%}\n    </div>\n  </div>\n{%- endif -%}"
+        },
+        {
+          "label": "assets/base.css (acrescente ao final)",
+          "code": "/* Faixa B2B */\n.b2b-bar { background: var(--color-primary); color: var(--color-primary-text); font-size: .875rem; }\n.b2b-bar__row { display: flex; justify-content: space-between; align-items: center; gap: 1rem; padding-top: .4rem; padding-bottom: .4rem; flex-wrap: wrap; }\n.b2b-bar__switch { position: relative; }\n.b2b-bar__switch summary { cursor: pointer; text-decoration: underline; }\n.b2b-bar__switch ul { position: absolute; right: 0; z-index: 20; margin: .3rem 0 0; padding: .5rem; list-style: none; background: var(--color-bg); color: var(--color-text); border: 1px solid var(--color-border); border-radius: 6px; min-width: 14rem; }\n.b2b-bar__switch li a { display: block; padding: .35rem .5rem; text-decoration: none; }\n.b2b-bar__switch li a:hover { background: var(--color-surface); }"
+        }
+      ],
+      "expected": "Os snippets ainda não são chamados por nenhuma página. Eles ganham vida nas próximas etapas (header, cards, produto).",
+      "related": [
+        "theme-b2b-liquid",
+        "liquid",
+        "theme-snippets"
+      ]
+    },
+    {
+      "id": "atacado-pro-5",
+      "title": "5. Cabeçalho e rodapé como section groups",
+      "goal": "Construir o header (logo, menu com submenu, busca por SKU, conta e carrinho) e o footer (colunas configuráveis + meios de pagamento).",
+      "build": "Section groups (`header-group.json` / `footer-group.json`) permitem que o lojista configure e reordene o topo e o rodapé **em todas as páginas** pelo editor. O header inclui a faixa B2B e uma busca com `type=product` (compradores B2B buscam por nome **e SKU**). O footer usa **blocks** de seção, um por coluna, e os ícones de pagamento vêm de `shop.enabled_payment_types` com `payment_type_svg_tag`.\n\nO menu com submenu abre por CSS (`:hover` e `:focus-within`), sem JavaScript — funciona no teclado e é rápido.",
+      "code": [
+        {
+          "label": "sections/header.liquid",
+          "code": "<header class=\"site-header\">\n  {%- if section.settings.show_b2b_bar -%}\n    {% render 'b2b-bar' %}\n  {%- endif -%}\n\n  <div class=\"container site-header__row\">\n    <a class=\"site-header__logo\" href=\"{{ routes.root_url }}\">\n      {%- if section.settings.logo -%}\n        {{ section.settings.logo | image_url: width: 320 | image_tag: alt: shop.name, loading: 'eager', width: 160 }}\n      {%- else -%}\n        {{ shop.name }}\n      {%- endif -%}\n    </a>\n\n    <nav class=\"site-nav\" aria-label=\"Principal\">\n      <ul>\n        {%- for link in section.settings.menu.links -%}\n          <li>\n            <a href=\"{{ link.url }}\"{% if link.current %} aria-current=\"page\"{% endif %}>{{ link.title }}</a>\n            {%- if link.links.size > 0 -%}\n              <ul class=\"site-nav__sub\">\n                {%- for child in link.links -%}\n                  <li><a href=\"{{ child.url }}\">{{ child.title }}</a></li>\n                {%- endfor -%}\n              </ul>\n            {%- endif -%}\n          </li>\n        {%- endfor -%}\n      </ul>\n    </nav>\n\n    <form class=\"site-search\" action=\"{{ routes.search_url }}\" method=\"get\" role=\"search\">\n      <label class=\"visually-hidden\" for=\"header-search\">Buscar produtos ou SKU</label>\n      <input id=\"header-search\" type=\"search\" name=\"q\" value=\"{{ search.terms | escape }}\" placeholder=\"Buscar produto ou SKU\">\n      <input type=\"hidden\" name=\"type\" value=\"product\">\n    </form>\n\n    <div class=\"site-header__actions\">\n      {%- if customer -%}\n        <a href=\"{{ routes.account_url }}\">Minha conta</a>\n      {%- else -%}\n        <a href=\"{{ routes.account_login_url }}\">Entrar</a>\n      {%- endif -%}\n      <a href=\"{{ routes.cart_url }}\" class=\"site-header__cart\">\n        Carrinho <span class=\"badge\">{{ cart.item_count }}</span>\n      </a>\n    </div>\n  </div>\n</header>\n\n{% schema %}\n{\n  \"name\": \"Cabeçalho\",\n  \"settings\": [\n    { \"type\": \"image_picker\", \"id\": \"logo\", \"label\": \"Logo\" },\n    { \"type\": \"link_list\", \"id\": \"menu\", \"label\": \"Menu principal\", \"default\": \"main-menu\" },\n    { \"type\": \"checkbox\", \"id\": \"show_b2b_bar\", \"label\": \"Mostrar faixa de empresa/localização (B2B)\", \"default\": true }\n  ]\n}\n{% endschema %}"
+        },
+        {
+          "label": "sections/header-group.json",
+          "code": "{\n  \"name\": \"Grupo do cabeçalho\",\n  \"type\": \"header\",\n  \"sections\": {\n    \"header\": {\n      \"type\": \"header\",\n      \"settings\": {\n        \"show_b2b_bar\": true\n      }\n    }\n  },\n  \"order\": [\"header\"]\n}"
+        },
+        {
+          "label": "sections/footer.liquid",
+          "code": "<footer class=\"site-footer\">\n  <div class=\"container\">\n    {%- if section.blocks.size > 0 -%}\n      <div class=\"grid\" style=\"--cols: {{ section.blocks.size | at_most: 4 }}\">\n        {%- for block in section.blocks -%}\n          <div {{ block.shopify_attributes }}>\n            {%- if block.settings.title != blank -%}\n              <h2 class=\"site-footer__title\">{{ block.settings.title }}</h2>\n            {%- endif -%}\n            {%- if block.settings.text != blank -%}\n              <div class=\"rte\">{{ block.settings.text }}</div>\n            {%- endif -%}\n            {%- if block.settings.menu != blank -%}\n              <ul class=\"site-footer__links\">\n                {%- for link in block.settings.menu.links -%}\n                  <li><a href=\"{{ link.url }}\">{{ link.title }}</a></li>\n                {%- endfor -%}\n              </ul>\n            {%- endif -%}\n          </div>\n        {%- endfor -%}\n      </div>\n    {%- endif -%}\n\n    <div class=\"site-footer__bottom\">\n      <small>&copy; {{ 'now' | date: '%Y' }} {{ shop.name }}. Todos os direitos reservados.</small>\n      {%- if shop.enabled_payment_types.size > 0 -%}\n        <ul class=\"site-footer__payments\" aria-label=\"Formas de pagamento\">\n          {%- for type in shop.enabled_payment_types -%}\n            <li>{{ type | payment_type_svg_tag: class: 'payment-icon' }}</li>\n          {%- endfor -%}\n        </ul>\n      {%- endif -%}\n    </div>\n  </div>\n</footer>\n\n{% schema %}\n{\n  \"name\": \"Rodapé\",\n  \"max_blocks\": 4,\n  \"blocks\": [\n    {\n      \"type\": \"column\",\n      \"name\": \"Coluna\",\n      \"settings\": [\n        { \"type\": \"text\", \"id\": \"title\", \"label\": \"Título\", \"default\": \"Institucional\" },\n        { \"type\": \"richtext\", \"id\": \"text\", \"label\": \"Texto\" },\n        { \"type\": \"link_list\", \"id\": \"menu\", \"label\": \"Menu\", \"default\": \"footer\" }\n      ]\n    }\n  ],\n  \"presets\": [\n    {\n      \"name\": \"Rodapé\",\n      \"blocks\": [{ \"type\": \"column\" }, { \"type\": \"column\" }]\n    }\n  ]\n}\n{% endschema %}"
+        },
+        {
+          "label": "sections/footer-group.json",
+          "code": "{\n  \"name\": \"Grupo do rodapé\",\n  \"type\": \"footer\",\n  \"sections\": {\n    \"footer\": {\n      \"type\": \"footer\",\n      \"blocks\": {\n        \"col-1\": {\n          \"type\": \"column\",\n          \"settings\": { \"title\": \"Institucional\", \"menu\": \"footer\" }\n        },\n        \"col-2\": {\n          \"type\": \"column\",\n          \"settings\": { \"title\": \"Atendimento comercial\", \"text\": \"<p>Seg a sex, 9h às 18h.<br>comercial@suaempresa.com.br</p>\" }\n        }\n      },\n      \"block_order\": [\"col-1\", \"col-2\"],\n      \"settings\": {}\n    }\n  },\n  \"order\": [\"footer\"]\n}"
+        },
+        {
+          "label": "assets/base.css (acrescente ao final)",
+          "code": ".visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }\n\n/* Cabeçalho */\n.site-header { border-bottom: 1px solid var(--color-border); background: var(--color-bg); position: sticky; top: 0; z-index: 30; }\n.site-header__row { display: flex; align-items: center; gap: 1rem 1.5rem; padding-top: .8rem; padding-bottom: .8rem; flex-wrap: wrap; }\n.site-header__logo { font-family: var(--font-heading); font-weight: var(--font-heading-weight); font-size: 1.4rem; text-decoration: none; }\n.site-header__actions { display: flex; gap: 1rem; align-items: center; margin-left: auto; }\n.site-header__actions a { text-decoration: none; }\n.site-nav ul { display: flex; gap: 1.25rem; list-style: none; margin: 0; padding: 0; flex-wrap: wrap; }\n.site-nav a { text-decoration: none; }\n.site-nav a:hover, .site-nav a[aria-current=\"page\"] { text-decoration: underline; }\n.site-nav li { position: relative; }\n.site-nav__sub { display: none !important; position: absolute; top: 100%; left: 0; flex-direction: column; gap: 0 !important; background: var(--color-bg); border: 1px solid var(--color-border); border-radius: 6px; padding: .4rem; min-width: 12rem; }\n.site-nav li:hover > .site-nav__sub, .site-nav li:focus-within > .site-nav__sub { display: flex !important; }\n.site-nav__sub a { display: block; padding: .35rem .6rem; }\n.site-search { flex: 1 1 14rem; max-width: 26rem; }\n\n/* Rodapé */\n.site-footer { background: var(--color-surface); margin-top: 3rem; padding: 2.5rem 0 1.5rem; }\n.site-footer__title { font-size: 1rem; }\n.site-footer__links { list-style: none; padding: 0; margin: 0; }\n.site-footer__links a { text-decoration: none; color: var(--color-muted); }\n.site-footer__links a:hover { text-decoration: underline; }\n.site-footer__bottom { display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap; margin-top: 2rem; padding-top: 1rem; border-top: 1px solid var(--color-border); color: var(--color-muted); }\n.site-footer__payments { display: flex; gap: .4rem; list-style: none; margin: 0; padding: 0; flex-wrap: wrap; }\n.payment-icon { height: 24px; width: auto; }"
+        }
+      ],
+      "expected": "Com a etapa 3 descomentada, o topo e o rodapé aparecem em toda a loja. Logado como comprador B2B, a faixa azul mostra empresa e localização; com duas locations, aparece \"Trocar localização\".",
+      "related": [
+        "theme-section-groups",
+        "theme-sections",
+        "theme-blocks"
+      ]
+    },
+    {
+      "id": "atacado-pro-6",
+      "title": "6. Card de produto, campo de quantidade e tabela de volume",
+      "goal": "Criar os três snippets de produto que serão reaproveitados: `product-card`, `quantity-input` e `volume-pricing`.",
+      "build": "O **`quantity-input`** é a peça mais importante do tema B2B: preenche `min`, `max` e `step` do campo a partir de `variant.quantity_rule`, e mostra a regra em texto (\"Mín. 12 · múltiplos de 6\"). Ele é usado na página de produto **e** no carrinho, então a regra é sempre a mesma.\n\nO **`volume-pricing`** lista as faixas de `variant.quantity_price_breaks` (só pro comprador B2B). O **`product-card`** mostra SKU e usa o snippet de preço.\n\nRepare que **não é possível usar filtros nos argumentos de `{% render %}`** — por isso, quando um valor precisa ser calculado (como o `alt` do card), você faz um `assign` antes e passa a variável.",
+      "code": [
+        {
+          "label": "snippets/quantity-input.liquid",
+          "code": "{%- comment -%}\n  Campo de quantidade que respeita a regra de quantidade da variante\n  (mínimo, máximo e incremento configurados no catálogo B2B).\n\n  Parâmetros:\n    variant  (obrigatório)\n    id       (obrigatório) - id do input\n    name     (opcional, padrão \"quantity\")\n    value    (opcional, padrão: mínimo da regra)\n{%- endcomment -%}\n{%- liquid\n  assign rule = variant.quantity_rule\n  assign start = value | default: rule.min\n  assign field_name = name | default: 'quantity'\n-%}\n\n<div class=\"qty\">\n  <label class=\"visually-hidden\" for=\"{{ id }}\">Quantidade</label>\n  <input\n    type=\"number\"\n    id=\"{{ id }}\"\n    name=\"{{ field_name }}\"\n    value=\"{{ start }}\"\n    min=\"{{ rule.min }}\"\n    {% if rule.max %}max=\"{{ rule.max }}\"{% endif %}\n    step=\"{{ rule.increment }}\"\n    inputmode=\"numeric\"\n  >\n</div>\n{%- if rule.min > 1 or rule.increment > 1 -%}\n  <small class=\"card__meta\">\n    Mín. {{ rule.min }}{% if rule.increment > 1 %} &middot; múltiplos de {{ rule.increment }}{% endif %}{% if rule.max %} &middot; máx. {{ rule.max }}{% endif %}\n  </small>\n{%- endif -%}"
+        },
+        {
+          "label": "snippets/volume-pricing.liquid",
+          "code": "{%- comment -%}\n  Tabela de faixas de preço por volume da variante.\n  Só aparece para comprador B2B com faixas configuradas.\n{%- endcomment -%}\n{%- if customer.b2b? and variant.quantity_price_breaks.size > 0 -%}\n  <div class=\"volume\">\n    <h3 class=\"volume__title\">Preço por volume</h3>\n    <table class=\"table\">\n      <thead>\n        <tr><th>Quantidade</th><th>Preço unitário</th></tr>\n      </thead>\n      <tbody>\n        <tr>\n          <td>{{ variant.quantity_rule.min }}+</td>\n          <td>{{ variant.price | money }}</td>\n        </tr>\n        {%- for price_break in variant.quantity_price_breaks -%}\n          <tr>\n            <td>{{ price_break.minimum_quantity }}+</td>\n            <td>{{ price_break.price | money }}</td>\n          </tr>\n        {%- endfor -%}\n      </tbody>\n    </table>\n  </div>\n{%- endif -%}"
+        },
+        {
+          "label": "snippets/product-card.liquid",
+          "code": "{%- comment -%}\n  Card de produto reutilizado na home, coleção e busca.\n  Uso: {% render 'product-card', product: product %}\n{%- endcomment -%}\n{%- assign first_variant = product.selected_or_first_available_variant -%}\n{%- assign card_alt = product.featured_image.alt | default: product.title -%}\n\n<article class=\"card\">\n  <a class=\"card__media\" href=\"{{ product.url }}\" tabindex=\"-1\" aria-hidden=\"true\">\n    {%- if product.featured_image -%}\n      {{\n        product.featured_image\n        | image_url: width: 600\n        | image_tag:\n          loading: 'lazy',\n          widths: '300, 450, 600',\n          sizes: '(min-width: 1000px) 25vw, 50vw',\n          alt: card_alt\n      }}\n    {%- endif -%}\n  </a>\n\n  <div class=\"card__body\">\n    {%- if product.vendor != blank -%}\n      <span class=\"card__meta\">{{ product.vendor }}</span>\n    {%- endif -%}\n    <h3 class=\"card__title\"><a href=\"{{ product.url }}\">{{ product.title }}</a></h3>\n    {%- if first_variant.sku != blank -%}\n      <span class=\"card__meta\">SKU {{ first_variant.sku }}</span>\n    {%- endif -%}\n\n    {% render 'price', product: product %}\n\n    {%- unless product.available -%}\n      <span class=\"badge\">Esgotado</span>\n    {%- endunless -%}\n  </div>\n</article>"
+        }
+      ],
+      "expected": "Nada novo aparece ainda (falta usar os snippets), mas todos os arquivos existem e o `shopify theme check` não acusa erros de sintaxe neles.",
+      "related": [
+        "theme-b2b-pricing",
+        "theme-snippets",
+        "liquid"
+      ]
+    },
+    {
+      "id": "atacado-pro-7",
+      "title": "7. Home: hero, benefícios com theme blocks, coleção e CTA",
+      "goal": "Montar a home com sections editáveis, incluindo um theme block reutilizável.",
+      "build": "A home é um `templates/index.json` que só lista sections. Quatro peças: **hero** (título + botão), **benefícios** (usa **theme blocks**: o arquivo `blocks/benefit.liquid` é um block reutilizável e a section aceita `@theme` e renderiza com `content_for 'blocks'`), **coleção em destaque** (usa o `product-card`) e um **CTA** de solicitação de cadastro.\n\nOs `presets` da section de benefícios já nascem com três blocks — o lojista adiciona a section no editor e recebe a estrutura pronta.",
+      "code": [
+        {
+          "label": "sections/hero.liquid",
+          "code": "<section class=\"hero{% if section.settings.image != blank %} hero--image{% endif %}\">\n  {%- if section.settings.image != blank -%}\n    {{ section.settings.image | image_url: width: 2000 | image_tag: class: 'hero__bg', loading: 'eager', fetchpriority: 'high', widths: '750, 1100, 1500, 2000', sizes: '100vw', alt: '' }}\n  {%- endif -%}\n  <div class=\"container hero__content\">\n    {%- if section.settings.heading != blank -%}\n      <h1>{{ section.settings.heading }}</h1>\n    {%- endif -%}\n    {%- if section.settings.text != blank -%}\n      <p>{{ section.settings.text }}</p>\n    {%- endif -%}\n    {%- if section.settings.button_label != blank -%}\n      <a class=\"btn\" href=\"{{ section.settings.button_link | default: routes.all_products_collection_url }}\">\n        {{ section.settings.button_label }}\n      </a>\n    {%- endif -%}\n  </div>\n</section>\n\n{% schema %}\n{\n  \"name\": \"Hero\",\n  \"settings\": [\n    { \"type\": \"image_picker\", \"id\": \"image\", \"label\": \"Imagem de fundo\" },\n    { \"type\": \"text\", \"id\": \"heading\", \"label\": \"Título\", \"default\": \"Compre no atacado, com preço de empresa\" },\n    { \"type\": \"textarea\", \"id\": \"text\", \"label\": \"Texto\", \"default\": \"Catálogo com preços exclusivos, pedido rápido por SKU e condições por localização.\" },\n    { \"type\": \"text\", \"id\": \"button_label\", \"label\": \"Texto do botão\", \"default\": \"Ver catálogo\" },\n    { \"type\": \"url\", \"id\": \"button_link\", \"label\": \"Link do botão\" }\n  ],\n  \"presets\": [{ \"name\": \"Hero\" }]\n}\n{% endschema %}"
+        },
+        {
+          "label": "blocks/benefit.liquid",
+          "code": "<div class=\"benefit\" {{ block.shopify_attributes }}>\n  {%- if block.settings.icon != blank -%}\n    <span class=\"benefit__icon\" aria-hidden=\"true\">{{ block.settings.icon }}</span>\n  {%- endif -%}\n  <h3 class=\"benefit__title\">{{ block.settings.title }}</h3>\n  <p class=\"benefit__text\">{{ block.settings.text }}</p>\n</div>\n\n{% schema %}\n{\n  \"name\": \"Benefício\",\n  \"settings\": [\n    { \"type\": \"text\", \"id\": \"icon\", \"label\": \"Ícone (emoji)\", \"default\": \"📦\" },\n    { \"type\": \"text\", \"id\": \"title\", \"label\": \"Título\", \"default\": \"Pedido rápido\" },\n    { \"type\": \"textarea\", \"id\": \"text\", \"label\": \"Texto\", \"default\": \"Monte o pedido por SKU em uma única tela.\" }\n  ],\n  \"presets\": [{ \"name\": \"Benefício\" }]\n}\n{% endschema %}"
+        },
+        {
+          "label": "sections/benefits.liquid",
+          "code": "<section class=\"section section--surface\">\n  <div class=\"container\">\n    {%- if section.settings.heading != blank -%}\n      <h2 class=\"section__title\">{{ section.settings.heading }}</h2>\n    {%- endif -%}\n    <div class=\"grid\" style=\"--cols: {{ section.settings.columns }}\">\n      {% content_for 'blocks' %}\n    </div>\n  </div>\n</section>\n\n{% schema %}\n{\n  \"name\": \"Benefícios\",\n  \"settings\": [\n    { \"type\": \"text\", \"id\": \"heading\", \"label\": \"Título\", \"default\": \"Por que comprar com a gente\" },\n    { \"type\": \"range\", \"id\": \"columns\", \"label\": \"Colunas\", \"min\": 2, \"max\": 4, \"step\": 1, \"default\": 3 }\n  ],\n  \"blocks\": [{ \"type\": \"@theme\" }],\n  \"presets\": [\n    {\n      \"name\": \"Benefícios\",\n      \"blocks\": [\n        { \"type\": \"benefit\", \"settings\": { \"icon\": \"💰\", \"title\": \"Preço por volume\", \"text\": \"Quanto mais você compra, menor o preço unitário.\" } },\n        { \"type\": \"benefit\", \"settings\": { \"icon\": \"⚡\", \"title\": \"Pedido rápido\", \"text\": \"Digite as quantidades por SKU e finalize em segundos.\" } },\n        { \"type\": \"benefit\", \"settings\": { \"icon\": \"🏢\", \"title\": \"Condições por empresa\", \"text\": \"Catálogo, preços e prazos ligados à sua localização.\" } }\n      ]\n    }\n  ]\n}\n{% endschema %}"
+        },
+        {
+          "label": "sections/featured-collection.liquid",
+          "code": "{%- assign collection = section.settings.collection -%}\n<section class=\"section\">\n  <div class=\"container\">\n    <div class=\"section__head\">\n      <h2 class=\"section__title\">{{ section.settings.heading }}</h2>\n      {%- if collection != blank -%}\n        <a href=\"{{ collection.url }}\">Ver todos</a>\n      {%- endif -%}\n    </div>\n\n    {%- if collection == blank -%}\n      <p class=\"notice notice--warn\">Selecione uma coleção nas configurações da seção.</p>\n    {%- else -%}\n      <div class=\"grid\" style=\"--cols: {{ section.settings.columns }}\">\n        {%- for product in collection.products limit: section.settings.limit -%}\n          {% render 'product-card', product: product %}\n        {%- endfor -%}\n      </div>\n    {%- endif -%}\n  </div>\n</section>\n\n{% schema %}\n{\n  \"name\": \"Coleção em destaque\",\n  \"settings\": [\n    { \"type\": \"text\", \"id\": \"heading\", \"label\": \"Título\", \"default\": \"Mais pedidos\" },\n    { \"type\": \"collection\", \"id\": \"collection\", \"label\": \"Coleção\" },\n    { \"type\": \"range\", \"id\": \"limit\", \"label\": \"Quantidade de produtos\", \"min\": 4, \"max\": 12, \"step\": 4, \"default\": 8 },\n    { \"type\": \"range\", \"id\": \"columns\", \"label\": \"Colunas\", \"min\": 2, \"max\": 5, \"step\": 1, \"default\": 4 }\n  ],\n  \"presets\": [{ \"name\": \"Coleção em destaque\" }]\n}\n{% endschema %}"
+        },
+        {
+          "label": "sections/cta.liquid",
+          "code": "<section class=\"section section--surface\">\n  <div class=\"container cta\">\n    <div>\n      <h2>{{ section.settings.heading }}</h2>\n      <p>{{ section.settings.text }}</p>\n    </div>\n    {%- if section.settings.button_label != blank -%}\n      <a class=\"btn\" href=\"{{ section.settings.button_link | default: settings.signup_url }}\">{{ section.settings.button_label }}</a>\n    {%- endif -%}\n  </div>\n</section>\n\n{% schema %}\n{\n  \"name\": \"Chamada (CTA)\",\n  \"settings\": [\n    { \"type\": \"text\", \"id\": \"heading\", \"label\": \"Título\", \"default\": \"Ainda não tem cadastro de empresa?\" },\n    { \"type\": \"textarea\", \"id\": \"text\", \"label\": \"Texto\", \"default\": \"Solicite acesso e libere preços e condições exclusivas de atacado.\" },\n    { \"type\": \"text\", \"id\": \"button_label\", \"label\": \"Texto do botão\", \"default\": \"Solicitar cadastro\" },\n    { \"type\": \"url\", \"id\": \"button_link\", \"label\": \"Link (padrão: página de solicitação)\" }\n  ],\n  \"presets\": [{ \"name\": \"Chamada (CTA)\" }]\n}\n{% endschema %}"
+        },
+        {
+          "label": "templates/index.json",
+          "code": "{\n  \"sections\": {\n    \"hero\": { \"type\": \"hero\" },\n    \"benefits\": {\n      \"type\": \"benefits\",\n      \"blocks\": {\n        \"b1\": { \"type\": \"benefit\", \"settings\": { \"icon\": \"💰\", \"title\": \"Preço por volume\", \"text\": \"Quanto mais você compra, menor o preço unitário.\" } },\n        \"b2\": { \"type\": \"benefit\", \"settings\": { \"icon\": \"⚡\", \"title\": \"Pedido rápido\", \"text\": \"Digite as quantidades por SKU e finalize em segundos.\" } },\n        \"b3\": { \"type\": \"benefit\", \"settings\": { \"icon\": \"🏢\", \"title\": \"Condições por empresa\", \"text\": \"Catálogo, preços e prazos ligados à sua localização.\" } }\n      },\n      \"block_order\": [\"b1\", \"b2\", \"b3\"]\n    },\n    \"featured\": { \"type\": \"featured-collection\" },\n    \"cta\": { \"type\": \"cta\" }\n  },\n  \"order\": [\"hero\", \"benefits\", \"featured\", \"cta\"]\n}"
+        },
+        {
+          "label": "assets/base.css (acrescente ao final)",
+          "code": "/* Hero */\n.hero { position: relative; background: var(--color-primary); color: var(--color-primary-text); overflow: hidden; }\n.hero__bg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: .35; }\n.hero__content { position: relative; padding-top: 4.5rem; padding-bottom: 4.5rem; max-width: 1200px; }\n.hero__content > * { max-width: 40rem; }\n.hero .btn { background: var(--color-accent); border-color: var(--color-accent); color: #000; }\n\n/* Seções da home */\n.section__head { display: flex; justify-content: space-between; align-items: baseline; gap: 1rem; }\n.benefit__icon { font-size: 1.75rem; }\n.benefit__title { font-size: 1.05rem; margin: .4rem 0 .25rem; }\n.benefit__text { color: var(--color-muted); margin: 0; }\n.cta { display: flex; justify-content: space-between; align-items: center; gap: 1.5rem; flex-wrap: wrap; }\n.cta p { margin: 0; color: var(--color-muted); }"
+        }
+      ],
+      "expected": "A home mostra hero, três benefícios, os produtos da coleção escolhida (configure no editor) e o CTA. No editor de temas você consegue adicionar, reordenar e remover benefícios.",
+      "related": [
+        "theme-blocks",
+        "theme-blocks-horizon",
+        "theme-templates",
+        "theme-sections"
+      ]
+    },
+    {
+      "id": "atacado-pro-8",
+      "title": "8. Página de coleção com filtros, ordenação e paginação",
+      "goal": "Construir a listagem de produtos com filtros por faceta (Search & Discovery), ordenação e paginação.",
+      "build": "Os filtros vêm de `collection.filters` (configurados no app **Shopify Search & Discovery**). O truque é um único `<form method=\"get\">`: cada checkbox tem `name=\"{{ value.param_name }}\"`, então marcar/desmarcar e enviar o form gera a URL de filtro certa — sem montar querystring à mão. Um JavaScript de 3 linhas dispara o envio no `change` (e o `<noscript>` garante o botão sem JS).\n\nA paginação usa `{% paginate collection.products by … %}` e o filtro `default_pagination`. Para B2B, considere aumentar o valor de \"produtos por página\" — compradores rolam listas longas.",
+      "code": [
+        {
+          "label": "sections/main-collection.liquid",
+          "code": "{%- liquid\n  assign sort_by = collection.sort_by | default: collection.default_sort_by\n\n  assign has_active_filter = false\n  for filter in collection.filters\n    if filter.active_values.size > 0\n      assign has_active_filter = true\n    endif\n  endfor\n-%}\n\n{%- paginate collection.products by section.settings.per_page -%}\n  <div class=\"container section\">\n    <h1>{{ collection.title }}</h1>\n    {%- if collection.description != blank -%}\n      <div class=\"rte\">{{ collection.description }}</div>\n    {%- endif -%}\n\n    <form id=\"collection-filters\" class=\"toolbar\" method=\"get\" action=\"{{ collection.url }}\">\n      {%- if collection.filters.size > 0 -%}\n        <div class=\"filters\">\n          {%- for filter in collection.filters -%}\n            {%- if filter.type == 'list' or filter.type == 'boolean' -%}\n              <details class=\"filter\"{% if filter.active_values.size > 0 %} open{% endif %}>\n                <summary>{{ filter.label }}</summary>\n                <ul>\n                  {%- for value in filter.values -%}\n                    <li>\n                      <label>\n                        <input\n                          type=\"checkbox\"\n                          name=\"{{ value.param_name }}\"\n                          value=\"{{ value.value }}\"\n                          {% if value.active %}checked{% endif %}\n                          {% if value.count == 0 and value.active == false %}disabled{% endif %}\n                        >\n                        {{ value.label }} ({{ value.count }})\n                      </label>\n                    </li>\n                  {%- endfor -%}\n                </ul>\n              </details>\n            {%- endif -%}\n          {%- endfor -%}\n        </div>\n      {%- endif -%}\n\n      <div class=\"toolbar__sort\">\n        <label for=\"sort-by\">Ordenar</label>\n        <select id=\"sort-by\" name=\"sort_by\">\n          {%- for option in collection.sort_options -%}\n            <option value=\"{{ option.value }}\"{% if option.value == sort_by %} selected{% endif %}>{{ option.name }}</option>\n          {%- endfor -%}\n        </select>\n        <noscript><button class=\"btn\" type=\"submit\">Aplicar</button></noscript>\n      </div>\n    </form>\n\n    <p class=\"card__meta\">{{ collection.products_count }} produtos{% if has_active_filter %} &middot; <a href=\"{{ collection.url }}\">Limpar filtros</a>{% endif %}</p>\n\n    {%- if collection.products.size == 0 -%}\n      <p class=\"notice\">Nenhum produto encontrado com esses filtros.</p>\n    {%- else -%}\n      <div class=\"grid\" style=\"--cols: {{ section.settings.columns }}\">\n        {%- for product in collection.products -%}\n          {% render 'product-card', product: product %}\n        {%- endfor -%}\n      </div>\n    {%- endif -%}\n\n    {%- if paginate.pages > 1 -%}\n      <nav class=\"pagination\" aria-label=\"Paginação\">{{ paginate | default_pagination }}</nav>\n    {%- endif -%}\n  </div>\n{%- endpaginate -%}\n\n<script src=\"{{ 'collection.js' | asset_url }}\" defer></script>\n\n{% schema %}\n{\n  \"name\": \"Coleção\",\n  \"settings\": [\n    { \"type\": \"range\", \"id\": \"per_page\", \"label\": \"Produtos por página\", \"min\": 12, \"max\": 48, \"step\": 12, \"default\": 24 },\n    { \"type\": \"range\", \"id\": \"columns\", \"label\": \"Colunas\", \"min\": 2, \"max\": 5, \"step\": 1, \"default\": 4 }\n  ]\n}\n{% endschema %}"
+        },
+        {
+          "label": "templates/collection.json",
+          "code": "{\n  \"sections\": {\n    \"main\": { \"type\": \"main-collection\" }\n  },\n  \"order\": [\"main\"]\n}"
+        },
+        {
+          "label": "templates/list-collections.json",
+          "code": "{\n  \"sections\": {\n    \"main\": { \"type\": \"main-list-collections\" }\n  },\n  \"order\": [\"main\"]\n}"
+        },
+        {
+          "label": "sections/main-list-collections.liquid",
+          "code": "<div class=\"container section\">\n  <h1>Categorias</h1>\n  <div class=\"grid\" style=\"--cols: 4\">\n    {%- for collection in collections -%}\n      <a class=\"card\" href=\"{{ collection.url }}\">\n        {%- if collection.image -%}\n          <span class=\"card__media\">{{ collection.image | image_url: width: 500 | image_tag: loading: 'lazy', alt: collection.title }}</span>\n        {%- endif -%}\n        <span class=\"card__body\"><span class=\"card__title\">{{ collection.title }}</span></span>\n      </a>\n    {%- endfor -%}\n  </div>\n</div>\n\n{% schema %}\n{ \"name\": \"Lista de coleções\" }\n{% endschema %}"
+        },
+        {
+          "label": "assets/collection.js",
+          "code": "// Aplica filtros e ordenação assim que o comprador muda qualquer campo.\nconst form = document.getElementById('collection-filters');\nif (form) {\n  form.addEventListener('change', () => form.requestSubmit());\n}"
+        },
+        {
+          "label": "assets/base.css (acrescente ao final)",
+          "code": "/* Coleção */\n.toolbar { display: flex; justify-content: space-between; gap: 1rem; flex-wrap: wrap; align-items: flex-start; margin: 1rem 0; }\n.filters { display: flex; gap: .75rem; flex-wrap: wrap; }\n.filter { border: 1px solid var(--color-border); border-radius: 6px; padding: .4rem .75rem; }\n.filter summary { cursor: pointer; font-weight: 600; }\n.filter ul { list-style: none; margin: .5rem 0 0; padding: 0; max-height: 14rem; overflow: auto; }\n.filter label { display: flex; gap: .4rem; align-items: center; padding: .15rem 0; }\n.toolbar__sort { display: flex; gap: .5rem; align-items: center; margin-left: auto; }\n.toolbar__sort select { width: auto; }"
+        }
+      ],
+      "expected": "Em uma coleção, os filtros aparecem, ao marcar um a página recarrega filtrada e a ordenação funciona. A paginação aparece quando há mais produtos que o limite.",
+      "related": [
+        "theme-templates",
+        "theme-customize",
+        "liquid"
+      ]
+    },
+    {
+      "id": "atacado-pro-9",
+      "title": "9. Página de produto B2B: variantes, regra de quantidade e volume",
+      "goal": "Construir a página de produto com galeria, seletor de variantes que atualiza preço/regra/volume sem recarregar, e formulário de compra.",
+      "build": "Tudo que muda com a variante (preço do catálogo, regra de quantidade, faixas de volume, SKU, disponibilidade) fica dentro de um único container `[data-product-info]`. Ao trocar uma opção, o JavaScript acha a variante no JSON embutido, atualiza a URL (`?variant=`) e pede à **Section Rendering API** o HTML da seção **já renderizado pelo servidor** — que aplica catálogo, regra e faixa corretos. Isso evita duplicar regras de negócio no navegador.\n\nO formulário usa `{% form 'product' %}` com o `id` da variante e o snippet `quantity-input`. No fim, `structured_data` gera o JSON-LD de produto para SEO.",
+      "code": [
+        {
+          "label": "sections/main-product.liquid",
+          "code": "{%- liquid\n  assign current = product.selected_or_first_available_variant\n  assign form_id = 'product-form-' | append: section.id\n  assign qty_id = 'quantity-' | append: section.id\n-%}\n\n<div\n  class=\"container section product\"\n  id=\"Product-{{ section.id }}\"\n  data-product-section\n  data-section-id=\"{{ section.id }}\"\n>\n  <div class=\"product__media\">\n    {%- for image in product.images -%}\n      {%- assign img_loading = forloop.first | ternary: 'eager', 'lazy' -%}\n      {{\n        image\n        | image_url: width: 1000\n        | image_tag:\n          loading: img_loading,\n          widths: '400, 600, 800, 1000',\n          sizes: '(min-width: 900px) 50vw, 100vw',\n          alt: image.alt\n      }}\n    {%- endfor -%}\n  </div>\n\n  <div class=\"product__info\" data-product-info>\n    {%- if product.vendor != blank -%}\n      <p class=\"card__meta\">{{ product.vendor }}</p>\n    {%- endif -%}\n    <h1>{{ product.title }}</h1>\n    {%- if current.sku != blank -%}\n      <p class=\"card__meta\">SKU {{ current.sku }}</p>\n    {%- endif -%}\n\n    {% render 'price', variant: current %}\n    {% render 'volume-pricing', variant: current %}\n\n    {%- form 'product', product, id: form_id, class: 'product__form' -%}\n      {%- unless product.has_only_default_variant -%}\n        {%- for option in product.options_with_values -%}\n          <fieldset class=\"option\">\n            <legend>{{ option.name }}</legend>\n            {%- for value in option.values -%}\n              <label class=\"option__value\">\n                <input\n                  type=\"radio\"\n                  name=\"option-{{ option.position }}\"\n                  value=\"{{ value | escape }}\"\n                  data-option\n                  {% if value == option.selected_value %}checked{% endif %}\n                >\n                <span>{{ value }}</span>\n              </label>\n            {%- endfor -%}\n          </fieldset>\n        {%- endfor -%}\n      {%- endunless -%}\n\n      <input type=\"hidden\" name=\"id\" value=\"{{ current.id }}\">\n\n      {%- if current.available -%}\n        {% render 'quantity-input', variant: current, id: qty_id %}\n      {%- endif -%}\n\n      <button class=\"btn btn--block\" type=\"submit\" name=\"add\"{% unless current.available %} disabled{% endunless %}>\n        {%- if current.available -%}Adicionar ao carrinho{%- else -%}Indisponível{%- endif -%}\n      </button>\n    {%- endform -%}\n\n    {%- if product.description != blank -%}\n      <div class=\"rte product__description\">{{ product.description }}</div>\n    {%- endif -%}\n  </div>\n\n  <script type=\"application/json\" data-variants>{{ product.variants | json }}</script>\n</div>\n\n<script src=\"{{ 'product.js' | asset_url }}\" defer></script>\n<script type=\"application/ld+json\">{{ product | structured_data }}</script>\n\n{% schema %}\n{ \"name\": \"Produto\" }\n{% endschema %}"
+        },
+        {
+          "label": "templates/product.json",
+          "code": "{\n  \"sections\": {\n    \"main\": { \"type\": \"main-product\" }\n  },\n  \"order\": [\"main\"]\n}"
+        },
+        {
+          "label": "assets/product.js",
+          "code": "// Troca de variante sem recarregar a página.\n// Em vez de recalcular preço, faixas de volume e regra de quantidade no\n// navegador (e divergir do checkout), pedimos ao servidor o HTML já\n// renderizado da seção com a variante escolhida (Section Rendering API).\n(() => {\n  const root = document.querySelector('[data-product-section]');\n  if (!root) return;\n\n  const sectionId = root.dataset.sectionId;\n  const variants = JSON.parse(root.querySelector('[data-variants]').textContent);\n\n  root.addEventListener('change', async (event) => {\n    if (!event.target.matches('[data-option]')) return;\n\n    const chosen = [...root.querySelectorAll('[data-option]:checked')].map((input) => input.value);\n    const variant = variants.find((v) =>\n      chosen.every((value, index) => v[`option${index + 1}`] === value)\n    );\n\n    const info = root.querySelector('[data-product-info]');\n    if (!variant) {\n      info.querySelector('button[name=\"add\"]').disabled = true;\n      return;\n    }\n\n    const url = new URL(window.location.href);\n    url.searchParams.set('variant', variant.id);\n    window.history.replaceState({}, '', url);\n\n    const response = await fetch(`${url.pathname}?variant=${variant.id}&section_id=${sectionId}`);\n    const html = await response.text();\n    const fresh = new DOMParser().parseFromString(html, 'text/html').querySelector('[data-product-info]');\n    if (fresh) info.replaceWith(fresh);\n  });\n})();"
+        },
+        {
+          "label": "assets/base.css (acrescente ao final)",
+          "code": "/* Produto */\n.product { display: grid; gap: 2rem; }\n@media (min-width: 900px) { .product { grid-template-columns: 1.1fr 1fr; align-items: start; } }\n.product__media { display: grid; gap: .75rem; }\n.product__media img { border-radius: 8px; border: 1px solid var(--color-border); }\n.product__form { margin: 1.25rem 0; display: grid; gap: 1rem; }\n.option { border: 0; padding: 0; margin: 0; }\n.option legend { font-weight: 600; margin-bottom: .4rem; }\n.option__value { display: inline-block; margin: 0 .4rem .4rem 0; }\n.option__value input { position: absolute; opacity: 0; }\n.option__value span { display: inline-block; padding: .4rem .9rem; border: 1px solid var(--color-border); border-radius: 6px; cursor: pointer; }\n.option__value input:checked + span { border-color: var(--color-primary); background: var(--color-primary); color: var(--color-primary-text); }\n.option__value input:focus-visible + span { outline: 2px solid var(--color-primary); outline-offset: 2px; }\n.volume { margin: 1rem 0; }\n.volume__title { font-size: 1rem; }"
+        }
+      ],
+      "expected": "Em um produto com variantes, ao trocar tamanho/cor a URL muda, o preço e o SKU atualizam e o campo de quantidade se ajusta à regra da nova variante. Logado como B2B, a tabela de volume aparece.",
+      "related": [
+        "theme-b2b-pricing",
+        "theme-sections",
+        "liquid"
+      ]
+    },
+    {
+      "id": "atacado-pro-10",
+      "title": "10. Carrinho com regra de quantidade e pedido mínimo",
+      "goal": "Construir o carrinho em formato de tabela, com campos de quantidade que respeitam a regra e um aviso de pedido mínimo.",
+      "build": "O carrinho é um `<form method=\"post\" action=\"{{ routes.cart_url }}\">` **sem JavaScript**: os campos `name=\"updates[]\"` (na ordem das linhas) e os botões `update` e `checkout` fazem o trabalho — robusto e simples. Cada linha reaproveita o `quantity-input`, então a regra de múltiplos é a mesma da página de produto. O campo de observação (`note`) serve pro número da ordem de compra do cliente.\n\nO **pedido mínimo** é um aviso visual + botão de checkout desabilitado quando `cart.total_price` (em centavos) fica abaixo do configurado. **Isso não é segurança**: quem burlar o HTML ainda chega ao checkout. Para garantir a regra de verdade, use uma **Function de validação do checkout** (tópico Functions).",
+      "code": [
+        {
+          "label": "sections/main-cart.liquid",
+          "code": "{%- liquid\n  assign min_cents = settings.min_order_value | times: 100\n  assign below_min = false\n  if min_cents > 0 and cart.total_price < min_cents\n    assign below_min = true\n  endif\n-%}\n\n<div class=\"container section\">\n  <h1>Carrinho</h1>\n\n  {%- if cart.item_count == 0 -%}\n    <p>Seu carrinho está vazio.</p>\n    <a class=\"btn\" href=\"{{ routes.all_products_collection_url }}\">Ver catálogo</a>\n    {%- if customer.b2b? -%}\n      <a class=\"btn btn--ghost\" href=\"/pages/pedido-rapido\">Pedido rápido por SKU</a>\n    {%- endif -%}\n  {%- else -%}\n    <form action=\"{{ routes.cart_url }}\" method=\"post\" id=\"cart-form\">\n      <div class=\"table-wrap\">\n        <table class=\"table\">\n          <thead>\n            <tr>\n              <th>Produto</th>\n              <th>Preço unit.</th>\n              <th>Quantidade</th>\n              <th>Total</th>\n              <th><span class=\"visually-hidden\">Remover</span></th>\n            </tr>\n          </thead>\n          <tbody>\n            {%- for item in cart.items -%}\n              {%- assign qty_id = 'cart-qty-' | append: item.index -%}\n              <tr>\n                <td>\n                  <a href=\"{{ item.url }}\"><strong>{{ item.product.title }}</strong></a>\n                  {%- unless item.product.has_only_default_variant -%}\n                    <div class=\"card__meta\">{{ item.variant.title }}</div>\n                  {%- endunless -%}\n                  {%- if item.sku != blank -%}\n                    <div class=\"card__meta\">SKU {{ item.sku }}</div>\n                  {%- endif -%}\n                </td>\n                <td>\n                  {%- if item.original_price > item.final_price -%}\n                    <s class=\"price__old\">{{ item.original_price | money }}</s>\n                  {%- endif -%}\n                  {{ item.final_price | money }}\n                </td>\n                <td>\n                  {% render 'quantity-input',\n                    variant: item.variant,\n                    value: item.quantity,\n                    name: 'updates[]',\n                    id: qty_id\n                  %}\n                </td>\n                <td>{{ item.final_line_price | money }}</td>\n                <td><a href=\"{{ item.url_to_remove }}\" aria-label=\"Remover {{ item.product.title | escape }}\">Remover</a></td>\n              </tr>\n            {%- endfor -%}\n          </tbody>\n        </table>\n      </div>\n\n      <div class=\"cart-summary\">\n        <div class=\"field\">\n          <label for=\"cart-note\">Observações do pedido (ex.: número da sua OC)</label>\n          <textarea id=\"cart-note\" name=\"note\" rows=\"3\">{{ cart.note }}</textarea>\n        </div>\n\n        <div class=\"cart-summary__totals\">\n          <p><strong>Subtotal: {{ cart.total_price | money }}</strong></p>\n          <p class=\"card__meta\">Frete e impostos calculados no checkout.</p>\n\n          {%- if below_min -%}\n            <p class=\"notice notice--warn\">\n              Pedido mínimo de {{ min_cents | money }}. Faltam {{ min_cents | minus: cart.total_price | money }}.\n            </p>\n          {%- endif -%}\n\n          <button class=\"btn btn--ghost\" type=\"submit\" name=\"update\">Atualizar quantidades</button>\n          <button class=\"btn\" type=\"submit\" name=\"checkout\"{% if below_min %} disabled{% endif %}>Finalizar pedido</button>\n        </div>\n      </div>\n    </form>\n  {%- endif -%}\n</div>\n\n{% schema %}\n{ \"name\": \"Carrinho\" }\n{% endschema %}"
+        },
+        {
+          "label": "templates/cart.json",
+          "code": "{\n  \"sections\": {\n    \"main\": { \"type\": \"main-cart\" }\n  },\n  \"order\": [\"main\"]\n}"
+        },
+        {
+          "label": "assets/base.css (acrescente ao final)",
+          "code": "/* Carrinho */\n.cart-summary { display: grid; gap: 1.5rem; margin-top: 1.5rem; }\n@media (min-width: 750px) { .cart-summary { grid-template-columns: 1fr 1fr; align-items: start; } }\n.cart-summary__totals { display: flex; flex-direction: column; gap: .5rem; align-items: flex-start; }"
+        }
+      ],
+      "expected": "Com itens no carrinho, cada linha mostra preço unitário, campo de quantidade com step correto e total. Configurando um pedido mínimo alto, o botão \"Finalizar pedido\" fica desabilitado com o aviso do quanto falta.",
+      "related": [
+        "theme-b2b-pricing",
+        "functions",
+        "checkout"
+      ]
+    },
+    {
+      "id": "atacado-pro-11",
+      "title": "11. Pedido rápido por SKU",
+      "goal": "Criar uma página onde o comprador digita quantidades numa tabela de SKUs e adiciona tudo ao carrinho de uma vez.",
+      "build": "É a funcionalidade que mais separa um tema B2B de um de varejo. A section lista as **variantes** de uma coleção numa tabela (SKU, produto, preço, regra e campo de quantidade). O JavaScript recalcula o total estimado ao digitar, **valida a regra** (mínimo e múltiplos) antes de enviar e faz **uma única chamada** `POST /cart/add.js` com vários itens.\n\nO acesso é restrito a compradores B2B (`unless customer.b2b?`). Para expor a página, crie no admin uma página com o handle `pedido-rapido` e o template `page.quick-order` — o link do carrinho vazio já aponta pra ela.",
+      "code": [
+        {
+          "label": "sections/quick-order.liquid",
+          "code": "{%- liquid\n  assign source = section.settings.collection | default: collections.all\n-%}\n\n<div class=\"container section\" data-quick-order data-add-url=\"{{ routes.cart_add_url }}.js\" data-cart-url=\"{{ routes.cart_url }}\">\n  <h1>{{ section.settings.heading }}</h1>\n\n  {%- unless customer.b2b? -%}\n    <p class=\"notice notice--warn\">\n      O pedido rápido é exclusivo para compradores B2B.\n      <a href=\"{{ routes.account_login_url }}\">Entre com a sua conta</a>.\n    </p>\n  {%- else -%}\n    <p>Informe as quantidades e adicione tudo ao carrinho de uma vez.</p>\n    <div class=\"notice notice--error\" data-quick-error hidden role=\"alert\"></div>\n\n    {%- paginate source.products by 50 -%}\n      <div class=\"table-wrap\">\n        <table class=\"table\">\n          <thead>\n            <tr>\n              <th>SKU</th>\n              <th>Produto</th>\n              <th>Preço unit.</th>\n              <th>Regra</th>\n              <th>Qtd.</th>\n              <th>Subtotal</th>\n            </tr>\n          </thead>\n          <tbody>\n            {%- for product in source.products -%}\n              {%- for variant in product.variants -%}\n                {%- assign rule = variant.quantity_rule -%}\n                <tr>\n                  <td>{{ variant.sku }}</td>\n                  <td>\n                    <a href=\"{{ variant.url }}\">{{ product.title }}</a>\n                    {%- unless product.has_only_default_variant -%}\n                      <div class=\"card__meta\">{{ variant.title }}</div>\n                    {%- endunless -%}\n                  </td>\n                  <td>{{ variant.price | money }}</td>\n                  <td class=\"card__meta\">\n                    mín. {{ rule.min }}{% if rule.increment > 1 %}, múltiplos de {{ rule.increment }}{% endif %}{% if rule.max %}, máx. {{ rule.max }}{% endif %}\n                  </td>\n                  <td>\n                    {%- if variant.available -%}\n                      <label class=\"visually-hidden\" for=\"qo-{{ variant.id }}\">Quantidade de {{ product.title | escape }} {{ variant.title | escape }}</label>\n                      <input\n                        id=\"qo-{{ variant.id }}\"\n                        type=\"number\"\n                        min=\"0\"\n                        {% if rule.max %}max=\"{{ rule.max }}\"{% endif %}\n                        value=\"0\"\n                        inputmode=\"numeric\"\n                        data-variant-id=\"{{ variant.id }}\"\n                        data-price=\"{{ variant.price }}\"\n                        data-min=\"{{ rule.min }}\"\n                        data-increment=\"{{ rule.increment }}\"\n                        data-label=\"{{ product.title | escape }} {{ variant.title | escape }}\"\n                      >\n                    {%- else -%}\n                      <span class=\"badge\">Esgotado</span>\n                    {%- endif -%}\n                  </td>\n                  <td data-subtotal>&ndash;</td>\n                </tr>\n              {%- endfor -%}\n            {%- endfor -%}\n          </tbody>\n        </table>\n      </div>\n\n      {%- if paginate.pages > 1 -%}\n        <nav class=\"pagination\" aria-label=\"Paginação\">{{ paginate | default_pagination }}</nav>\n      {%- endif -%}\n    {%- endpaginate -%}\n\n    <div class=\"quick-total\">\n      <p><strong>Total estimado: <span data-total>0</span></strong></p>\n      <p class=\"card__meta\">Estimativa com o preço unitário base; descontos por volume são aplicados no carrinho.</p>\n      <button class=\"btn\" type=\"button\" data-add-all>Adicionar ao carrinho</button>\n    </div>\n  {%- endunless -%}\n</div>\n\n<script src=\"{{ 'quick-order.js' | asset_url }}\" defer></script>\n\n{% schema %}\n{\n  \"name\": \"Pedido rápido\",\n  \"settings\": [\n    { \"type\": \"text\", \"id\": \"heading\", \"label\": \"Título\", \"default\": \"Pedido rápido\" },\n    {\n      \"type\": \"collection\",\n      \"id\": \"collection\",\n      \"label\": \"Coleção listada\",\n      \"info\": \"Vazio = todos os produtos.\"\n    }\n  ]\n}\n{% endschema %}"
+        },
+        {
+          "label": "templates/page.quick-order.json",
+          "code": "{\n  \"sections\": {\n    \"main\": { \"type\": \"quick-order\" }\n  },\n  \"order\": [\"main\"]\n}"
+        },
+        {
+          "label": "assets/quick-order.js",
+          "code": "// Pedido rápido: valida a regra de quantidade por linha e envia tudo em uma\n// única chamada à Cart API (POST /cart/add.js com vários itens).\n(() => {\n  const root = document.querySelector('[data-quick-order]');\n  if (!root) return;\n\n  const inputs = [...root.querySelectorAll('input[data-variant-id]')];\n  const totalEl = root.querySelector('[data-total]');\n  const errorEl = root.querySelector('[data-quick-error]');\n  const button = root.querySelector('[data-add-all]');\n\n  const money = (cents) =>\n    (cents / 100).toLocaleString(document.documentElement.lang || 'pt-BR', {\n      style: 'currency',\n      currency: window.Shopify?.currency?.active || 'BRL',\n    });\n\n  const validate = (input) => {\n    const qty = Number(input.value) || 0;\n    if (qty === 0) return null;\n    const min = Number(input.dataset.min);\n    const step = Number(input.dataset.increment);\n    if (qty < min) return `${input.dataset.label}: quantidade mínima ${min}.`;\n    if (qty % step !== 0) return `${input.dataset.label}: use múltiplos de ${step}.`;\n    return null;\n  };\n\n  const recalc = () => {\n    let total = 0;\n    inputs.forEach((input) => {\n      const qty = Number(input.value) || 0;\n      const subtotal = qty * Number(input.dataset.price);\n      total += subtotal;\n      input.closest('tr').querySelector('[data-subtotal]').textContent = qty ? money(subtotal) : '–';\n    });\n    totalEl.textContent = money(total);\n  };\n\n  const showError = (message) => {\n    errorEl.hidden = !message;\n    errorEl.textContent = message || '';\n  };\n\n  root.addEventListener('input', recalc);\n\n  button?.addEventListener('click', async () => {\n    showError('');\n    const filled = inputs.filter((input) => Number(input.value) > 0);\n    if (filled.length === 0) return showError('Informe ao menos uma quantidade.');\n\n    const problem = filled.map(validate).find(Boolean);\n    if (problem) return showError(problem);\n\n    button.disabled = true;\n    try {\n      const response = await fetch(root.dataset.addUrl, {\n        method: 'POST',\n        headers: { 'Content-Type': 'application/json' },\n        body: JSON.stringify({\n          items: filled.map((input) => ({\n            id: Number(input.dataset.variantId),\n            quantity: Number(input.value),\n          })),\n        }),\n      });\n      const data = await response.json();\n      if (!response.ok) throw new Error(data.description || data.message || 'Não foi possível adicionar.');\n      window.location.href = root.dataset.cartUrl;\n    } catch (error) {\n      showError(error.message);\n      button.disabled = false;\n    }\n  });\n})();"
+        },
+        {
+          "label": "assets/base.css (acrescente ao final)",
+          "code": "/* Pedido rápido */\n.quick-total { display: flex; flex-direction: column; gap: .4rem; align-items: flex-start; margin-top: 1.5rem; position: sticky; bottom: 0; background: var(--color-bg); padding: 1rem 0; border-top: 1px solid var(--color-border); }\n.quick-total p { margin: 0; }\n.table input[type=\"number\"] { max-width: 6rem; }"
+        }
+      ],
+      "expected": "Logado como B2B, em /pages/pedido-rapido você digita 12 em duas linhas, vê o total estimado, clica em adicionar e cai no carrinho com os dois itens. Digitar uma quantidade fora da regra mostra o erro sem enviar.",
+      "related": [
+        "theme-b2b-pricing",
+        "graphql",
+        "theme-templates"
+      ]
+    },
+    {
+      "id": "atacado-pro-12",
+      "title": "12. Página de solicitação de cadastro B2B",
+      "goal": "Criar o formulário de solicitação de conta de empresa, que alimenta o processo de aprovação no admin.",
+      "build": "Empresas B2B não se cadastram sozinhas: o lojista **aprova** e cria a company. O formulário usa `{% form 'contact' %}` com campos extras (`contact[Empresa]`, `contact[CNPJ]`…) que chegam por e-mail à loja, e o campo oculto `contact[tags]` `b2b-request` **cria/etiqueta o cliente no admin** — dá pra filtrar todos os pedidos pendentes por essa tag.\n\nFluxo operacional: o lojista recebe o e-mail, confere o CNPJ, abre o cliente com a tag, cria a **company** com a location e o catálogo (tópico B2B) e associa o cliente como contato. A partir daí ele faz login e vê os preços.",
+      "code": [
+        {
+          "label": "sections/b2b-application.liquid",
+          "code": "<div class=\"container section application\">\n  <h1>{{ section.settings.heading }}</h1>\n  <div class=\"rte\">{{ section.settings.text }}</div>\n\n  {%- form 'contact', id: 'b2b-application' -%}\n    {%- if form.posted_successfully? -%}\n      <p class=\"notice notice--ok\" role=\"status\">\n        Recebemos a sua solicitação. Nossa equipe comercial retorna em até 1 dia útil.\n      </p>\n    {%- endif -%}\n\n    {%- if form.errors -%}\n      <div class=\"notice notice--error\" role=\"alert\">{{ form.errors | default_errors }}</div>\n    {%- endif -%}\n\n    {%- unless form.posted_successfully? -%}\n      {%- comment -%} Marca o cliente criado pelo formulário para você achá-lo no admin. {%- endcomment -%}\n      <input type=\"hidden\" name=\"contact[tags]\" value=\"b2b-request\">\n\n      <div class=\"field\">\n        <label for=\"app-company\">Razão social</label>\n        <input id=\"app-company\" type=\"text\" name=\"contact[Empresa]\" required autocomplete=\"organization\">\n      </div>\n      <div class=\"field\">\n        <label for=\"app-cnpj\">CNPJ</label>\n        <input id=\"app-cnpj\" type=\"text\" name=\"contact[CNPJ]\" required inputmode=\"numeric\">\n      </div>\n      <div class=\"field\">\n        <label for=\"app-name\">Seu nome</label>\n        <input id=\"app-name\" type=\"text\" name=\"contact[name]\" required autocomplete=\"name\">\n      </div>\n      <div class=\"field\">\n        <label for=\"app-email\">E-mail comercial</label>\n        <input id=\"app-email\" type=\"email\" name=\"contact[email]\" required autocomplete=\"email\">\n      </div>\n      <div class=\"field\">\n        <label for=\"app-phone\">Telefone / WhatsApp</label>\n        <input id=\"app-phone\" type=\"tel\" name=\"contact[Telefone]\" autocomplete=\"tel\">\n      </div>\n      <div class=\"field\">\n        <label for=\"app-volume\">Volume médio mensal de compra</label>\n        <select id=\"app-volume\" name=\"contact[Volume mensal]\">\n          <option>Até R$ 5 mil</option>\n          <option>R$ 5 mil a R$ 20 mil</option>\n          <option>R$ 20 mil a R$ 100 mil</option>\n          <option>Acima de R$ 100 mil</option>\n        </select>\n      </div>\n      <div class=\"field\">\n        <label for=\"app-body\">Mensagem</label>\n        <textarea id=\"app-body\" name=\"contact[body]\" rows=\"4\"></textarea>\n      </div>\n\n      <button class=\"btn\" type=\"submit\">Enviar solicitação</button>\n    {%- endunless -%}\n  {%- endform -%}\n</div>\n\n{% schema %}\n{\n  \"name\": \"Solicitação de cadastro B2B\",\n  \"settings\": [\n    { \"type\": \"text\", \"id\": \"heading\", \"label\": \"Título\", \"default\": \"Solicite seu cadastro de empresa\" },\n    { \"type\": \"richtext\", \"id\": \"text\", \"label\": \"Texto\", \"default\": \"<p>Preencha os dados abaixo. Após a análise, liberamos preços e condições de atacado para a sua empresa.</p>\" }\n  ]\n}\n{% endschema %}"
+        },
+        {
+          "label": "templates/page.solicitar-cadastro.json",
+          "code": "{\n  \"sections\": {\n    \"main\": { \"type\": \"b2b-application\" }\n  },\n  \"order\": [\"main\"]\n}"
+        },
+        {
+          "label": "assets/base.css (acrescente ao final)",
+          "code": ".application { max-width: 40rem; }"
+        }
+      ],
+      "expected": "Em /pages/solicitar-cadastro (página criada no admin com o template `page.solicitar-cadastro`), o envio mostra a mensagem de sucesso, chega o e-mail com os campos extras e o cliente aparece no admin com a tag `b2b-request`.",
+      "related": [
+        "b2b",
+        "theme-b2b-liquid",
+        "theme-templates"
+      ]
+    },
+    {
+      "id": "atacado-pro-13",
+      "title": "13. Modo loja dedicada: tela de acesso restrito",
+      "goal": "Bloquear o conteúdo da loja para quem não é comprador B2B logado, sem trancar o login nem a solicitação de cadastro.",
+      "build": "Para loja **dedicada** (só B2B), o `theme.liquid` calcula a variável `gated`: verdadeira quando a opção está ligada e o visitante não é B2B. Nesse caso, no lugar do `content_for_layout` ele renderiza o snippet `store-gate` (mensagem + botões de entrar e solicitar cadastro).\n\nCuidado com as **exceções**: páginas de conta (`customers/…`) e a página de solicitação de cadastro **precisam** ficar abertas, senão ninguém consegue entrar nem pedir acesso.\n\n**Limite importante:** isso esconde a *interface*, não protege o dado — o HTML de outras rotas e a Storefront API pública continuam acessíveis a quem souber. Para bloqueio real, a Shopify indica apps de restrição de acesso; use o gate como camada de experiência, não de segurança.",
+      "code": [
+        {
+          "label": "snippets/store-gate.liquid",
+          "code": "{%- comment -%}\n  Tela exibida no lugar do conteúdo quando a loja é dedicada B2B\n  e o visitante ainda não é comprador B2B logado.\n{%- endcomment -%}\n<section class=\"container section gate\">\n  <h1>Acesso restrito a empresas</h1>\n  <div class=\"rte\">{{ settings.gate_message }}</div>\n  <p class=\"gate__actions\">\n    <a class=\"btn\" href=\"{{ routes.account_login_url }}\">Entrar</a>\n    {%- if settings.signup_url != blank -%}\n      <a class=\"btn btn--ghost\" href=\"{{ settings.signup_url }}\">Solicitar cadastro</a>\n    {%- endif -%}\n  </p>\n</section>"
+        },
+        {
+          "label": "layout/theme.liquid (trecho do <body>, substitui o bloco <main>)",
+          "code": "{%- liquid\n  assign gated = false\n\n  if settings.gate_enabled\n    unless customer.b2b?\n      assign gated = true\n    endunless\n  endif\n\n  # A página de solicitação de cadastro e as páginas de conta\n  # nunca podem ficar atrás do gate, senão ninguém consegue entrar.\n  if gated\n    if request.page_type contains 'customers'\n      assign gated = false\n    endif\n    if request.page_type == 'page' and page.template_suffix == 'solicitar-cadastro'\n      assign gated = false\n    endif\n  endif\n-%}\n\n<main id=\"main\" tabindex=\"-1\">\n  {%- if gated -%}\n    {% render 'store-gate' %}\n  {%- else -%}\n    {{ content_for_layout }}\n  {%- endif -%}\n</main>"
+        },
+        {
+          "label": "assets/base.css (acrescente ao final)",
+          "code": ".gate { max-width: 36rem; text-align: center; padding-top: 4rem; padding-bottom: 4rem; }\n.gate__actions { display: flex; gap: .75rem; justify-content: center; flex-wrap: wrap; }"
+        }
+      ],
+      "expected": "Com \"Exigir login de comprador B2B\" ligado, um visitante anônimo vê só a tela de acesso restrito em qualquer URL da loja (menos a solicitação de cadastro). Logado como comprador B2B, o site funciona normalmente.",
+      "related": [
+        "theme-b2b-liquid",
+        "compliance",
+        "security"
+      ]
+    },
+    {
+      "id": "atacado-pro-14",
+      "title": "14. Busca, páginas, 404 e lista de categorias",
+      "goal": "Completar os templates que faltam para o tema não ter buracos: busca, página institucional, 404 e lista de coleções.",
+      "build": "Um tema só é \"completo\" quando **toda** rota tem template. Faltam: **busca** (o `search.results` mistura produtos e páginas, por isso o `object_type`), **página** genérica, **404** e a **lista de coleções** (já criada na etapa 8).\n\nA busca por SKU funciona sem código extra: os SKUs das variantes fazem parte do índice de busca da Shopify. Como o header envia `type=product`, o comprador encontra a variante direto pelo código.",
+      "code": [
+        {
+          "label": "sections/main-search.liquid",
+          "code": "<div class=\"container section\">\n  {%- paginate search.results by 24 -%}\n    <h1>\n      {%- if search.performed -%}\n        {{ search.results_count }} resultado{% if search.results_count != 1 %}s{% endif %} para “{{ search.terms | escape }}”\n      {%- else -%}\n        Buscar\n      {%- endif -%}\n    </h1>\n\n    <form action=\"{{ routes.search_url }}\" method=\"get\" role=\"search\" class=\"site-search\">\n      <label class=\"visually-hidden\" for=\"search-page-input\">Buscar</label>\n      <input id=\"search-page-input\" type=\"search\" name=\"q\" value=\"{{ search.terms | escape }}\" placeholder=\"Nome do produto ou SKU\">\n      <input type=\"hidden\" name=\"type\" value=\"product\">\n    </form>\n\n    {%- if search.performed and search.results_count == 0 -%}\n      <p class=\"notice\">Nada encontrado. Tente o SKU completo ou um termo mais genérico.</p>\n    {%- endif -%}\n\n    <div class=\"grid\" style=\"--cols: 4\">\n      {%- for item in search.results -%}\n        {%- if item.object_type == 'product' -%}\n          {% render 'product-card', product: item %}\n        {%- else -%}\n          <article class=\"card\">\n            <div class=\"card__body\">\n              <h3 class=\"card__title\"><a href=\"{{ item.url }}\">{{ item.title }}</a></h3>\n            </div>\n          </article>\n        {%- endif -%}\n      {%- endfor -%}\n    </div>\n\n    {%- if paginate.pages > 1 -%}\n      <nav class=\"pagination\" aria-label=\"Paginação\">{{ paginate | default_pagination }}</nav>\n    {%- endif -%}\n  {%- endpaginate -%}\n</div>\n\n{% schema %}\n{ \"name\": \"Busca\" }\n{% endschema %}"
+        },
+        {
+          "label": "templates/search.json",
+          "code": "{\n  \"sections\": {\n    \"main\": { \"type\": \"main-search\" }\n  },\n  \"order\": [\"main\"]\n}"
+        },
+        {
+          "label": "sections/main-page.liquid",
+          "code": "<div class=\"container section rte\">\n  <h1>{{ page.title }}</h1>\n  {{ page.content }}\n</div>\n\n{% schema %}\n{ \"name\": \"Página\" }\n{% endschema %}"
+        },
+        {
+          "label": "templates/page.json",
+          "code": "{\n  \"sections\": {\n    \"main\": { \"type\": \"main-page\" }\n  },\n  \"order\": [\"main\"]\n}"
+        },
+        {
+          "label": "sections/main-404.liquid",
+          "code": "<div class=\"container section\" style=\"text-align:center\">\n  <h1>Página não encontrada</h1>\n  <p>O endereço que você acessou não existe ou o produto saiu do catálogo.</p>\n  <a class=\"btn\" href=\"{{ routes.all_products_collection_url }}\">Ir para o catálogo</a>\n</div>\n\n{% schema %}\n{ \"name\": \"404\" }\n{% endschema %}"
+        },
+        {
+          "label": "templates/404.json",
+          "code": "{\n  \"sections\": {\n    \"main\": { \"type\": \"main-404\" }\n  },\n  \"order\": [\"main\"]\n}"
+        }
+      ],
+      "expected": "Buscar um SKU leva ao produto certo, uma página institucional renderiza com título e conteúdo, e uma URL inexistente mostra o 404 do tema.",
+      "related": [
+        "theme-templates",
+        "theme-sections"
+      ]
+    },
+    {
+      "id": "atacado-pro-15",
+      "title": "15. Traduções: mover as strings para os locales",
+      "goal": "Tirar os textos fixos do código e centralizá-los em arquivos de idioma.",
+      "build": "Textos dentro do Liquid funcionam, mas prendem o tema a um idioma. O padrão da plataforma é o **arquivo de locale** + o filtro `t`: `{{ 'b2b.login_to_see_prices' | t }}`. O arquivo `*.default.json` é o idioma padrão da loja; os demais (`en.json`) entram automaticamente quando o lojista publica outro idioma.\n\nVariáveis entram como `{{ company }}` no JSON e como argumento do filtro (`| t: company: valor`). Como filtros **não** podem ficar dentro dos argumentos, formate o valor antes com `assign`. Converta aos poucos: comece pelos textos que se repetem (preço, carrinho, botão de adicionar).",
+      "code": [
+        {
+          "label": "locales/pt-BR.default.json",
+          "code": "{\n  \"general\": {\n    \"skip_to_content\": \"Pular para o conteúdo\",\n    \"search_placeholder\": \"Buscar produto ou SKU\",\n    \"out_of_stock\": \"Esgotado\",\n    \"unavailable\": \"Indisponível\"\n  },\n  \"b2b\": {\n    \"login_to_see_prices\": \"Entre para ver os preços\",\n    \"volume_discount_available\": \"Desconto por volume disponível\",\n    \"buying_for\": \"Comprando por {{ company }}\",\n    \"switch_location\": \"Trocar localização\"\n  },\n  \"product\": {\n    \"add_to_cart\": \"Adicionar ao carrinho\",\n    \"sku\": \"SKU {{ sku }}\"\n  },\n  \"cart\": {\n    \"title\": \"Carrinho\",\n    \"empty\": \"Seu carrinho está vazio.\",\n    \"checkout\": \"Finalizar pedido\",\n    \"update\": \"Atualizar quantidades\",\n    \"min_order\": \"Pedido mínimo de {{ amount }}. Faltam {{ missing }}.\"\n  }\n}"
+        },
+        {
+          "label": "locales/en.json",
+          "code": "{\n  \"general\": {\n    \"skip_to_content\": \"Skip to content\",\n    \"search_placeholder\": \"Search by product or SKU\",\n    \"out_of_stock\": \"Sold out\",\n    \"unavailable\": \"Unavailable\"\n  },\n  \"b2b\": {\n    \"login_to_see_prices\": \"Log in to see prices\",\n    \"volume_discount_available\": \"Volume discount available\",\n    \"buying_for\": \"Buying for {{ company }}\",\n    \"switch_location\": \"Switch location\"\n  },\n  \"product\": {\n    \"add_to_cart\": \"Add to cart\",\n    \"sku\": \"SKU {{ sku }}\"\n  },\n  \"cart\": {\n    \"title\": \"Cart\",\n    \"empty\": \"Your cart is empty.\",\n    \"checkout\": \"Place order\",\n    \"update\": \"Update quantities\",\n    \"min_order\": \"Minimum order is {{ amount }}. {{ missing }} to go.\"\n  }\n}"
+        },
+        {
+          "label": "snippets/price.liquid (trechos que mudam)",
+          "code": "{%- comment -%} antes {%- endcomment -%}\n<a class=\"price__gate\" href=\"{{ routes.account_login_url }}\">Entre para ver os preços</a>\n\n{%- comment -%} depois {%- endcomment -%}\n<a class=\"price__gate\" href=\"{{ routes.account_login_url }}\">{{ 'b2b.login_to_see_prices' | t }}</a>\n\n{%- comment -%} antes {%- endcomment -%}\n<small class=\"price__hint\">Desconto por volume disponível</small>\n\n{%- comment -%} depois {%- endcomment -%}\n<small class=\"price__hint\">{{ 'b2b.volume_discount_available' | t }}</small>"
+        },
+        {
+          "label": "snippets/b2b-bar.liquid (trecho com variável)",
+          "code": "<span>\n  {{ 'b2b.buying_for' | t: company: customer.current_company.name }}\n  &middot; {{ customer.current_location.name }}\n</span>"
+        },
+        {
+          "label": "sections/main-cart.liquid (trecho com variáveis)",
+          "code": "{%- assign min_formatted = min_cents | money -%}\n{%- assign missing_formatted = min_cents | minus: cart.total_price | money -%}\n<p class=\"notice notice--warn\">\n  {{ 'cart.min_order' | t: amount: min_formatted, missing: missing_formatted }}\n</p>"
+        }
+      ],
+      "expected": "A loja continua igual em português. Trocando o idioma no admin para inglês (com o `en.json` publicado), os textos convertidos mudam para o inglês.",
+      "related": [
+        "theme-locales",
+        "localize"
+      ]
+    },
+    {
+      "id": "atacado-pro-16",
+      "title": "16. Testar como comprador, revisar e publicar",
+      "goal": "Validar o tema em todos os cenários de comprador, rodar o Theme Check e publicar.",
+      "build": "Tema B2B tem mais estados que um tema comum, e o erro clássico é testar só logado como **staff** — o preview do admin mostra preço de varejo. Monte na dev store **quatro personas** e passe cada uma pela matriz de testes abaixo: visitante anônimo, cliente de varejo logado, comprador B2B com uma location e comprador B2B com duas locations e catálogos diferentes.\n\nDepois rode o **Theme Check**, suba o tema **sem publicar**, teste no preview e só então publique. Se o código estiver num repositório, conecte-o ao GitHub (tópico do tema) para versionar e publicar por branch.",
+      "code": [
+        {
+          "label": "Matriz de testes (cada linha, em cada persona)",
+          "code": "PERSONA                 | PREÇO NA HOME/CARD      | PRODUTO                        | CARRINHO             | PEDIDO RÁPIDO\n------------------------|--------------------------|--------------------------------|----------------------|----------------\nAnônimo                 | \"Entre para ver...\"      | sem preço, sem volume          | —                    | aviso de login\nVarejo logado           | \"Entre para ver...\"      | sem preço, sem volume          | —                    | aviso de login\nB2B (1 location)        | preço do catálogo        | volume + regra de quantidade   | step/mín corretos    | funciona\nB2B (2 locations)       | muda ao trocar a filial  | volume da location atual       | preço da location    | funciona\n\nCASOS EXTRAS\n- Digitar quantidade fora do múltiplo (editando o HTML): o checkout deve bloquear.\n- Pedido abaixo do mínimo: botão de checkout desabilitado + aviso.\n- Com \"Exigir login\" ligado: anônimo só vê o gate; /pages/solicitar-cadastro segue aberta.\n- Trocar de variante numa página com volume: preço e faixas atualizam."
+        },
+        {
+          "label": "Terminal — checagem e publicação",
+          "code": "# procura erros de Liquid, schema e boas práticas\nshopify theme check\n\n# envia como tema NÃO publicado (para testar no preview)\nshopify theme push --unpublished --store sua-loja.myshopify.com\n\n# depois de validar, publique pelo admin (Loja virtual > Temas > Publicar)\n# ou versione com a integração do GitHub"
+        },
+        {
+          "label": "Checklist final",
+          "code": "[ ] shopify theme check sem erros\n[ ] Testado nas 4 personas (anônimo, varejo, B2B 1 location, B2B 2 locations)\n[ ] Nenhum preço vazando para visitante quando \"esconder preços\" está ligado\n[ ] Página /pages/pedido-rapido e /pages/solicitar-cadastro criadas no admin\n[ ] Regras de quantidade e volume pricing configuradas em pelo menos 1 catálogo\n[ ] Pedido mínimo reforçado por Function de validação (o do tema é só visual)\n[ ] Idiomas: strings principais nos locales\n[ ] Lighthouse: imagens com width/height, CSS/JS com defer, sem CLS no header"
+        }
+      ],
+      "expected": "O tema passa no Theme Check, se comporta corretamente nas quatro personas e está publicado (ou pronto pra publicar) na loja.",
+      "related": [
+        "theme-check",
+        "theme-github",
+        "theme-best-practices",
+        "theme-store"
+      ]
+    }
+  ]
+}

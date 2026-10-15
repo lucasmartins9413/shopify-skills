@@ -1,0 +1,17 @@
+{
+  "id": "cases",
+  "label": "Cases reais",
+  "intro": "Projetos reais do início ao fim: o que foi feito, os erros no caminho e o que fica de aprendizado.",
+  "topicCount": 9,
+  "topicIds": [
+    "flags-visao-geral",
+    "flags-criacao-do-app",
+    "flags-theme-extension",
+    "flags-cobranca",
+    "flags-preparacao-tecnica",
+    "flags-imagens-e-listing",
+    "flags-checagens-automaticas",
+    "flags-revisao",
+    "flags-aprendizados"
+  ]
+}

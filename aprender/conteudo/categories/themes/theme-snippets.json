@@ -1,0 +1,66 @@
+{
+  "id": "theme-snippets",
+  "title": "Snippets",
+  "desc": "Reaproveite pedaços de código Liquid em qualquer lugar do tema.",
+  "plan": {
+    "objetivo": "Entender o modelo de escopo isolado de snippets, saber quando extrair um, e documentá-lo com LiquidDoc.",
+    "prereq": "Liquid",
+    "tempo": "2h",
+    "doc": "https://shopify.dev/docs/storefronts/themes/architecture/snippets",
+    "steps": [
+      {
+        "title": "Entenda o que um snippet é (e o que ele não é).",
+        "detail": "Um **snippet** é a menor unidade de reuso de código num tema: um arquivo `.liquid` dentro de `snippets/`, sem `{% schema %}`, sem settings próprios — só Liquid puro. Ele não aparece no editor de temas como algo configurável; é reuso de **código**, não de **conteúdo configurável pelo merchant** (isso é papel de blocks).\n\nA regra prática pra saber quando extrair um snippet: se o mesmo trecho de 3 ou mais linhas de Liquid aparece repetido em dois ou mais arquivos diferentes, ele deveria virar um snippet.",
+        "advanced": "Snippets muito aninhados — um snippet chamando outro snippet, que chama outro — pioram performance de render (cada `render` tem um custo, ainda que pequeno) e dificultam debug (o call stack fica mais difícil de seguir mentalmente). Prefira composição mais rasa: 1-2 níveis de aninhamento, raramente mais."
+      },
+      {
+        "title": "Entenda o modelo de escopo isolado de `{% render %}`.",
+        "detail": "Esse é o ponto mais importante do tópico, e o que mais confunde quem vem de outras linguagens de template: um snippet **não enxerga nenhuma variável do escopo de quem o chamou**, exceto o que foi passado explicitamente como parâmetro.\n\nSe o arquivo que chama tem `{% assign cor = 'azul' %}`, e o snippet renderizado tenta usar `{{ cor }}` sem ter recebido esse parâmetro, o resultado é vazio — não um erro, só silêncio.",
+        "code": "<!-- sections/exemplo.liquid -->\n{% assign titulo_customizado = 'Produtos em destaque' %}\n{% render 'cabecalho' %}\n<!-- 'titulo_customizado' NÃO existe dentro de cabecalho.liquid -->\n\n{% render 'cabecalho', titulo: titulo_customizado %}\n<!-- agora sim: dentro do snippet, use {{ titulo }} -->",
+        "advanced": "Esse isolamento é uma decisão de design deliberada, não uma limitação — evita que um snippet tenha efeitos colaterais ocultos dependendo de onde é chamado, o que tornaria temas grandes praticamente impossíveis de dar manutenção com segurança."
+      },
+      {
+        "title": "Compare `{% render %}` com a tag legada `{% include %}`.",
+        "detail": "Temas antigos usam `{% include 'nome' %}`, que **compartilha o escopo completo** de quem chama (o oposto de `render`) e é mais lento. `include` está deprecated — todo tema novo deve usar `render`, e uma migração de tema legado deve trocar `include` por `render` (ajustando manualmente a passagem explícita de variáveis que antes vazavam por escopo compartilhado).",
+        "advanced": "O Theme Check acusa uso de `include` como erro/warning — se você herdar um tema antigo com `include` espalhado, rodar o linter é o jeito mais rápido de mapear tudo que precisa migrar."
+      },
+      {
+        "title": "Documente parâmetros com LiquidDoc.",
+        "detail": "**LiquidDoc** é um formato de comentário estruturado no topo do snippet que declara quais parâmetros ele espera, com tipo e descrição. Isso habilita autocomplete e checagem no VS Code (com a extensão oficial da Shopify) — quem for usar o snippet vê exatamente o que passar, sem precisar abrir o arquivo e ler o código inteiro.",
+        "code": "{% doc %}\n  @param {Product} product - o produto a ser exibido no card\n  @param {boolean} [show_vendor] - se true, exibe o nome do fornecedor\n{% enddoc %}\n\n<div class=\"product-card\">\n  <h3>{{ product.title }}</h3>\n  {% if show_vendor %}<p>{{ product.vendor }}</p>{% endif %}\n</div>",
+        "advanced": "Vale adotar LiquidDoc desde o primeiro snippet do projeto, não só quando o tema já estiver grande — o custo de escrever é baixo e o ganho composto ao longo do projeto (menos tempo relendo o próprio código de meses atrás) é alto."
+      },
+      {
+        "title": "Passe valores complexos e use parâmetros opcionais.",
+        "detail": "Você pode passar qualquer tipo de valor Liquid como parâmetro — não só objects simples, mas também resultados de filters, strings literais, booleanos e até outro snippet renderizado como string (via `capture`). Parâmetros não passados simplesmente chegam como `nil` dentro do snippet, então sempre trate esse caso com `{% if %}` quando o parâmetro for opcional.",
+        "code": "{% render 'product-card',\n  product: product,\n  show_vendor: true,\n  card_size: 'small'\n%}"
+      },
+      {
+        "title": "Projeto — transforme o card de produto em um snippet documentado e reutilizável.",
+        "detail": "Você já escreveu a lógica de um card de produto no tópico anterior (Liquid). Agora vamos formalizá-lo como um snippet de verdade: com LiquidDoc, parâmetros explícitos e um segundo ponto de uso, pra provar que ele é genuinamente reutilizável."
+      },
+      {
+        "title": "Projeto — passo 1: adicione o cabeçalho LiquidDoc ao `product-card.liquid`.",
+        "detail": "Abra o snippet criado anteriormente e documente os parâmetros que ele já usa implicitamente (`product`), mais um novo parâmetro opcional que vamos adicionar: `show_vendor`.",
+        "code": "{% doc %}\n  @param {Product} product - o produto a ser renderizado no card\n  @param {boolean} [show_vendor] - exibe o fornecedor abaixo do título, se true\n{% enddoc %}"
+      },
+      {
+        "title": "Projeto — passo 2: use o novo parâmetro dentro do snippet.",
+        "detail": "Adicione a linha condicional que usa `show_vendor`, tratando o caso de ele não ser passado (deve simplesmente não aparecer, sem erro).",
+        "code": "<h3>{{ product.title }}</h3>\n{% if show_vendor %}\n  <p class=\"product-card__vendor\">{{ product.vendor }}</p>\n{% endif %}"
+      },
+      {
+        "title": "Projeto — passo 3: chame o mesmo snippet em dois contextos diferentes.",
+        "detail": "Renderize o card numa grade de coleção (sem vendor, pra manter compacto) e num bloco de \"produtos relacionados\" (com vendor, por ser um contexto onde essa informação ajuda mais). Isso comprova, na prática, que o mesmo código serve pra dois lugares com uma única flag diferente.",
+        "code": "<!-- grade de coleção: compacta -->\n{% for product in collection.products limit: 8 %}\n  {% render 'product-card', product: product %}\n{% endfor %}\n\n<!-- produtos relacionados: com vendor -->\n{% for product in recommendations.products limit: 4 %}\n  {% render 'product-card', product: product, show_vendor: true %}\n{% endfor %}"
+      },
+      {
+        "title": "Projeto — passo 4: confirme o autocomplete do LiquidDoc no editor.",
+        "detail": "Com a extensão oficial da Shopify pro VS Code instalada, digite `{% render 'product-card'` num arquivo e confirme que o editor sugere os parâmetros documentados, com os tipos que você escreveu no `{% doc %}`.",
+        "advanced": "Se o autocomplete não aparecer, confira se o nome do arquivo do snippet bate exatamente com a string passada em `render` — é a causa mais comum desse tipo de falha silenciosa da extensão."
+      }
+    ]
+  },
+  "categoryId": "themes",
+  "categoryLabel": "Temas (Storefronts)"
+}

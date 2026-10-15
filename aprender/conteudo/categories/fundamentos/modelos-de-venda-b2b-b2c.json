@@ -1,0 +1,29 @@
+{
+  "id": "modelos-de-venda-b2b-b2c",
+  "title": "Modelos de venda: B2C, B2B e D2C",
+  "desc": "Por que uma loja que vende pra outras empresas precisa de coisas que uma loja de consumidor final nunca precisou — preço por cliente, pedido mínimo, aprovação de compra.",
+  "plan": {
+    "objetivo": "Diferenciar B2C, B2B e D2C, e entender por que venda B2B exige recursos que uma loja comum de consumidor final nunca precisou ter.",
+    "prereq": "Venda multi-canal e marketplaces",
+    "tempo": "20min",
+    "doc": "https://shopify.dev/docs/apps/build/b2b",
+    "steps": [
+      {
+        "title": "Diferencie os três termos que aparecem juntos o tempo todo.",
+        "detail": "- **B2C** (business to consumer): a loja vende direto pro consumidor final — o modelo mais comum e o que a maior parte da trilha até aqui descreveu.\n- **B2B** (business to business): a loja vende pra outras empresas, que compram pra revender ou usar internamente — geralmente em volume maior, com preço negociado.\n- **D2C** (direct to consumer): um caso específico de B2C em que o próprio fabricante vende direto pro consumidor final, sem passar por varejista ou distribuidor no meio.\n\nUma mesma empresa pode operar mais de um modelo ao mesmo tempo — por exemplo, vender B2C pra clientes finais e B2B pra revendedores, geralmente em lojas ou seções separadas.",
+        "advanced": "É comum confundir D2C com \"loja pequena\" — mas D2C descreve a **relação na cadeia de distribuição** (fabricante vendendo direto), não o tamanho do negócio; existem operações D2C bem grandes."
+      },
+      {
+        "title": "Entenda por que B2B precisa de recursos que B2C nunca precisou.",
+        "detail": "Um comprador B2B se comporta de forma bem diferente de um consumidor final, e isso exige recursos específicos da plataforma:\n\n- **Preço por cliente ou por volume**: o mesmo produto pode ter preços diferentes dependendo de qual empresa está comprando, ou descontos que aumentam conforme a quantidade.\n- **Pedido mínimo**: muitas lojas B2B só aceitam pedidos acima de um valor ou quantidade mínima.\n- **Catálogo restrito por cliente**: nem todo produto fica visível pra todo comprador — alguns só aparecem pra quem tem contrato específico.\n- **Aprovação de compra**: numa empresa compradora, pode existir mais de uma pessoa envolvida na decisão (quem escolhe o produto não é sempre quem aprova o pagamento).\n\nNenhum desses comportamentos faz sentido numa loja B2C comum — por isso a Shopify trata B2B como um conjunto de recursos à parte, ativado quando a loja realmente precisa vender pra outras empresas.",
+        "advanced": "Uma loja B2B típica também lida com **termos de pagamento** diferentes de B2C — em vez de pagar na hora do pedido, uma empresa compradora pode ter 30 ou 60 dias pra pagar (faturado), o que muda completamente como reconciliação financeira e fluxo de caixa são tratados."
+      },
+      {
+        "title": "Reconheça o impacto disso no que você vai construir.",
+        "detail": "Se um projeto envolve venda B2B, isso muda decisões técnicas desde o início: um tema ou app precisa considerar que o **mesmo produto pode ter preço diferente dependendo de quem está logado**, que **partes do catálogo podem estar ocultas** pra um comprador específico, e que o checkout pode precisar de campos e regras que não existem numa loja B2C comum. Vale sempre confirmar logo no início de um projeto se há venda B2B envolvida — descobrir isso depois de metade do trabalho pronto costuma exigir retrabalho considerável."
+      }
+    ]
+  },
+  "categoryId": "fundamentos",
+  "categoryLabel": "Fundamentos de Ecommerce"
+}

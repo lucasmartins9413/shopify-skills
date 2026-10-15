@@ -1,0 +1,62 @@
+{
+  "id": "events",
+  "title": "Events",
+  "desc": "Assine mudanças granulares em objetos da GraphQL Admin API e molde os dados recebidos.",
+  "plan": {
+    "objetivo": "Entender a diferença entre events e webhooks tradicionais, e assinar mudanças granulares em campos específicos de um objeto.",
+    "prereq": "GraphQL",
+    "tempo": "2h",
+    "doc": "https://shopify.dev/docs/apps/build/events",
+    "steps": [
+      {
+        "title": "Entenda a diferença entre um webhook tradicional e um event.",
+        "detail": "Um webhook tradicional (visto no tópico anterior) avisa \"algo mudou nesse pedido\" de forma ampla — o topic `orders/updated` dispara pra **qualquer** mudança no pedido, desde uma tag adicionada até o status de pagamento, e o payload tende a trazer o objeto inteiro.\n\n**Events** são mais granulares: você assina mudanças em **campos específicos** de um objeto (ex: só quando a tag de um pedido muda, ignorando outras mudanças), e o payload recebido pode ser restrito só aos campos que você declarou interesse — reduzindo tanto o ruído de notificações irrelevantes quanto o tamanho do payload.",
+        "advanced": "Nem todo campo de todo objeto é \"assinável\" via events — a lista de campos elegíveis é limitada e varia por versão da API; confira a documentação do objeto específico antes de assumir que um campo qualquer pode ser monitorado dessa forma granular."
+      },
+      {
+        "title": "Escolha um objeto da Admin API para observar.",
+        "detail": "Objetos como `Order`, `Product` e `Customer` emitem eventos granulares. Antes de configurar a subscription, identifique exatamente qual campo você precisa monitorar — quanto mais específico, menos ruído seu app recebe e processa desnecessariamente."
+      },
+      {
+        "title": "Configure uma subscription para o evento correspondente.",
+        "detail": "Subscriptions de evento são configuradas via GraphQL Admin API com `webhookSubscriptionCreate` (o mesmo mecanismo usado por webhooks tradicionais), usando `includeFields` pra restringir o payload só aos campos que você monitora.",
+        "code": "mutation {\n  webhookSubscriptionCreate(\n    topic: ORDERS_UPDATED,\n    webhookSubscription: {\n      callbackUrl: \"https://seu-app.com/events/order-updated\",\n      includeFields: [\"tags\", \"note\"]\n    }\n  ) { userErrors { field message } }\n}",
+        "advanced": "Eventos têm a mesma garantia **at-least-once** de webhooks tradicionais — seu handler precisa ser idempotente (checar se já processou aquele ID antes) pra não duplicar efeitos colaterais, exatamente como discutido no tópico de Webhooks."
+      },
+      {
+        "title": "Entenda que o payload de evento pode ser menor que o de um webhook completo.",
+        "detail": "Como você restringe os campos com `includeFields`, o payload recebido tende a ser mais enxuto que um webhook tradicional — bom pra performance e clareza, mas significa que, se seu handler precisar de outros campos do objeto além dos assinados, ele vai precisar fazer uma **query GraphQL adicional** pra buscar o resto, usando o ID vindo no payload.",
+        "code": "// no handler, depois de receber o evento com só 'tags' e 'note':\nconst response = await admin.graphql(`#graphql\n  query GetOrder($id: ID!) {\n    order(id: $id) { id name totalPriceSet { shopMoney { amount } } }\n  }`, { variables: { id: payload.admin_graphql_api_id } });"
+      },
+      {
+        "title": "Dispare o evento na dev store e confira o payload recebido.",
+        "detail": "Crie um pedido de teste, edite o campo assinado (ex: adicione uma tag), e confira no seu endpoint (ou nos logs) se o payload trouxe exatamente os campos que você assinou — nem mais, nem menos.",
+        "advanced": "Se o payload vier vazio ou incompleto, confirme primeiro se o campo realmente está na lista de campos elegíveis pra events daquele objeto — é a causa mais comum desse tipo de problema."
+      },
+      {
+        "title": "Projeto — assine mudanças de tag num pedido e reaja a elas.",
+        "detail": "Vamos configurar um evento granular monitorando só o campo `tags` de pedidos, e implementar uma reação simples quando uma tag específica for adicionada."
+      },
+      {
+        "title": "Projeto — passo 1: crie a subscription restrita ao campo `tags`.",
+        "detail": "Rode a mutation de criação da subscription, apontando pro seu endpoint de eventos e restringindo o payload só a esse campo.",
+        "code": "mutation {\n  webhookSubscriptionCreate(\n    topic: ORDERS_UPDATED,\n    webhookSubscription: {\n      callbackUrl: \"https://seu-app.com/events/order-tags\",\n      includeFields: [\"tags\"]\n    }\n  ) { userErrors { field message } }\n}"
+      },
+      {
+        "title": "Projeto — passo 2: implemente o handler checando por uma tag específica.",
+        "detail": "No endpoint, verifique se a lista de tags recebida contém uma tag de interesse (ex: `\"urgente\"`) antes de reagir.",
+        "code": "const { tags } = payload;\nif (tags?.includes(\"urgente\")) {\n  // dispare sua lógica de reação aqui\n}"
+      },
+      {
+        "title": "Projeto — passo 3: teste adicionando a tag num pedido da dev store.",
+        "detail": "No admin, abra um pedido de teste e adicione a tag `urgente` — confirme nos logs do seu app que o evento chegou e a condição disparou."
+      },
+      {
+        "title": "Projeto — passo 4: teste um caso negativo, adicionando uma tag diferente.",
+        "detail": "Adicione uma tag qualquer que não seja `urgente` e confirme que o evento chega (já que qualquer mudança em `tags` dispara a subscription), mas a lógica de reação **não** dispara — validando que o filtro dentro do seu handler está correto."
+      }
+    ]
+  },
+  "categoryId": "data",
+  "categoryLabel": "Data and logic"
+}

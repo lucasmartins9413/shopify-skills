@@ -1,0 +1,59 @@
+{
+  "id": "collective",
+  "title": "Shopify Collective",
+  "desc": "Conecte varejistas e fornecedores para compartilhar produtos, envio e fulfillment.",
+  "plan": {
+    "objetivo": "Entender o modelo de dois papéis do Shopify Collective (varejista e fornecedor), como produtos e estoque se sincronizam entre lojas, e o fluxo de pedido ponta a ponta.",
+    "prereq": "Orders and fulfillment",
+    "tempo": "2h",
+    "doc": "https://shopify.dev/docs/apps/build/collective",
+    "steps": [
+      {
+        "title": "Entenda o problema: como vender um produto sem estocá-lo?",
+        "detail": "O modelo de **dropshipping** entre lojas Shopify — um varejista quer vender produtos de um fornecedor sem precisar comprar, estocar e despachar fisicamente cada item. **Shopify Collective** formaliza essa relação diretamente na plataforma, entre duas contas Shopify distintas: uma vende (varejista), a outra fabrica/estoca/despacha (fornecedor), com o pedido e o fulfillment sincronizados automaticamente entre as duas contas."
+      },
+      {
+        "title": "Mapeie os dois papéis fixos: varejista e fornecedor.",
+        "detail": "O Collective define dois papéis complementares:\n- **varejista (retailer)** — exibe e vende produtos do fornecedor na própria loja, sem estocá-los fisicamente.\n- **fornecedor (supplier)** — cuida do fulfillment e mantém o estoque real dos produtos compartilhados.\n\nUma mesma conta Shopify pode, em teoria, assumir os dois papéis em parcerias diferentes (ser varejista numa relação e fornecedor em outra), mas dentro de cada parceria específica os papéis são fixos e bem definidos.",
+        "advanced": "O varejista não vê o custo do fornecedor por padrão — só a margem configurada na parceria entre as duas lojas, protegendo informação comercial sensível de cada lado da relação."
+      },
+      {
+        "title": "Entenda como produtos são compartilhados: \"connected products\".",
+        "detail": "Produtos compartilhados aparecem na loja do varejista como **\"connected products\"** — sincronizados automaticamente a partir do catálogo do fornecedor. Título, imagens, descrição e preço sugerido vêm do fornecedor; o varejista pode ajustar alguns aspectos (como o preço de venda final, dentro de regras da parceria), mas não controla o conteúdo-base do produto.",
+        "advanced": "Estoque do fornecedor é a **fonte da verdade** da disponibilidade; a sincronização é quase em tempo real, mas ainda pode haver overselling em picos de demanda entre uma sincronização e outra — um risco inerente a qualquer modelo de estoque distribuído entre sistemas separados."
+      },
+      {
+        "title": "Acompanhe o fluxo de pedido ponta a ponta.",
+        "detail": "O ciclo completo de um pedido no Collective segue três etapas:\n1. O cliente compra na loja do **varejista**, normalmente sem perceber que o produto vem de outra loja.\n2. O pedido é repassado **automaticamente** ao fornecedor, como se fosse um pedido próprio dele.\n3. O fornecedor despacha o produto e atualiza o rastreio, que reflete de volta automaticamente no pedido visível pro varejista (e, por extensão, pro cliente final).",
+        "advanced": "Cancelamentos e devoluções passam pelas **duas** lojas — o processo tende a ser mais lento que um fulfillment interno normal, porque depende de coordenação entre duas contas Shopify separadas, cada uma com seu próprio fluxo de aprovação."
+      },
+      {
+        "title": "Reconheça onde um app pode agregar valor nesse fluxo.",
+        "detail": "Apps que atuam nesse espaço geralmente resolvem problemas específicos do fluxo Collective: automação de aprovação de pedidos do lado do fornecedor, relatórios consolidados de margem pro varejista, alertas de ruptura de estoque antecipados, ou reconciliação financeira entre as duas contas — o Collective resolve a mecânica básica de sincronização, mas deixa espaço pra ferramentas de gestão em cima dela."
+      },
+      {
+        "title": "Projeto — mapeie o fluxo de dados de uma parceria simulada.",
+        "detail": "Como o Collective depende de duas contas Shopify reais conectadas (não é algo que se simula facilmente numa única dev store), este projeto foca em **documentar e mapear** o fluxo de dados esperado — um exercício valioso antes de integrar de verdade com uma parceria real."
+      },
+      {
+        "title": "Projeto — passo 1: desenhe o diagrama do fluxo de pedido ponta a ponta.",
+        "detail": "Com base nas três etapas descritas acima, desenhe (num papel, ou numa ferramenta de diagramas) o fluxo completo: cliente → varejista → fornecedor → rastreio de volta → cliente, identificando em cada seta que tipo de dado trafega."
+      },
+      {
+        "title": "Projeto — passo 2: liste quais dados o varejista vê e quais ficam ocultos.",
+        "detail": "Baseado no que foi discutido sobre custo não visível ao varejista, liste explicitamente: o que o varejista vê (preço de venda, disponibilidade, rastreio) versus o que fica só do lado do fornecedor (custo, margem, detalhes internos de estoque)."
+      },
+      {
+        "title": "Projeto — passo 3: identifique um ponto de risco de overselling no fluxo.",
+        "detail": "Com base no fato de que a sincronização de estoque não é instantânea, identifique no seu diagrama exatamente o momento onde uma venda simultânea em duas lojas diferentes (a do fornecedor vendendo direto, e a do varejista vendendo via Collective) poderia gerar overselling."
+      },
+      {
+        "title": "Projeto — passo 4: esboce uma funcionalidade de app que mitigaria esse risco.",
+        "detail": "Com o ponto de risco identificado, esboce (em texto, sem precisar implementar) que tipo de app resolveria isso — por exemplo, um app que sincroniza estoque com mais frequência, ou que aplica uma margem de segurança (reservar uma pequena quantidade como buffer) nas quantidades expostas ao varejista.",
+        "advanced": "Esse tipo de exercício de design antes de codificar é especialmente valioso em integrações que você não pode testar facilmente sozinho numa única dev store — force-se a pensar no fluxo completo antes de escrever a primeira linha de código de integração real."
+      }
+    ]
+  },
+  "categoryId": "commerce",
+  "categoryLabel": "Commerce"
+}

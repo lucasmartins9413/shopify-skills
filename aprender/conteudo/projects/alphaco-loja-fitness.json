@@ -1,0 +1,206 @@
+{
+  "id": "alphaco-loja-fitness",
+  "kind": "theme",
+  "title": "Loja de moda fitness multi-público (inspirada na Alpha Co.)",
+  "subtitle": "Reconstrua, seção por seção, uma loja de roupas fitness real (usealphaco.com.br) que segmenta o catálogo entre público masculino e feminino: header com mega menu, hero em carrossel, grade de categorias com preço por quantidade, carrosséis de novidades e kits, banners de coleção, seção institucional e footer — tudo reaproveitando blocks e sections, do clone do tema até o checklist de publicação.",
+  "stages": [
+    {
+      "id": "alphaco-1",
+      "title": "1. Mapear a referência e planejar a arquitetura de sections",
+      "goal": "Transformar a análise visual da loja de referência em uma lista concreta de sections e blocks antes de escrever qualquer código.",
+      "build": "Abra a loja de referência e catalogue cada seção da home na ordem em que aparece, anotando pra cada uma se o conteúdo é **estático** (texto/imagem que só o merchant edita) ou **dinâmico** (vem de um produto, coleção ou menu real). Esse inventário evita o erro mais comum de quem começa um tema do zero: escrever a primeira section antes de saber quantas vezes ela vai ser reaproveitada com configurações diferentes (ex.: a mesma grade de categorias serve pra masculino e feminino).",
+      "code": [
+        {
+          "label": "Inventário de sections (a partir da referência)",
+          "code": "Header: mega menu Masculino / Feminino -> linklists aninhados (dinâmico)\nHero: carrossel de banners -> section com blocks \"slide\" reutilizáveis\nGrade de categorias: preço por quantidade -> dinâmico (variant.quantity_price_breaks)\nCarrossel de novidades: produtos com badge de % off -> dinâmico (compare_at_price)\nKits/bundles: carrossel reaproveitando o card de produto -> product picker por block\nBanners de coleção (\"tecnologia\"): reaproveita o block \"slide\" do hero\nBloco feminino: MESMAS sections do masculino, settings diferentes\nMarca: seção institucional + redes sociais -> settings globais do tema\nFooter: colunas via linklists + ícones de pagamento nativos\nCart drawer: estado vazio (login/continuar comprando) vs. estado com itens"
+        }
+      ],
+      "expected": "Você tem uma lista escrita de section -> tipo de conteúdo (estático/dinâmico) -> reaproveitamento previsto, e consegue apontar quais sections serão usadas mais de uma vez antes de criar o primeiro arquivo `.liquid`.",
+      "related": ["theme-architecture", "anatomia-loja-online", "theme-sections"]
+    },
+    {
+      "id": "alphaco-2",
+      "title": "2. Escolher o tema base e configurar os tokens de marca",
+      "goal": "Ter o Horizon rodando localmente com a paleta de cores e tipografia da marca já configuradas, antes de criar qualquer section custom.",
+      "build": "Clone o Horizon (não o Skeleton) porque os passos seguintes vão depender de blocks aninhados — o mesmo motivo já explorado no projeto de home componível. Configure o `color_scheme_group` em `config/settings_schema.json` com os papéis (`role`) de fundo, texto e botão, em vez de espalhar códigos de cor hexadecimais direto nos arquivos `.liquid` das sections: assim trocar a cor da marca vira uma edição em um lugar só.",
+      "code": [
+        {
+          "label": "Clonar o Horizon",
+          "code": "shopify theme init minha-loja-fitness --clone-url https://github.com/Shopify/horizon.git\ncd minha-loja-fitness\nshopify theme dev --store=sua-loja-dev.myshopify.com"
+        },
+        {
+          "label": "config/settings_schema.json — grupo de cores da marca",
+          "code": "{\n  \"name\": \"Cores\",\n  \"settings\": [\n    {\n      \"type\": \"color_scheme_group\",\n      \"id\": \"color_schemes\",\n      \"definition\": [\n        { \"type\": \"color\", \"id\": \"background\", \"label\": \"Fundo\", \"default\": \"#0B0B0C\" },\n        { \"type\": \"color\", \"id\": \"text\", \"label\": \"Texto\", \"default\": \"#FFFFFF\" },\n        { \"type\": \"color\", \"id\": \"button\", \"label\": \"Botão\", \"default\": \"#FF4D2E\" },\n        { \"type\": \"color\", \"id\": \"button_label\", \"label\": \"Texto do botão\", \"default\": \"#FFFFFF\" }\n      ],\n      \"role\": {\n        \"background\": { \"solid\": \"background\" },\n        \"text\": \"text\",\n        \"primary_button\": \"button\",\n        \"on_primary_button\": \"button_label\"\n      }\n    }\n  ]\n}"
+        }
+      ],
+      "expected": "O preview local sobe já usando a paleta preto/branco/laranja da marca em botões e fundo, mesmo antes de existir qualquer section nova.",
+      "related": ["theme-create", "theme-config", "theme-cli"]
+    },
+    {
+      "id": "alphaco-3",
+      "title": "3. Header com mega menu por público (Masculino/Feminino)",
+      "goal": "Reproduzir o dropdown de duas colunas que separa o catálogo masculino do feminino usando o menu nativo do admin, sem hardcodar nenhum link.",
+      "build": "Um mega menu bem feito não é uma lista de `<a>` fixa no Liquid — é um loop sobre `linklists`, com um segundo `for` para o nível filho (`link.links`). Isso garante que adicionar, remover ou reordenar uma categoria no admin (Navegação) reflita no dropdown sem precisar editar o tema.",
+      "code": [
+        {
+          "label": "sections/header.liquid",
+          "code": "{% assign menu = linklists[section.settings.menu] %}\n<nav class=\"mega-menu\">\n  {% for link in menu.links %}\n    <div class=\"mega-menu__item\">\n      <a href=\"{{ link.url }}\">{{ link.title }}</a>\n      {% if link.links != blank %}\n        <div class=\"mega-menu__dropdown\">\n          {% for sublink in link.links %}\n            <a href=\"{{ sublink.url }}\">{{ sublink.title }}</a>\n          {% endfor %}\n        </div>\n      {% endif %}\n    </div>\n  {% endfor %}\n</nav>\n\n{% schema %}\n{\n  \"name\": \"Menu principal\",\n  \"settings\": [\n    { \"type\": \"link_list\", \"id\": \"menu\", \"label\": \"Menu\", \"default\": \"main-menu\" }\n  ]\n}\n{% endschema %}"
+        }
+      ],
+      "expected": "Criando no admin um item \"Feminino\" com sublinks de categoria, o dropdown aparece automaticamente no header — sem qualquer alteração no arquivo `header.liquid`.",
+      "related": ["liquid", "theme-sections", "anatomia-loja-online"]
+    },
+    {
+      "id": "alphaco-4",
+      "title": "4. Hero em carrossel de banners promocionais",
+      "goal": "Um banner rotativo no topo da home com N slides configuráveis pelo merchant, cada um com imagem, título e link próprios.",
+      "build": "Assim como no projeto de home componível, modele cada slide como um **theme block reutilizável** (`blocks/slide.liquid`), não como settings fixos da section. Isso faz o merchant poder adicionar um 5º slide pela Black Friday sem você tocar em código — e, como vai ficar claro no passo 8, o mesmo block `slide` será reaproveitado em uma section completamente diferente.",
+      "code": [
+        {
+          "label": "blocks/slide.liquid",
+          "code": "<a class=\"hero-slideshow__slide\" href=\"{{ block.settings.link }}\">\n  <img src=\"{{ block.settings.image | image_url: width: 1600 }}\" alt=\"{{ block.settings.heading | escape }}\">\n  <div class=\"hero-slideshow__caption\">\n    <h2>{{ block.settings.heading }}</h2>\n  </div>\n</a>\n\n{% schema %}\n{\n  \"name\": \"Slide\",\n  \"settings\": [\n    { \"type\": \"image_picker\", \"id\": \"image\", \"label\": \"Imagem\" },\n    { \"type\": \"text\", \"id\": \"heading\", \"label\": \"Título\" },\n    { \"type\": \"url\", \"id\": \"link\", \"label\": \"Link\" }\n  ]\n}\n{% endschema %}"
+        },
+        {
+          "label": "sections/hero-slideshow.liquid",
+          "code": "<div class=\"hero-slideshow\" data-autoplay=\"{{ section.settings.autoplay }}\" data-interval=\"{{ section.settings.interval }}\">\n  {% for block in section.blocks %}\n    {% content_for 'block', id: block.id, type: block.type %}\n  {% endfor %}\n</div>\n\n{% schema %}\n{\n  \"name\": \"Hero em carrossel\",\n  \"settings\": [\n    { \"type\": \"checkbox\", \"id\": \"autoplay\", \"label\": \"Avançar automaticamente\", \"default\": true },\n    { \"type\": \"range\", \"id\": \"interval\", \"label\": \"Intervalo (segundos)\", \"min\": 3, \"max\": 10, \"step\": 1, \"default\": 5 }\n  ],\n  \"blocks\": [{ \"type\": \"slide\" }],\n  \"presets\": [{ \"name\": \"Hero em carrossel\", \"blocks\": [{ \"type\": \"slide\" }, { \"type\": \"slide\" }] }]\n}\n{% endschema %}"
+        }
+      ],
+      "expected": "No editor de temas, adicionar/remover/reordenar slides dentro do Hero funciona pelo botão \"Adicionar bloco\", e o carrossel avança sozinho no intervalo configurado.",
+      "related": ["theme-blocks", "theme-sections", "marketing"]
+    },
+    {
+      "id": "alphaco-5",
+      "title": "5. Grade de categorias com preço por quantidade (volume pricing)",
+      "goal": "Reproduzir os cards \"a partir de R$49,90 comprando 1 ou mais\" usando o preço por quantidade nativo do Shopify, não um texto digitado no editor.",
+      "build": "O erro tentador aqui é criar um setting de texto livre pra esse selo de preço — mas aí ele descasa do preço real assim que o merchant mudar a promoção. Em vez disso, leia `variant.quantity_price_breaks`, o objeto nativo do Shopify pra preço por quantidade: cada item tem `minimum_quantity` e `price`. A section recebe uma **coleção** como setting (ela vai ser instanciada duas vezes — masculino e feminino — no passo 9), e o preço exibido vem sempre do catálogo real.",
+      "code": [
+        {
+          "label": "sections/category-grid.liquid",
+          "code": "<div class=\"category-grid\">\n  <h2>{{ section.settings.heading }}</h2>\n  <div class=\"category-grid__items\">\n    {% for product in collections[section.settings.collection].products limit: 6 %}\n      {% assign variant = product.selected_or_first_available_variant %}\n      <a href=\"{{ product.url }}\" class=\"category-card\">\n        <img src=\"{{ product.featured_image | image_url: width: 600 }}\" alt=\"{{ product.title | escape }}\">\n        <h3>{{ product.title }}</h3>\n        {% if variant.quantity_price_breaks_configured? %}\n          {% assign first_break = variant.quantity_price_breaks.first %}\n          <p class=\"category-card__price-break\">\n            A partir de {{ first_break.price | money }} comprando {{ first_break.minimum_quantity }} ou mais\n          </p>\n        {% else %}\n          <p>{{ variant.price | money }}</p>\n        {% endif %}\n      </a>\n    {% endfor %}\n  </div>\n</div>\n\n{% schema %}\n{\n  \"name\": \"Grade de categoria\",\n  \"settings\": [\n    { \"type\": \"text\", \"id\": \"heading\", \"label\": \"Título\", \"default\": \"Masculino\" },\n    { \"type\": \"collection\", \"id\": \"collection\", \"label\": \"Coleção\" }\n  ],\n  \"presets\": [{ \"name\": \"Grade de categoria\" }]\n}\n{% endschema %}"
+        }
+      ],
+      "expected": "Configurando preço por quantidade em uma variante (Admin > Produto > Preço por quantidade), o texto \"A partir de X comprando N ou mais\" aparece sozinho no card — mudar o preço na configuração muda o texto, sem editar Liquid.",
+      "related": ["purchase-options", "merchandising", "discounts"]
+    },
+    {
+      "id": "alphaco-6",
+      "title": "6. Carrossel de novidades com badge de desconto calculado",
+      "goal": "Um carrossel de produtos com preço riscado e badge de \"% off\" calculado a partir do preço real, nunca digitado.",
+      "build": "Extraia o card de produto pra um snippet (`snippets/product-card.liquid`) desde já, em vez de escrevê-lo inline dentro da section — o passo 7 vai reaproveitar exatamente esse mesmo snippet pra kits, e reaproveitar só funciona se o card não estiver colado dentro de uma section específica. O percentual do badge sai de uma conta em Liquid sobre `compare_at_price` vs. `price`, então ele sempre bate com o desconto real do produto.",
+      "code": [
+        {
+          "label": "snippets/product-card.liquid",
+          "code": "{% liquid\n  assign variant = product.selected_or_first_available_variant\n  if variant.compare_at_price > variant.price\n    assign discount = variant.compare_at_price | minus: variant.price | times: 100.0 | divided_by: variant.compare_at_price | round\n  endif\n%}\n<div class=\"product-card\">\n  <img src=\"{{ product.featured_image | image_url: width: 600 }}\" alt=\"{{ product.title | escape }}\">\n  {% if discount %}<span class=\"badge\">-{{ discount }}%</span>{% endif %}\n  <h3>{{ product.title }}</h3>\n  <p>\n    {% if variant.compare_at_price > variant.price %}<s>{{ variant.compare_at_price | money }}</s>{% endif %}\n    {{ variant.price | money }}\n  </p>\n</div>"
+        },
+        {
+          "label": "sections/featured-new.liquid",
+          "code": "<div class=\"carousel\">\n  {% for product in collections[section.settings.collection].products limit: section.settings.limit %}\n    {% render 'product-card', product: product %}\n  {% endfor %}\n</div>\n\n{% schema %}\n{\n  \"name\": \"Novidades\",\n  \"settings\": [\n    { \"type\": \"collection\", \"id\": \"collection\", \"label\": \"Coleção\" },\n    { \"type\": \"range\", \"id\": \"limit\", \"label\": \"Quantidade\", \"min\": 4, \"max\": 24, \"step\": 1, \"default\": 12 }\n  ],\n  \"presets\": [{ \"name\": \"Novidades\" }]\n}\n{% endschema %}"
+        }
+      ],
+      "expected": "Trocando o preço promocional de um produto no Admin, o badge de desconto do carrossel muda no próximo carregamento — sem editar nenhum arquivo do tema.",
+      "related": ["theme-sections", "merchandising", "discounts"]
+    },
+    {
+      "id": "alphaco-7",
+      "title": "7. Seção de kits/bundles reaproveitando o card de produto",
+      "goal": "Um carrossel de \"kits\" com visual idêntico ao de novidades, mas montado a partir de uma lista curada de produtos, sem copiar o Liquid do card.",
+      "build": "Um kit (ex.: camiseta + short + squeeze) normalmente não é uma coleção automática no catálogo — é uma curadoria manual. Por isso, em vez de `settings.collection`, essa section usa um **block por produto** com um `product` picker, e cada block renderiza o mesmo `snippets/product-card.liquid` do passo 6 via `render`. Prova, na prática, que extrair o card pro snippet valeu a pena: zero duplicação entre \"Novidades\" e \"Kits\".",
+      "code": [
+        {
+          "label": "sections/kit-bundles.liquid",
+          "code": "<div class=\"carousel\">\n  {% for block in section.blocks %}\n    {% if block.settings.product != blank %}\n      {% render 'product-card', product: block.settings.product %}\n    {% endif %}\n  {% endfor %}\n</div>\n\n{% schema %}\n{\n  \"name\": \"Kits\",\n  \"blocks\": [\n    {\n      \"type\": \"kit\",\n      \"name\": \"Kit\",\n      \"settings\": [{ \"type\": \"product\", \"id\": \"product\", \"label\": \"Produto do kit\" }]\n    }\n  ],\n  \"presets\": [{ \"name\": \"Kits\", \"blocks\": [{ \"type\": \"kit\" }, { \"type\": \"kit\" }] }]\n}\n{% endschema %}"
+        }
+      ],
+      "expected": "O merchant monta a vitrine de kits escolhendo produtos um a um no editor, e cada card renderizado é visualmente idêntico ao do carrossel de novidades — porque é literalmente o mesmo snippet.",
+      "related": ["theme-blocks", "theme-snippets", "merchandising"]
+    },
+    {
+      "id": "alphaco-8",
+      "title": "8. Banners de coleção \"tecnologia\" reaproveitando o block do hero",
+      "goal": "Banners full-width linkando pra coleções específicas (ex.: uma linha de tecido, uma linha térmica), reaproveitando o mesmo block de imagem+texto+link do hero.",
+      "build": "Em vez de criar um novo block \"banner\" quase idêntico ao `slide` do passo 4, referencie o **mesmo tipo de block** (`slide`) no schema desta section nova. É o mesmo princípio do `trust-bar` reaproveitado no footer do projeto de home componível: um block bem modelado serve a mais de uma section, só muda o layout em volta (grid em vez de carrossel).",
+      "code": [
+        {
+          "label": "sections/collection-spotlight.liquid",
+          "code": "<div class=\"collection-spotlight grid\">\n  {% for block in section.blocks %}\n    {% content_for 'block', id: block.id, type: block.type %}\n  {% endfor %}\n</div>\n\n{% schema %}\n{\n  \"name\": \"Coleções em destaque\",\n  \"blocks\": [{ \"type\": \"slide\" }],\n  \"presets\": [{\n    \"name\": \"Coleções em destaque\",\n    \"blocks\": [{ \"type\": \"slide\" }, { \"type\": \"slide\" }, { \"type\": \"slide\" }]\n  }]\n}\n{% endschema %}"
+        }
+      ],
+      "expected": "No editor, dentro de \"Coleções em destaque\", o botão \"Adicionar bloco\" oferece \"Slide\" — o mesmo block do Hero — e cada instância guarda imagem/título/link próprios, independente do hero.",
+      "related": ["theme-blocks", "theme-section-groups"]
+    },
+    {
+      "id": "alphaco-9",
+      "title": "9. Duplicar a home para o público feminino sem duplicar código",
+      "goal": "Repetir toda a estrutura de categorias/novidades da home pro público feminino reaproveitando os MESMOS arquivos de section, só com settings diferentes.",
+      "build": "A tentação, ao ver a home real repetir a mesma sequência de seções para masculino e depois feminino, é criar `category-grid-fem.liquid` como cópia de `category-grid.liquid`. Não faça isso: no `templates/index.json`, adicione uma **segunda instância** do mesmo `\"type\": \"category-grid\"`, apontando pra outra coleção. É a mesma lógica do footer do projeto de home componível — um arquivo, várias instâncias configuradas de forma independente.",
+      "code": [
+        {
+          "label": "templates/index.json (trecho)",
+          "code": "{\n  \"sections\": {\n    \"category-grid-masc\": {\n      \"type\": \"category-grid\",\n      \"settings\": { \"collection\": \"masculino-camisetas\", \"heading\": \"Masculino\" }\n    },\n    \"category-grid-fem\": {\n      \"type\": \"category-grid\",\n      \"settings\": { \"collection\": \"feminino-camisetas\", \"heading\": \"Feminino\" }\n    }\n  },\n  \"order\": [\"category-grid-masc\", \"category-grid-fem\"]\n}"
+        }
+      ],
+      "expected": "A home mostra a grade masculina e a grade feminina com produtos diferentes, e `shopify theme check` não acusa nenhum arquivo Liquid duplicado no tema.",
+      "related": ["theme-templates", "theme-section-groups", "theme-blocks"]
+    },
+    {
+      "id": "alphaco-10",
+      "title": "10. Seção institucional da marca + redes sociais",
+      "goal": "Um bloco de \"quem somos\" com links de redes sociais que vêm das configurações globais do tema, não digitados dentro da section.",
+      "build": "URLs de rede social não são conteúdo de uma section — são configuração da loja inteira, então pertencem ao `settings_schema.json` global (o mesmo padrão que Dawn e Horizon já usam: `social_instagram_link`, `social_tiktok_link` etc.). Qualquer section, agora ou no futuro, pode ler `settings.social_instagram_link` sem redigitar a URL.",
+      "code": [
+        {
+          "label": "config/settings_schema.json — grupo de redes sociais",
+          "code": "{\n  \"name\": \"Redes sociais\",\n  \"settings\": [\n    { \"type\": \"text\", \"id\": \"social_instagram_link\", \"label\": \"Instagram\" },\n    { \"type\": \"text\", \"id\": \"social_tiktok_link\", \"label\": \"TikTok\" },\n    { \"type\": \"text\", \"id\": \"social_youtube_link\", \"label\": \"YouTube\" }\n  ]\n}"
+        },
+        {
+          "label": "sections/brand-statement.liquid",
+          "code": "<div class=\"brand-statement\">\n  <img src=\"{{ section.settings.logo | image_url: width: 200 }}\" alt=\"{{ shop.name }}\">\n  <p>{{ section.settings.statement }}</p>\n  <div class=\"social-links\">\n    {% if settings.social_instagram_link != blank %}\n      <a href=\"{{ settings.social_instagram_link }}\">Instagram</a>\n    {% endif %}\n    {% if settings.social_tiktok_link != blank %}\n      <a href=\"{{ settings.social_tiktok_link }}\">TikTok</a>\n    {% endif %}\n    {% if settings.social_youtube_link != blank %}\n      <a href=\"{{ settings.social_youtube_link }}\">YouTube</a>\n    {% endif %}\n  </div>\n</div>\n\n{% schema %}\n{\n  \"name\": \"Sobre a marca\",\n  \"settings\": [\n    { \"type\": \"image_picker\", \"id\": \"logo\", \"label\": \"Logo\" },\n    { \"type\": \"text\", \"id\": \"statement\", \"label\": \"Frase de marca\", \"default\": \"A marca mais presente.\" }\n  ],\n  \"presets\": [{ \"name\": \"Sobre a marca\" }]\n}\n{% endschema %}"
+        }
+      ],
+      "expected": "Trocar o link do Instagram uma vez nas configurações do tema atualiza esse ícone em qualquer section que o referencie — hoje só a \"Sobre a marca\", mas o padrão já está pronto pra outras.",
+      "related": ["theme-config", "theme-sections"]
+    },
+    {
+      "id": "alphaco-11",
+      "title": "11. Footer institucional com colunas dinâmicas",
+      "goal": "Um footer com colunas de institucional/políticas/suporte, cada uma vinda de um menu real, mais os ícones de forma de pagamento nativos da loja.",
+      "build": "Cada coluna do footer é um block que aponta pra um `link_list` diferente — assim o merchant pode ter 3, 4 ou 5 colunas e editar o conteúdo de cada uma direto na Navegação do admin, sem depender de você pra adicionar um link de política nova. Os ícones de pagamento vêm do filtro nativo `payment_type_svg_tag`, então eles refletem exatamente os métodos habilitados na loja.",
+      "code": [
+        {
+          "label": "sections/footer.liquid",
+          "code": "<footer class=\"site-footer\">\n  {% for block in section.blocks %}\n    {% assign menu = linklists[block.settings.menu] %}\n    <div class=\"site-footer__column\">\n      <h4>{{ block.settings.title }}</h4>\n      {% for link in menu.links %}\n        <a href=\"{{ link.url }}\">{{ link.title }}</a>\n      {% endfor %}\n    </div>\n  {% endfor %}\n  <div class=\"site-footer__payment-icons\">\n    {% for type in shop.enabled_payment_types %}\n      {{ type | payment_type_svg_tag }}\n    {% endfor %}\n  </div>\n</footer>\n\n{% schema %}\n{\n  \"name\": \"Footer\",\n  \"blocks\": [\n    {\n      \"type\": \"menu-column\",\n      \"name\": \"Coluna de menu\",\n      \"settings\": [\n        { \"type\": \"text\", \"id\": \"title\", \"label\": \"Título da coluna\" },\n        { \"type\": \"link_list\", \"id\": \"menu\", \"label\": \"Menu\" }\n      ]\n    }\n  ],\n  \"presets\": [{\n    \"name\": \"Footer\",\n    \"blocks\": [{ \"type\": \"menu-column\" }, { \"type\": \"menu-column\" }, { \"type\": \"menu-column\" }]\n  }]\n}\n{% endschema %}"
+        }
+      ],
+      "expected": "Adicionar um link novo em qualquer um dos menus referenciados no admin aparece na coluna certa do footer sem editar código, e os ícones de pagamento batem com os métodos ativos na loja.",
+      "related": ["theme-section-groups", "theme-layouts"]
+    },
+    {
+      "id": "alphaco-12",
+      "title": "12. Mini-carrinho (cart drawer) com estado vazio e estado populado",
+      "goal": "Um drawer de carrinho que abre ao clicar no ícone do header, mostrando um CTA de \"continuar comprando\" quando vazio e a lista de itens quando não está.",
+      "build": "O carrinho tem exatamente dois estados possíveis pra essa UI, e o Liquid só precisa checar um: `cart.item_count`. Trate isso como uma ramificação simples — nada de esconder/mostrar blocos via CSS pra simular os dois estados; deixe o servidor decidir qual marcação renderizar.",
+      "code": [
+        {
+          "label": "snippets/cart-drawer.liquid",
+          "code": "<aside id=\"cart-drawer\" class=\"cart-drawer\" aria-hidden=\"true\">\n  {% if cart.item_count == 0 %}\n    <div class=\"cart-drawer__empty\">\n      <p>{{ 'cart.empty' | t }}</p>\n      <a href=\"{{ routes.all_products_collection_url }}\">{{ 'cart.continue_shopping' | t }}</a>\n    </div>\n  {% else %}\n    <ul>\n      {% for item in cart.items %}\n        <li>\n          <img src=\"{{ item.image | image_url: width: 120 }}\" alt=\"{{ item.title | escape }}\">\n          <span>{{ item.product.title }}</span>\n          <span>{{ item.quantity }}x {{ item.final_price | money }}</span>\n        </li>\n      {% endfor %}\n    </ul>\n    <a href=\"{{ routes.cart_url }}\">{{ 'cart.view_cart' | t }}</a>\n  {% endif %}\n</aside>"
+        }
+      ],
+      "expected": "Adicionar um produto ao carrinho abre o drawer já com o item listado; remover todos os itens volta pro estado vazio com o CTA de continuar comprando, sem recarregar a página.",
+      "related": ["theme-sections", "liquid", "o-que-e-checkout"]
+    },
+    {
+      "id": "alphaco-13",
+      "title": "13. Checklist final: Theme Check, performance e SEO antes de publicar",
+      "goal": "Confirmar que a loja completa (header ao footer, das 12 sections anteriores) está tecnicamente pronta antes de considerar o projeto concluído.",
+      "build": "Rode o linter e uma auditoria de performance na home montada por inteiro — é a página mais pesada do tema (dois heróis de carrossel, quatro carrosséis de produto), então é onde qualquer problema de carregamento ou acessibilidade aparece primeiro. Aproveite pra conferir se as páginas de produto têm dados estruturados de `Product`/`Offer`, essenciais pro rich snippet de preço aparecer no Google.",
+      "code": [
+        {
+          "label": "Theme Check e Lighthouse",
+          "code": "shopify theme check\nnpx lighthouse https://sua-loja-dev.myshopify.com --view"
+        }
+      ],
+      "expected": "Zero erros no Theme Check, imagens dos carrosséis fora da primeira dobra carregando com lazy loading, contraste mínimo de 4.5:1 no texto sobre os banners, e `<script type=\"application/ld+json\">` de Product presente na página de produto.",
+      "related": ["theme-check", "performance", "seo-structured-data", "accessibility"]
+    }
+  ]
+}

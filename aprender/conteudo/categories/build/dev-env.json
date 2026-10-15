@@ -1,0 +1,73 @@
+{
+  "id": "dev-env",
+  "title": "Set up your development environment",
+  "desc": "Prepare dev store, versões de ferramentas e túnel local antes de codar de verdade.",
+  "plan": {
+    "objetivo": "Preparar um ambiente de desenvolvimento sólido: dev store, versões corretas de ferramentas e entendimento completo do túnel HTTPS que conecta seu localhost à Shopify.",
+    "prereq": "Scaffold an app",
+    "tempo": "2h",
+    "doc": "https://shopify.dev/docs/apps/build/cli-for-apps",
+    "steps": [
+      {
+        "title": "Primeiro passo antes de codar: crie sua dev store.",
+        "detail": "Uma **dev store** é uma loja Shopify completa e gratuita, criada só pra desenvolvimento — já vem com produtos, coleções e um tema de exemplo. É nela (e só nela) que você testa daqui pra frente; nunca na loja de um merchant real.\n\nAo criar, você escolhe o tipo de dado inicial: loja vazia, ou já populada com produtos de exemplo. Escolha populada — boa parte dos testes de app depende de ter produtos e pedidos reais pra consultar.",
+        "code": "partners.shopify.com → Stores → Add store → Create dev store\n  Store type: Dev store\n  Data: Start with example products",
+        "advanced": "Dev stores têm um **limite de inatividade** (geralmente alguns meses sem login) antes de serem arquivadas automaticamente — não use uma dev store pra guardar dados de teste que precisam sobreviver por muito tempo sem uso."
+      },
+      {
+        "title": "Confira as versões instaladas antes de suspeitar de qualquer outra coisa.",
+        "detail": "Se um comando do CLI falhar sem mensagem clara, a causa mais comum — de longe — é o Node numa versão antiga. Antes de investigar qualquer bug estranho, rode isto primeiro:",
+        "code": "node --version\nshopify version\n\n# esperado: node v18+ e a versão mais recente do CLI",
+        "advanced": "Prefira um gerenciador de versões como **nvm** (Linux/Mac) ou **fnm** (multiplataforma, mais rápido) em vez de instalar o Node direto no sistema — assim você alterna a versão por projeto com um `.nvmrc`, útil quando mantém apps antigos e novos ao mesmo tempo."
+      },
+      {
+        "title": "Entenda por que um app embutido precisa de um túnel — esse é o conceito que mais confunde no início.",
+        "detail": "Um app embutido roda dentro de um `<iframe>` no admin da Shopify — e o admin roda no **navegador do merchant**, em qualquer lugar do mundo, não na sua máquina. Pra esse iframe carregar seu app, ele precisa alcançar seu servidor por uma URL pública na internet, com HTTPS.\n\nSó que seu servidor de desenvolvimento roda em `localhost`, que só a sua própria máquina enxerga. É aqui que entra o túnel: um serviço (por padrão, via Cloudflare) que cria uma URL pública temporária e encaminha todo tráfego dela de volta pro seu `localhost`.",
+        "code": "localhost:3000  ◄──── túnel HTTPS ────  https://abc-123.trycloudflare.com  ◄──── iframe do admin",
+        "advanced": "Esse é exatamente o mesmo problema que ferramentas como ngrok resolvem de forma genérica — o Shopify CLI só automatiza a criação do túnel e já registra a URL gerada como a Application URL do app automaticamente, sem passo manual."
+      },
+      {
+        "title": "Rode `shopify app dev` e observe o túnel abrindo ao vivo.",
+        "detail": "Ao rodar o comando, o CLI imprime uma URL do tipo abaixo — repare que é ela, e não `localhost`, que fica registrada como Application URL enquanto você desenvolve.",
+        "code": "shopify app dev\n\n# Preview URL: https://algo-aleatorio.trycloudflare.com\n# └ Press \"p\" to open the preview in your browser",
+        "advanced": "O domínio do túnel **muda a cada reinício** de `shopify app dev`, a menos que você fixe um domínio com `--tunnel-url=<sua-url>:<porta>` — importa quando outro serviço, como um webhook de teste externo, precisa de uma URL estável entre reinícios."
+      },
+      {
+        "title": "Não confunda: o túnel é só pra desenvolvimento, produção é outra história.",
+        "detail": "É tentador achar que `shopify app dev` é \"como o app roda de verdade\" — não é. Em produção, seu app roda num host real (Vercel, Fly.io, Render, um VPS próprio) atrás de um processo supervisionado, com uma URL fixa e estável, sem depender de túnel nenhum. O túnel existe **só** pra você testar localmente sem fazer deploy a cada linha de código alterada.",
+        "advanced": "Nunca configure a Application URL de produção apontando pra um domínio de túnel — além de instável, o túnel depende da sua máquina estar ligada e rodando o comando, o que obviamente não é viável pra uma loja real usando o app."
+      },
+      {
+        "title": "Guarde segredos num `.env` — e confirme que ele nunca vai pro git.",
+        "detail": "Client secret, chaves de API de terceiros e strings de conexão de banco de dados vivem num arquivo `.env` local, nunca commitado. O template já inclui um `.gitignore` cobrindo isso, mas vale confirmar com as próprias mãos antes do primeiro commit:",
+        "code": "# .env (nunca commitar)\nSHOPIFY_API_SECRET=xxxxxxxx\nDATABASE_URL=\"file:./dev.sqlite\"\n\n# confirme que está ignorado:\ngit status --ignored | grep .env",
+        "advanced": "Rode `git status` logo depois do primeiro `shopify app init` pra confirmar que `.env` aparece como ignorado, não como arquivo pra adicionar — um segredo commitado por engano no primeiro commit é um dos erros mais comuns e mais evitáveis em projetos novos."
+      },
+      {
+        "title": "Projeto — monte um ambiente de desenvolvimento completo, do zero até o app rodando na dev store.",
+        "detail": "Vamos percorrer o fluxo completo de setup, usando o projeto criado no tópico anterior (Scaffold an app) como base."
+      },
+      {
+        "title": "Projeto — passo 1: crie a dev store, se ainda não tiver uma.",
+        "detail": "Pelo Partner Dashboard (ou Dev Dashboard), crie uma dev store nova, escolhendo a opção de populá-la com dados de exemplo."
+      },
+      {
+        "title": "Projeto — passo 2: confirme as versões de Node e CLI antes de continuar.",
+        "detail": "Se o Node estiver abaixo da LTS recomendada, atualize antes de seguir — não vale a pena depurar um sintoma que na verdade é versão desatualizada.",
+        "code": "node --version\nshopify version"
+      },
+      {
+        "title": "Projeto — passo 3: suba `shopify app dev` e instale na dev store criada.",
+        "detail": "Rode o comando dentro da pasta do projeto; na primeira execução, o CLI pergunta em qual dev store instalar — escolha a que você acabou de criar.",
+        "code": "shopify app dev"
+      },
+      {
+        "title": "Projeto — passo 4: abra o app dentro do admin e confirme que carregou sem erros.",
+        "detail": "Siga o link impresso no terminal (ou abra a dev store no navegador e procure o app instalado no menu de Apps) e confirme que a Home carrega dentro do iframe do admin, sem erros no console.",
+        "advanced": "Se a página ficar em branco dentro do iframe, abra o DevTools do navegador (não o terminal) — erros de CSP ou de JavaScript no iframe aparecem só no console do navegador, nunca no terminal do CLI."
+      }
+    ]
+  },
+  "categoryId": "build",
+  "categoryLabel": "Build"
+}

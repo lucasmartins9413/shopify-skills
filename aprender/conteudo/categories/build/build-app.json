@@ -1,0 +1,67 @@
+{
+  "id": "build-app",
+  "title": "Build an app",
+  "desc": "Depois do scaffold, entenda como frontend, backend e Admin API conversam entre si dentro do template.",
+  "plan": {
+    "objetivo": "Entender a arquitetura completa de um app Shopify — como frontend, backend e Admin API conversam entre si — rodando e modificando o template pela primeira vez.",
+    "prereq": "Scaffold an app",
+    "tempo": "4h",
+    "doc": "https://shopify.dev/docs/apps/build/build",
+    "steps": [
+      {
+        "title": "Guarde este diagrama — ele explica praticamente tudo que vem a seguir.",
+        "detail": "Todo app embutido gerado pelo template segue o mesmo modelo mental, em três camadas: o **frontend** (a interface React dentro do iframe, com componentes Polaris), o **backend** (seu servidor, que guarda a sessão e fala com a Shopify em nome do merchant) e a **Admin API** (onde moram os dados reais da loja).\n\nRepare no detalhe mais importante: o frontend nunca fala direto com a Admin API.",
+        "code": "[Frontend React]  ──fetch──►  [Backend / loader,action]  ──GraphQL──►  [Admin API]\n  (dentro do iframe)              (seu servidor,                (dados reais\n                                   guarda o token)                da loja)",
+        "advanced": "Esse modelo existe por segurança: se o access token da loja vazasse pro frontend (visível no DevTools de qualquer navegador), qualquer pessoa com acesso ao navegador do merchant poderia extraí-lo e chamar a Admin API diretamente, sem passar pelas regras do seu app."
+      },
+      {
+        "title": "Rode `shopify app dev` de novo — mas desta vez, observe as três camadas acontecendo.",
+        "detail": "Você já rodou esse comando no tópico anterior. Agora preste atenção no que ele faz ao mesmo tempo: sobe o servidor local (backend), abre o túnel que expõe esse servidor pra internet (permitindo o admin carregar seu frontend dentro do iframe) e instala/atualiza o app na dev store, recarregando a cada mudança salva.",
+        "code": "shopify app dev",
+        "advanced": "Em produção, **nunca** use `shopify app dev` — o túnel é feito pra desenvolvimento local. Um app publicado roda num host de verdade atrás de um processo supervisionado, com a Application URL apontando pra esse host fixo, não pra um túnel."
+      },
+      {
+        "title": "Clique em \"Generate a product\" e veja as três camadas conversando de ponta a ponta.",
+        "detail": "O template já vem com um botão de exemplo que dispara uma **mutation GraphQL** chamada `productCreate` — o teste mais rápido de que autenticação, sessão e permissão de escrita na Admin API estão todas funcionando juntas. O clique no frontend chama uma *action* do backend, que autentica a sessão, monta a mutation e a envia pra Admin API. Se o produto aparecer na dev store depois, as três camadas estão se comunicando corretamente.",
+        "advanced": "`productCreate` sem informar `variants` cria automaticamente **uma variante padrão** (\"Default Title\") pro produto — não assuma que ele fica sem nenhuma variante; é um detalhe comum de confundir quem espera um produto \"vazio\"."
+      },
+      {
+        "title": "Agora abra o código e ache, com as próprias mãos, essas três camadas.",
+        "detail": "Com o app rodando, mapeie três lugares-chave no editor: **rotas** em `app/routes/app.*.jsx` (cada arquivo é uma tela dentro do admin), **autenticação** via `authenticate.admin(request)` no início de toda rota que fala com a Admin API, e **chamadas GraphQL** feitas com `admin.graphql(query, { variables })`.",
+        "code": "const { admin } = await authenticate.admin(request);\nconst response = await admin.graphql(\n  `#graphql\n  mutation populateProduct($input: ProductInput!) {\n    productCreate(input: $input) {\n      product { id }\n      userErrors { field message }\n    }\n  }`,\n  { variables: { input: { title: \"Novo produto\" } } }\n);\nconst data = await response.json();",
+        "advanced": "`admin.graphql()` já injeta automaticamente a versão de API declarada no `shopify.app.toml` (campo `api_version`) — evite hardcodar a versão dentro das próprias queries; isso centraliza o upgrade de versão num único lugar do projeto."
+      },
+      {
+        "title": "O padrão que se repete em toda rota: `loader` busca, `action` grava.",
+        "detail": "O template usa duas funções especiais exportadas por arquivo de rota. `loader` roda no servidor antes da página renderizar e busca os dados que a tela precisa (ex: listar produtos existentes). `action` roda em resposta a um formulário submetido ou uma mutação disparada pelo frontend (ex: criar um produto).\n\nRepare que isso elimina a necessidade de escrever endpoints de API separados só pra alimentar o frontend — o próprio arquivo de rota já sabe buscar e gravar.",
+        "code": "export async function loader({ request }) {\n  const { admin } = await authenticate.admin(request);\n  const response = await admin.graphql(`#graphql\n    query { products(first: 10) { nodes { id title } } }`);\n  return (await response.json()).data;\n}"
+      },
+      {
+        "title": "Projeto — adicione uma segunda ação ao app gerado.",
+        "detail": "Vamos estender o botão de exemplo do template: além de criar um produto, adicionar um botão que **lista** os últimos produtos criados, exercitando o padrão `loader` visto acima."
+      },
+      {
+        "title": "Projeto — passo 1: adicione um `loader` que busca os últimos 5 produtos.",
+        "detail": "Na rota principal do app (`app/routes/app._index.jsx`), adicione (ou ajuste) o `loader` pra trazer os produtos mais recentes.",
+        "code": "export async function loader({ request }) {\n  const { admin } = await authenticate.admin(request);\n  const response = await admin.graphql(`#graphql\n    query {\n      products(first: 5, sortKey: CREATED_AT, reverse: true) {\n        nodes { id title }\n      }\n    }`);\n  const { data } = await response.json();\n  return { products: data.products.nodes };\n}"
+      },
+      {
+        "title": "Projeto — passo 2: renderize a lista no componente da rota.",
+        "detail": "Use o hook `useLoaderData` do React Router pra acessar o resultado do `loader` no componente, e renderize um componente `List` do Polaris com os títulos retornados.",
+        "code": "import { useLoaderData } from \"react-router\";\nimport { List } from \"@shopify/polaris\";\n\nexport default function Index() {\n  const { products } = useLoaderData();\n  return (\n    <List>\n      {products.map((p) => (\n        <List.Item key={p.id}>{p.title}</List.Item>\n      ))}\n    </List>\n  );\n}"
+      },
+      {
+        "title": "Projeto — passo 3: crie um produto novo e confirme que a lista atualiza.",
+        "detail": "Clique no botão de gerar produto do template, e depois recarregue (ou navegue de volta pra) a rota — o novo produto deve aparecer no topo da lista, confirmando que o `loader` está buscando dados atualizados a cada carregamento da página.",
+        "code": "shopify app dev"
+      },
+      {
+        "title": "Projeto — passo 4: quebre de propósito e observe onde o erro aparece.",
+        "detail": "Troque temporariamente o nome de um campo na query GraphQL do `loader` pra um campo inexistente, salve, e confirme onde o erro aparece — no terminal (erro de servidor) ou no console do navegador (erro de renderização). Desfaça a mudança depois.",
+        "advanced": "Erros de GraphQL (campo inválido, tipo errado) geralmente aparecem no terminal onde `shopify app dev` está rodando, já que o `loader` executa no servidor — já erros de renderização React (hooks fora de ordem, propriedade undefined) aparecem no console do navegador, porque acontecem no cliente."
+      }
+    ]
+  },
+  "categoryId": "build",
+  "categoryLabel": "Build"
+}

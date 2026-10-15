@@ -1,0 +1,328 @@
+# Índice do conteúdo
+
+Gerado por `scripts/export-skill.cjs`. Não edite à mão.
+
+## Roadmap (ordem recomendada)
+
+Cada estágio com mais de uma trilha é uma escolha: o aluno segue uma delas.
+
+### Estágio 1
+
+#### Trilha `fundamentos-ecommerce`: Fundamentos de Ecommerce
+
+Se situe no mundo do comércio eletrônico antes de programar: o que é uma loja online, checkout, PDV, pedidos e onde o desenvolvedor entra nisso tudo.
+
+1. `o-que-e-ecommerce`: O que é e-commerce (20min) → `conteudo/categories/fundamentos/o-que-e-ecommerce.json`
+2. `anatomia-loja-online`: Anatomia de uma loja online (25min) → `conteudo/categories/fundamentos/anatomia-loja-online.json`
+3. `catalogo-produtos-variantes`: Catálogo, produtos e variantes (25min) → `conteudo/categories/fundamentos/catalogo-produtos-variantes.json`
+4. `o-que-e-checkout`: O que é checkout (20min) → `conteudo/categories/fundamentos/o-que-e-checkout.json`
+5. `pagamentos-e-gateways`: Pagamentos e gateways (20min) → `conteudo/categories/fundamentos/pagamentos-e-gateways.json`
+6. `pedidos-e-fulfillment`: Pedidos e fulfillment (20min) → `conteudo/categories/fundamentos/pedidos-e-fulfillment.json`
+7. `o-que-e-pdv`: O que é PDV (Point of Sale) (15min) → `conteudo/categories/fundamentos/o-que-e-pdv.json`
+8. `multi-channel-e-marketplaces`: Venda multi-canal e marketplaces (20min) → `conteudo/categories/fundamentos/multi-channel-e-marketplaces.json`
+9. `modelos-de-venda-b2b-b2c`: Modelos de venda: B2C, B2B e D2C (20min) → `conteudo/categories/fundamentos/modelos-de-venda-b2b-b2c.json`
+10. `temas-apps-extensoes`: Tema vs. app vs. extensão (25min) → `conteudo/categories/fundamentos/temas-apps-extensoes.json`
+11. `papel-do-desenvolvedor-parceiro`: O papel do desenvolvedor e o Partner Dashboard (20min) → `conteudo/categories/fundamentos/papel-do-desenvolvedor-parceiro.json`
+
+### Estágio 2
+
+#### Trilha `meu-primeiro-tema`: Meu primeiro tema
+
+Construa um tema Shopify nativo do zero até a primeira section customizada, usando Liquid.
+
+1. `theme-create`: Build a new theme (2h) → `conteudo/categories/themes/theme-create.json`
+2. `theme-architecture`: Key concepts (Architecture) (3h) → `conteudo/categories/themes/theme-architecture.json`
+3. `liquid`: Liquid (4h) → `conteudo/categories/themes/liquid.json`
+4. `theme-layouts`: Layouts (2h) → `conteudo/categories/themes/theme-layouts.json`
+5. `theme-templates`: Templates (2h) → `conteudo/categories/themes/theme-templates.json`
+6. `theme-sections`: Sections (4h) → `conteudo/categories/themes/theme-sections.json`
+7. `theme-blocks`: Blocks (3h) → `conteudo/categories/themes/theme-blocks.json`
+8. `theme-cli`: Shopify CLI (temas) (2h) → `conteudo/categories/themes/theme-cli.json`
+9. `theme-github`: Git e GitHub (3h) → `conteudo/categories/themes/theme-github.json`
+
+#### Trilha `temas-frontend`: Temas Shopify: trilha completa
+
+Do setup do CLI até um tema pronto pra Theme Store, seguindo a ordem em que os conceitos aparecem no dia a dia do desenvolvimento de um tema.
+
+1. `theme-create`: Build a new theme (2h) → `conteudo/categories/themes/theme-create.json`
+2. `theme-cli`: Shopify CLI (temas) (2h) → `conteudo/categories/themes/theme-cli.json`
+3. `theme-github`: Git e GitHub (3h) → `conteudo/categories/themes/theme-github.json`
+4. `theme-architecture`: Key concepts (Architecture) (3h) → `conteudo/categories/themes/theme-architecture.json`
+5. `liquid`: Liquid (4h) → `conteudo/categories/themes/liquid.json`
+6. `theme-snippets`: Snippets (2h) → `conteudo/categories/themes/theme-snippets.json`
+7. `theme-layouts`: Layouts (2h) → `conteudo/categories/themes/theme-layouts.json`
+8. `theme-templates`: Templates (2h) → `conteudo/categories/themes/theme-templates.json`
+9. `theme-sections`: Sections (4h) → `conteudo/categories/themes/theme-sections.json`
+10. `theme-section-groups`: Section groups (2h) → `conteudo/categories/themes/theme-section-groups.json`
+11. `theme-blocks`: Blocks (3h) → `conteudo/categories/themes/theme-blocks.json`
+12. `theme-blocks-horizon`: Theme blocks aninhados e Horizon (5h) → `conteudo/categories/themes/theme-blocks-horizon.json`
+13. `theme-os20`: Migrar para Online Store 2.0 (4h) → `conteudo/categories/themes/theme-os20.json`
+14. `theme-config`: Config (2h) → `conteudo/categories/themes/theme-config.json`
+15. `theme-schema`: Schema (2h) → `conteudo/categories/themes/theme-schema.json`
+16. `theme-locales`: Locales (2h) → `conteudo/categories/themes/theme-locales.json`
+17. `theme-customize`: Customize a theme (3h) → `conteudo/categories/themes/theme-customize.json`
+18. `theme-best-practices`: Best practices (3h) → `conteudo/categories/themes/theme-best-practices.json`
+19. `theme-check`: Theme Check (1h30) → `conteudo/categories/themes/theme-check.json`
+20. `theme-store`: Shopify Theme Store (2h) → `conteudo/categories/themes/theme-store.json`
+
+#### Trilha `temas-b2b`: Temas Shopify para B2B
+
+Construa um tema para venda no atacado: base de temas, modelo de empresas/catálogos e depois a camada B2B no Liquid — preços de catálogo, regras de quantidade e volume pricing.
+
+1. `theme-create`: Build a new theme (2h) → `conteudo/categories/themes/theme-create.json`
+2. `theme-cli`: Shopify CLI (temas) (2h) → `conteudo/categories/themes/theme-cli.json`
+3. `theme-architecture`: Key concepts (Architecture) (3h) → `conteudo/categories/themes/theme-architecture.json`
+4. `liquid`: Liquid (4h) → `conteudo/categories/themes/liquid.json`
+5. `theme-snippets`: Snippets (2h) → `conteudo/categories/themes/theme-snippets.json`
+6. `theme-sections`: Sections (4h) → `conteudo/categories/themes/theme-sections.json`
+7. `theme-blocks`: Blocks (3h) → `conteudo/categories/themes/theme-blocks.json`
+8. `b2b`: B2B (4h) → `conteudo/categories/commerce/b2b.json`
+9. `theme-b2b-liquid`: Tema para clientes B2B (4h) → `conteudo/categories/themes/theme-b2b-liquid.json`
+10. `theme-b2b-pricing`: Preços B2B, quantidades e pedido rápido (4h) → `conteudo/categories/themes/theme-b2b-pricing.json`
+11. `theme-customize`: Customize a theme (3h) → `conteudo/categories/themes/theme-customize.json`
+12. `theme-check`: Theme Check (1h30) → `conteudo/categories/themes/theme-check.json`
+
+### Estágio 3
+
+#### Trilha `tema-pronto-theme-store`: Tema pronto para a Theme Store
+
+Checklist de qualidade pra deixar um tema pronto pra vender na Shopify Theme Store.
+
+1. `theme-config`: Config (2h) → `conteudo/categories/themes/theme-config.json`
+2. `theme-schema`: Schema (2h) → `conteudo/categories/themes/theme-schema.json`
+3. `theme-locales`: Locales (2h) → `conteudo/categories/themes/theme-locales.json`
+4. `theme-best-practices`: Best practices (3h) → `conteudo/categories/themes/theme-best-practices.json`
+5. `theme-check`: Theme Check (1h30) → `conteudo/categories/themes/theme-check.json`
+6. `theme-os20`: Migrar para Online Store 2.0 (4h) → `conteudo/categories/themes/theme-os20.json`
+7. `theme-store`: Shopify Theme Store (2h) → `conteudo/categories/themes/theme-store.json`
+8. `performance`: Performance (3h) → `conteudo/categories/quality/performance.json`
+9. `accessibility`: Accessibility (3h) → `conteudo/categories/quality/accessibility.json`
+
+### Estágio 4
+
+#### Trilha `primeiro-app`: Primeiro app do zero
+
+Do zero até um app funcionando no admin, seguindo a ordem certa de pré-requisitos.
+
+1. `scaffold`: Scaffold an app (2h) → `conteudo/categories/build/scaffold.json`
+2. `dev-env`: Set up your development environment (2h) → `conteudo/categories/build/dev-env.json`
+3. `cli`: Shopify CLI for apps (2h) → `conteudo/categories/build/cli.json`
+4. `build-app`: Build an app (4h) → `conteudo/categories/build/build-app.json`
+5. `prisma`: Banco de dados com Prisma (4h) → `conteudo/categories/build/prisma.json`
+6. `auth`: Authentication (3h) → `conteudo/categories/data/auth.json`
+7. `graphql`: GraphQL (5h) → `conteudo/categories/data/graphql.json`
+8. `graphql-no-app`: GraphQL dentro do seu app (4h) → `conteudo/categories/data/graphql-no-app.json`
+9. `graphql-avancado`: GraphQL avançado (6h) → `conteudo/categories/data/graphql-avancado.json`
+10. `app-home`: App Home (5h) → `conteudo/categories/surfaces/app-home.json`
+
+### Estágio 5
+
+#### Trilha `checkout-vendas`: Checkout e vendas customizadas
+
+Personalize checkout, crie descontos e opções de compra pra fluxos de venda específicos.
+
+1. `extensions`: Extensions (3h) → `conteudo/categories/data/extensions.json`
+2. `checkout`: Checkout (5h) → `conteudo/categories/surfaces/checkout.json`
+3. `functions`: Shopify Functions (6h) → `conteudo/categories/data/functions.json`
+4. `functions-validation`: Functions: validação de carrinho e checkout (3h) → `conteudo/categories/data/functions-validation.json`
+5. `functions-cart-transform`: Functions: Cart Transform (kits e bundles) (4h) → `conteudo/categories/data/functions-cart-transform.json`
+6. `functions-delivery`: Functions: personalização de entrega (3h) → `conteudo/categories/data/functions-delivery.json`
+7. `functions-payment`: Functions: personalização de pagamento (3h) → `conteudo/categories/data/functions-payment.json`
+8. `functions-fulfillment`: Functions: fulfillment constraints e order routing (3h) → `conteudo/categories/data/functions-fulfillment.json`
+9. `functions-config-e-limites`: Functions: input query, configuração e limites (3h) → `conteudo/categories/data/functions-config-e-limites.json`
+10. `discounts`: Discounts (5h) → `conteudo/categories/commerce/discounts.json`
+11. `purchase-options`: Purchase options (4h) → `conteudo/categories/commerce/purchase-options.json`
+12. `customer-accounts`: Customer accounts (3h) → `conteudo/categories/surfaces/customer-accounts.json`
+
+#### Trilha `dados-automacoes`: Dados e automações
+
+Leia e grave dados da loja, reaja a eventos e conecte agentes de IA.
+
+1. `auth`: Authentication (3h) → `conteudo/categories/data/auth.json`
+2. `graphql`: GraphQL (5h) → `conteudo/categories/data/graphql.json`
+3. `graphql-avancado`: GraphQL avançado (6h) → `conteudo/categories/data/graphql-avancado.json`
+4. `graphql-no-app`: GraphQL dentro do seu app (4h) → `conteudo/categories/data/graphql-no-app.json`
+5. `bulk-operations`: Bulk Operations (4h) → `conteudo/categories/data/bulk-operations.json`
+6. `webhooks`: Webhooks (3h) → `conteudo/categories/data/webhooks.json`
+7. `events`: Events (2h) → `conteudo/categories/data/events.json`
+8. `metafields`: Metafields (3h) → `conteudo/categories/data/metafields.json`
+9. `metaobjects`: Metaobjects (3h) → `conteudo/categories/data/metaobjects.json`
+10. `flow`: Flow (3h) → `conteudo/categories/surfaces/flow.json`
+11. `storefront-mcp`: Storefront MCP (4h) → `conteudo/categories/data/storefront-mcp.json`
+
+#### Trilha `b2b-mercados`: B2B e mercados globais
+
+Venda no atacado e em múltiplos mercados, e distribua produtos por vários canais.
+
+1. `merchandising`: Product merchandising (3h) → `conteudo/categories/commerce/merchandising.json`
+2. `markets`: Global markets (3h) → `conteudo/categories/commerce/markets.json`
+3. `b2b`: B2B (4h) → `conteudo/categories/commerce/b2b.json`
+4. `channels`: Sales channels (3h) → `conteudo/categories/commerce/channels.json`
+5. `orders`: Orders and fulfillment (4h) → `conteudo/categories/commerce/orders.json`
+6. `collective`: Shopify Collective (2h) → `conteudo/categories/commerce/collective.json`
+
+### Estágio 6
+
+#### Trilha `pronto-app-store`: Pronto para a App Store
+
+Checklist final de qualidade antes de submeter o app: performance, acessibilidade, segurança e conformidade.
+
+1. `integrating`: Integrating with Shopify (2h) → `conteudo/categories/quality/integrating.json`
+2. `non-deceptive`: Non-deceptive code (1h30) → `conteudo/categories/quality/non-deceptive.json`
+3. `compliance`: Compliance (2h) → `conteudo/categories/quality/compliance.json`
+4. `security`: Security (3h) → `conteudo/categories/quality/security.json`
+5. `performance`: Performance (3h) → `conteudo/categories/quality/performance.json`
+6. `accessibility`: Accessibility (3h) → `conteudo/categories/quality/accessibility.json`
+7. `mobile`: Mobile support (2h) → `conteudo/categories/quality/mobile.json`
+8. `localize`: Localize your app (3h) → `conteudo/categories/quality/localize.json`
+
+### Estágio 7
+
+#### Trilha `case-flags-app-store`: Case real: Flags, do zero à App Store
+
+O passo a passo do Flags: Product Badges, app publicado na Shopify App Store em 05/10/2026: criação, extensão de tema, cobrança, imagens e listing, checagens, revisão, erros e aprendizados.
+
+1. `flags-visao-geral`: Case Flags: o app e a linha do tempo (20min) → `conteudo/categories/cases/flags-visao-geral.json`
+2. `flags-criacao-do-app`: Case Flags: criação do app e do admin (2h) → `conteudo/categories/cases/flags-criacao-do-app.json`
+3. `flags-theme-extension`: Case Flags: badges na loja com theme app extension (2h) → `conteudo/categories/cases/flags-theme-extension.json`
+4. `flags-cobranca`: Case Flags: planos e cobrança com a Billing API (1h30) → `conteudo/categories/cases/flags-cobranca.json`
+5. `flags-preparacao-tecnica`: Case Flags: preparação técnica para a App Store (2h) → `conteudo/categories/cases/flags-preparacao-tecnica.json`
+6. `flags-imagens-e-listing`: Case Flags: imagens, vídeo e listing (3h) → `conteudo/categories/cases/flags-imagens-e-listing.json`
+7. `flags-checagens-automaticas`: Case Flags: checagens automáticas do Partner Dashboard (1h (mais as esperas de 2h)) → `conteudo/categories/cases/flags-checagens-automaticas.json`
+8. `flags-revisao`: Case Flags: envio, revisão e aprovação (Dias (depende da fila da Shopify)) → `conteudo/categories/cases/flags-revisao.json`
+9. `flags-aprendizados`: Case Flags: aprendizados e próximos passos (20min) → `conteudo/categories/cases/flags-aprendizados.json`
+
+### Estágio 8
+
+#### Trilha `seo-completo`: SEO completo
+
+Do fundamento (por que o Google ranqueia o que ranqueia) até o checklist real de submissão da Theme Store — metadata, dados estruturados, robots.txt, hreflang, performance e SEO em apps e headless.
+
+1. `seo-fundamentals`: Fundamentos de SEO para e-commerce (2h) → `conteudo/categories/seo/seo-fundamentals.json`
+2. `seo-metadata`: Metadata de SEO no tema (2h30) → `conteudo/categories/seo/seo-metadata.json`
+3. `seo-structured-data`: Dados estruturados e rich snippets (3h) → `conteudo/categories/seo/seo-structured-data.json`
+4. `seo-robots-sitemap`: robots.txt e sitemap.xml (3h) → `conteudo/categories/seo/seo-robots-sitemap.json`
+5. `seo-content-architecture`: Arquitetura de conteúdo e URLs (3h) → `conteudo/categories/seo/seo-content-architecture.json`
+6. `seo-international`: SEO internacional: hreflang e Markets (2h30) → `conteudo/categories/seo/seo-international.json`
+7. `seo-performance`: Performance como fator de SEO (3h) → `conteudo/categories/seo/seo-performance.json`
+8. `seo-apps`: SEO em apps: boas práticas e requisitos (2h30) → `conteudo/categories/seo/seo-apps.json`
+9. `seo-headless`: SEO em storefronts headless (Hydrogen) (3h) → `conteudo/categories/seo/seo-headless.json`
+10. `seo-theme-store-review`: Checklist de SEO pra Theme Store (2h) → `conteudo/categories/seo/seo-theme-store-review.json`
+
+## Todos os tópicos
+
+- `ai-toolkit`: Shopify AI Toolkit. Conecte seu assistente de IA à documentação da Shopify, aos schemas de API e a recursos de desenvolvimento.
+- `app-store-launch`: Testar e publicar na App Store. Valide o app com testes automatizados e manuais, monte o listing e passe pela revisão da Shopify até a publicação.
+- `build-app`: Build an app. Depois do scaffold, entenda como frontend, backend e Admin API conversam entre si dentro do template.
+- `cli`: Shopify CLI for apps. Gere apps e extensões, rode servidores de desenvolvimento e faça deploy de projetos pela linha de comando.
+- `dev-dashboard`: Dev Dashboard. Crie e gerencie apps, lojas e acesso de colaboradores em um só lugar.
+- `dev-env`: Set up your development environment. Prepare dev store, versões de ferramentas e túnel local antes de codar de verdade.
+- `prisma`: Banco de dados com Prisma. Entenda o Prisma que vem no template do app Shopify: sessões, modelos próprios, migrations e como trocar SQLite por Postgres.
+- `scaffold`: Scaffold an app. Use o Shopify CLI pra gerar, em minutos, a estrutura completa de um app — autenticação, banco de dados e primeira rota já prontos.
+- `flags-aprendizados`: Case Flags: aprendizados e próximos passos. O que fica para o próximo app: decisões para tomar no início, erros para não repetir e o que vem depois do lançamento.
+- `flags-checagens-automaticas`: Case Flags: checagens automáticas do Partner Dashboard. App Bridge, session tokens e theme app extensions: o que cada checagem pede e o que fez cada uma falhar no Flags.
+- `flags-cobranca`: Case Flags: planos e cobrança com a Billing API. Free, Basic e Pro com trial, cobrança de teste automática em development stores e o bug de plano que reprovou o app na revisão.
+- `flags-criacao-do-app`: Case Flags: criação do app e do admin. Scaffold, modelo de dados no Prisma, editor de flags com preview ao vivo e o primeiro deploy na Railway.
+- `flags-imagens-e-listing`: Case Flags: imagens, vídeo e listing. Ícone, banners do admin, screenshots, vídeo demonstrativo, textos, categoria, preço e visibilidade na App Store.
+- `flags-preparacao-tecnica`: Case Flags: preparação técnica para a App Store. Webhooks de privacidade, política de privacidade, scopes mínimos, upgrade das libs e os tokens offline que expiram (o 403 sem explicação).
+- `flags-revisao`: Case Flags: envio, revisão e aprovação. Como foi o envio, os dois problemas apontados pelo revisor (5.1.2 e 1.2.2), os erros de infraestrutura no meio do caminho e a aprovação.
+- `flags-theme-extension`: Case Flags: badges na loja com theme app extension. App embed, App Proxy com cache, invalidação por metafield e como achar cards e título em temas diferentes (Dawn e Horizon).
+- `flags-visao-geral`: Case Flags: o app e a linha do tempo. O que é o Flags: Product Badges, a stack escolhida e como foram os 23 dias entre o primeiro commit e o app publicado na App Store.
+- `b2b`: B2B. Construa para vendas por atacado com gestão de empresas, catálogos e draft orders.
+- `blockchain`: Blockchain. Adicione tokengating e distribuição de NFTs ao seu app.
+- `channels`: Sales channels. Distribua produtos para marketplaces, redes sociais e outros canais de venda.
+- `collective`: Shopify Collective. Conecte varejistas e fornecedores para compartilhar produtos, envio e fulfillment.
+- `discounts`: Discounts. Crie tipos de desconto customizados com Functions e a GraphQL Admin API.
+- `marketing`: Marketing. Acompanhe o comportamento do cliente com web pixels e gerencie atividades de marketing.
+- `markets`: Global markets. Construa para vendas multi-mercado com preços, idiomas e domínios customizados.
+- `merchandising`: Product merchandising. Gerencie produtos, coleções, variantes e precificação.
+- `orders`: Orders and fulfillment. Gerencie pedidos, fulfillments, devoluções e fluxos de envio.
+- `payments`: Payments. Construa gateways de pagamento, pagamentos alternativos e extensões resgatáveis.
+- `purchase-options`: Purchase options. Adicione assinaturas, pré-vendas e opções de compra antes de pagar.
+- `auth`: Authentication. Autentique seu app para chamar a GraphQL Admin API em nome dos merchants.
+- `bulk-operations`: Bulk Operations. Leia ou grave centenas de milhares de registros sem esbarrar no rate limit, usando operações assíncronas com resultado em JSONL.
+- `events`: Events. Assine mudanças granulares em objetos da GraphQL Admin API e molde os dados recebidos.
+- `extensions`: Extensions. Adicione a funcionalidade do seu app às interfaces da Shopify com app extensions.
+- `functions-cart-transform`: Functions: Cart Transform (kits e bundles). Expanda, una e reescreva linhas do carrinho: kits que viram componentes, brindes juntados e ajustes de preço e título.
+- `functions-config-e-limites`: Functions: input query, configuração e limites. O que todas as Functions têm em comum: input query, configuração por metafield, limites de execução e como testar e depurar.
+- `functions-delivery`: Functions: personalização de entrega. Esconda, renomeie e reordene as opções de frete no checkout com base em carrinho, endereço e regras do lojista.
+- `functions-fulfillment`: Functions: fulfillment constraints e order routing. Controle de qual localização sai cada item: restrições de cumprimento e ranking de locais no roteamento de pedidos.
+- `functions-payment`: Functions: personalização de pagamento. Esconda, renomeie e reordene formas de pagamento no checkout, com regras por valor, cliente ou empresa.
+- `functions-validation`: Functions: validação de carrinho e checkout. Bloqueie o checkout com mensagens de erro próprias: pedido mínimo, limite por cliente, CEP não atendido, campos obrigatórios.
+- `functions`: Shopify Functions. Customize lógica de backend para descontos, pagamentos, entrega e validação de carrinho.
+- `graphql-avancado`: GraphQL avançado. Paginação por cursor, fragments, aliases, busca com filtros, IDs globais, erros e o modelo completo de custo — o que separa quem escreve queries de quem domina a API.
+- `graphql-no-app`: GraphQL dentro do seu app. Como o template do app chama a Admin API: authenticate.admin, loaders e actions, tipos gerados com codegen, jobs em background e escopos.
+- `graphql`: GraphQL. Aprenda a escrever queries e mutations em GraphQL e migre da REST Admin API.
+- `metafields`: Metafields. Estenda recursos da Shopify com campos customizados e regras de validação.
+- `metaobjects`: Metaobjects. Armazene conteúdo estruturado que pode ser reutilizado por toda a loja.
+- `shopifyql`: ShopifyQL. Consulte dados da loja com uma linguagem parecida com SQL feita para comércio.
+- `storefront-mcp`: Storefront MCP. Construa agentes de IA que acessam dados da loja através de servidores MCP.
+- `webhooks`: Webhooks. Assine eventos da loja e dispare sua própria lógica em tempo real.
+- `anatomia-loja-online`: Anatomia de uma loja online. As peças que formam a jornada de compra — home, coleção, produto, carrinho, checkout, conta — e o que cada uma precisa resolver.
+- `catalogo-produtos-variantes`: Catálogo, produtos e variantes. Como a Shopify modela o que uma loja vende: produto, variante, SKU e coleção — o vocabulário que sustenta praticamente toda a Admin API.
+- `modelos-de-venda-b2b-b2c`: Modelos de venda: B2C, B2B e D2C. Por que uma loja que vende pra outras empresas precisa de coisas que uma loja de consumidor final nunca precisou — preço por cliente, pedido mínimo, aprovação de compra.
+- `multi-channel-e-marketplaces`: Venda multi-canal e marketplaces. Como uma mesma loja vende ao mesmo tempo pelo site, redes sociais, marketplaces e PDV — todos puxando do mesmo catálogo central.
+- `o-que-e-checkout`: O que é checkout. Por que o checkout é o momento mais crítico da loja, o que ele precisa resolver, e por que a Shopify trata essa parte de um jeito diferente do resto do tema.
+- `o-que-e-ecommerce`: O que é e-commerce. Antes de qualquer código: o que muda entre vender numa loja física e vender online, e o vocabulário mínimo pra acompanhar o resto da trilha.
+- `o-que-e-pdv`: O que é PDV (Point of Sale). Como a venda presencial se conecta com a mesma loja online — o mesmo catálogo, o mesmo estoque, um canal de venda a mais.
+- `pagamentos-e-gateways`: Pagamentos e gateways. Como o dinheiro efetivamente muda de mãos numa compra online, o papel de um gateway de pagamento, e onde o Shopify Payments entra nisso.
+- `papel-do-desenvolvedor-parceiro`: O papel do desenvolvedor e o Partner Dashboard. Onde você entra nesse ecossistema: dev store, Partner Dashboard, e as duas vitrines (App Store e Theme Store) que decidem se seu trabalho chega a outros merchants.
+- `pedidos-e-fulfillment`: Pedidos e fulfillment. O que acontece depois que o pagamento é aprovado: o ciclo de vida de um pedido, e o que significa 'fazer o fulfillment' de uma venda.
+- `temas-apps-extensoes`: Tema vs. app vs. extensão. As três camadas onde você realmente vai programar na Shopify — e como saber, diante de um pedido, qual delas resolve o problema.
+- `accessibility`: Accessibility. Torne seu app utilizável por todos, incluindo pessoas com deficiência.
+- `compliance`: Compliance. Siga os termos de API e os requisitos de leis de privacidade.
+- `integrating`: Integrating with Shopify. Siga boas práticas para embutir seu app no admin da Shopify.
+- `localize`: Localize your app. Traduza seu app e adapte-o para merchants internacionais.
+- `mobile`: Mobile support. Garanta que seu app funcione bem no Shopify mobile.
+- `non-deceptive`: Non-deceptive code. Atenda aos requisitos da Shopify para comportamento transparente e honesto do app.
+- `performance`: Performance. Otimize a velocidade do seu app no admin, checkout, loja e POS.
+- `security`: Security. Proteja seu app e os dados dos merchants contra vulnerabilidades comuns.
+- `seo-apps`: SEO em apps: boas práticas e requisitos. Se você constrói apps (não temas): como evitar quebrar o SEO de quem instala seu app, e como construir um app de SEO responsável.
+- `seo-content-architecture`: Arquitetura de conteúdo e URLs. Hierarquia de headings, handles de URL, redirecionamentos e o problema real de conteúdo duplicado em coleções filtradas.
+- `seo-fundamentals`: Fundamentos de SEO para e-commerce. Entenda os quatro pilares de SEO e quem — tema, app ou merchant — controla cada um numa loja Shopify.
+- `seo-headless`: SEO em storefronts headless (Hydrogen). Fora do Liquid, nada de SEO vem de graça — implemente title, meta tags e JSON-LD manualmente com os utilitários do Hydrogen.
+- `seo-international`: SEO internacional: hreflang e Markets. Entenda a geração automática de hreflang via Shopify Markets, e quando (raramente) vale implementar manualmente.
+- `seo-metadata`: Metadata de SEO no tema. Implemente title, meta description e canonical URL exatamente como a documentação oficial da Shopify recomenda.
+- `seo-performance`: Performance como fator de SEO. Core Web Vitals, indexação mobile-first e as otimizações de tema com maior impacto real em ranking.
+- `seo-robots-sitemap`: robots.txt e sitemap.xml. Customize o robots.txt com os objects nativos do Liquid — e entenda por que o sitemap.xml não é customizável.
+- `seo-structured-data`: Dados estruturados e rich snippets. Use o filtro structured_data pra gerar JSON-LD de produtos e artigos, e evite o erro mais comum: schema duplicado.
+- `seo-theme-store-review`: Checklist de SEO pra Theme Store. Os requisitos reais de SEO da revisão da Theme Store — incluindo a regra que pega muita gente de surpresa: robots.txt.liquid é proibido.
+- `admin`: Admin. Adicione ações, blocos e impressão às páginas de recursos no admin da Shopify.
+- `app-home`: App Home. Construa a interface principal do seu app no admin da Shopify com React Router e App Bridge, ou como uma UI extension hospedada pela Shopify.
+- `checkout`: Checkout. Personalize a experiência de checkout com UI extensions e lógica de backend.
+- `customer-accounts`: Customer accounts. Estenda as páginas de status do pedido e a experiência do cliente autenticado.
+- `flow`: Flow. Integre triggers, ações e templates na plataforma de automação da Shopify.
+- `online-store`: Online store. Adicione funcionalidades dinâmicas aos temas de loja online dos merchants.
+- `pos`: Point of Sale. Adicione funcionalidades customizadas ao Shopify POS no iOS e Android.
+- `sidekick`: Sidekick. Use extensões de app para integrar seu app ao Sidekick.
+- `liquid`: Liquid. Carregue conteúdo dinâmico da loja com a linguagem de templates da Shopify.
+- `theme-architecture`: Key concepts (Architecture). Veja como layout, templates, sections e blocks se encaixam num tema modular.
+- `theme-b2b-liquid`: Tema para clientes B2B. Detecte o comprador B2B no Liquid, mostre empresa e localização, esconda preços de visitantes e decida entre loja mista e dedicada.
+- `theme-b2b-pricing`: Preços B2B, quantidades e pedido rápido. Exiba preço de catálogo, regras de quantidade e volume pricing no tema, e entenda o pedido rápido do Trade e do Horizon.
+- `theme-best-practices`: Best practices. Siga as recomendações da Shopify para desenvolver temas e organizar seu toolchain.
+- `theme-blocks-horizon`: Theme blocks aninhados e Horizon. A arquitetura de tema mais recente da Shopify: blocks reutilizáveis em /blocks, aninhamento, static blocks e como o tema Horizon é montado.
+- `theme-blocks`: Blocks. Quebre sections em pedaços menores e reutilizáveis que o merchant pode reordenar.
+- `theme-check`: Theme Check. Capture erros e reforce boas práticas enquanto você programa o tema.
+- `theme-cli`: Shopify CLI (temas). Inicialize, visualize, teste e compartilhe temas localmente.
+- `theme-config`: Config. Defina as configurações que aparecem na área de Theme settings do editor.
+- `theme-create`: Build a new theme. Crie e visualize um tema inicial em minutos, usando dados reais da loja.
+- `theme-customize`: Customize a theme. Atualize o visual e a experiência de um tema existente para as necessidades do merchant.
+- `theme-github`: Git e GitHub. Versione o tema com Git e conecte o repositório à loja pra sincronizar automaticamente — o padrão de hoje em vez de editar direto no admin.
+- `theme-layouts`: Layouts. Use o layout do tema para hospedar elementos repetidos como header e footer.
+- `theme-locales`: Locales. Traduza textos do tema com arquivos de idioma.
+- `theme-os20`: Migrar para Online Store 2.0. Adicione e remova sections de qualquer template, e prepare o tema para app blocks.
+- `theme-schema`: Schema. Entenda o {% schema %} como um único contrato JSON estático que sections, blocks e configurações globais compartilham.
+- `theme-section-groups`: Section groups. Permita que merchants adicionem, removam e reordenem sections em áreas como header e footer.
+- `theme-sections`: Sections. Crie módulos de conteúdo reutilizáveis e customizáveis pelo merchant.
+- `theme-snippets`: Snippets. Reaproveite pedaços de código Liquid em qualquer lugar do tema.
+- `theme-store`: Shopify Theme Store. Publique temas para milhões de merchants através da Theme Store.
+- `theme-templates`: Templates. Controle o que é renderizado em cada tipo de página com arquivos de template.
+
+## Projetos práticos
+
+- `alphaco-loja-fitness`: Loja de moda fitness multi-público (inspirada na Alpha Co.). Reconstrua, seção por seção, uma loja de roupas fitness real (usealphaco.com.br) que segmenta o catálogo entre público masculino e feminino: header com mega menu, hero em carrossel, grade de categorias com preço por quantidade, carrosséis de novidades e kits, banners de coleção, seção institucional e footer — tudo reaproveitando blocks e sections, do clone do tema até o checklist de publicação. → `conteudo/projects/alphaco-loja-fitness.json`
+- `atacado-pro-tema-b2b`: Atacado Pro: tema B2B do zero, funcional. Construa do zero um tema Shopify OS 2.0 completo para venda no atacado: preço por catálogo e por localização, regras de quantidade e volume pricing, pedido rápido por SKU, pedido mínimo, solicitação de cadastro e modo loja dedicada — 16 etapas, com o código real de cada arquivo. → `conteudo/projects/atacado-pro-tema-b2b.json`
+- `birthday-discount`: Desconto de aniversário. Um app que dá desconto automático no aniversário do cliente e avisa isso com um banner no tema — do scaffold até o checklist de segurança. → `conteudo/projects/birthday-discount.json`
+- `flags-product-badges`: Flags: Product Badges (app publicado). O app real que foi da ideia à Shopify App Store em 23 dias: admin em Remix + Polaris, theme app extension, App Proxy, Billing API, webhooks de privacidade e as correções pedidas na revisão. Publicado em https://apps.shopify.com/flags-product-badges → `conteudo/projects/flags-product-badges.json`
+- `horizon-home`: Home Horizon: seções componíveis. Construa a home de um tema estilo Horizon usando section groups e blocks aninhados — hero, coleção em destaque, depoimentos via metaobjects e footer, tudo editável pelo merchant sem tocar em código. → `conteudo/projects/horizon-home.json`
+- `multi-channel-inventory`: Sincronizador de estoque multi-canal. Um app que mantém o estoque sincronizado entre a loja e um canal de venda externo simulado, reagindo em tempo real a mudanças — do primeiro evento assinado até o tratamento de concorrência entre dois canais vendendo o mesmo item. → `conteudo/projects/multi-channel-inventory.json`

@@ -1,0 +1,405 @@
+{
+  "id": "flags-product-badges",
+  "kind": "app",
+  "title": "Flags: Product Badges (app publicado)",
+  "subtitle": "O app real que foi da ideia à Shopify App Store em 23 dias: admin em Remix + Polaris, theme app extension, App Proxy, Billing API, webhooks de privacidade e as correções pedidas na revisão. Publicado em https://apps.shopify.com/flags-product-badges",
+  "stages": [
+    {
+      "id": "flags-1",
+      "title": "1. Criar o app e escolher a distribuição Public",
+      "goal": "Ter o app rodando numa dev store, com o `shopify.app.toml` apontando para um domínio fixo.",
+      "build": "Gere o projeto pelo template Remix e, no Partner Dashboard, escolha a distribuição **Public**: é ela que libera a Billing API e a App Store, e não dá para mudar depois.\n\nConfigure o `shopify.app.toml` com a URL de produção, os redirects de auth, o App Proxy (`/apps/flags`) e só os scopes que o app usa:\n\n- `read_products` / `write_products`: ler tags, coleções e produtos;\n- `read_themes`: ver se o app embed está ligado;\n- `write_files`: ícone próprio do plano Pro.",
+      "code": [
+        {
+          "label": "Gerar e rodar",
+          "code": "npm init @shopify/app@latest   # template Remix\ncd flags-app\nnpm install\nnpm run dev                    # shopify app dev: túnel + instala na dev store"
+        },
+        {
+          "label": "shopify.app.toml",
+          "code": "client_id = \"...\"\nname = \"Flags: Product Badges\"\napplication_url = \"https://flags-app-web-production.up.railway.app\"\nembedded = true\n\n[access_scopes]\nscopes = \"read_products,read_themes,write_files,write_products\"\n\n[auth]\nredirect_urls = [\n  \"https://flags-app-web-production.up.railway.app/auth/callback\",\n  \"https://flags-app-web-production.up.railway.app/auth/shopify/callback\",\n  \"https://flags-app-web-production.up.railway.app/api/auth/callback\"\n]\n\n[app_proxy]\nurl = \"https://flags-app-web-production.up.railway.app/apps/flags\"\nsubpath = \"flags\"\nprefix = \"apps\""
+        },
+        {
+          "label": ".env",
+          "code": "SHOPIFY_API_KEY=\nSHOPIFY_API_SECRET=\nSHOPIFY_APP_URL=https://flags-app-web-production.up.railway.app\nSCOPES=read_products,read_themes,write_files,write_products\n# sem a variável, a decisão de cobrança de teste é por loja\n# BILLING_TEST=true\nDATABASE_URL=postgresql://usuario:senha@host:5432/flags_app"
+        }
+      ],
+      "expected": "O `npm run dev` instala o app na dev store e a Home padrão abre dentro do admin.",
+      "related": [
+        "scaffold",
+        "dev-env",
+        "cli",
+        "dev-dashboard",
+        "flags-criacao-do-app"
+      ]
+    },
+    {
+      "id": "flags-2",
+      "title": "2. Banco de dados com Prisma e Postgres",
+      "goal": "Modelar flags e preferências por loja, ao lado da tabela `Session` exigida pela lib.",
+      "build": "Tudo é separado por `shop`, o que deixa a desinstalação e o `shop/redact` triviais (um `deleteMany` por tabela). A aparência mais rica (gradiente, borda, sombra, animação) fica num campo `Json`, então novos estilos não pedem migration.\n\nQuando a lib de sessão foi para a versão 11, a `Session` ganhou as colunas do refresh token, necessárias para os tokens offline que expiram.",
+      "code": [
+        {
+          "label": "prisma/schema.prisma",
+          "code": "model Flag {\n  id              String   @id @default(cuid())\n  shop            String   // minha-loja.myshopify.com\n  name            String   // nome interno\n  active          Boolean  @default(true)\n\n  // condição de exibição\n  conditionType   String   // \"tag\" | \"collection\" | \"stock\" | \"products\"\n  conditionValue  String   // \"promo\", \"black-friday\", \"5\", JSON de produtos\n\n  // aparência\n  labelText       String\n  backgroundColor String   // #RRGGBB\n  textColor       String\n  icon            String   @default(\"none\")\n  iconImageUrl    String?  // ícone enviado pelo lojista (Pro)\n  template        String   @default(\"rectangle\") // um dos 8 formatos\n  style           Json     @default(\"{}\")        // tamanho, gradiente, borda, sombra, animação\n\n  position        String   @default(\"top-left\")\n  priority        Int      @default(0)\n  startsAt        DateTime? // agendamento (Pro)\n  endsAt          DateTime?\n\n  createdAt       DateTime @default(now())\n  updatedAt       DateTime @updatedAt\n\n  @@index([shop])\n  @@index([shop, active])\n}\n\nmodel ShopSettings {\n  shop                String   @id\n  onboardingDismissed Boolean  @default(false)\n  storefrontVisited   Boolean  @default(false)\n  createdAt           DateTime @default(now())\n  updatedAt           DateTime @updatedAt\n}"
+        },
+        {
+          "label": "Upgrade das libs + migration",
+          "code": "npm install @shopify/shopify-app-remix@^6 \\\n  @shopify/shopify-app-session-storage-prisma@^11 \\\n  @prisma/client@^6 prisma@^6\n\n# a lib de sessão 11 guarda o refresh token: precisa de migration\nnpx prisma migrate dev --name session_refresh_token\n\n-- prisma/migrations/..._session_refresh_token/migration.sql\nALTER TABLE \"Session\" ADD COLUMN \"refreshToken\" TEXT,\nADD COLUMN \"refreshTokenExpires\" TIMESTAMP(3);"
+        }
+      ],
+      "expected": "`npx prisma migrate dev` cria as tabelas `Session`, `Flag` e `ShopSettings` no Postgres.",
+      "related": [
+        "prisma"
+      ]
+    },
+    {
+      "id": "flags-3",
+      "title": "3. Planos e regras compartilhadas entre editor e servidor",
+      "goal": "Ter um único lugar que diz o que cada plano libera.",
+      "build": "`app/lib/plans.js` não importa nada do servidor, então roda no navegador e no Node. O editor usa para marcar opções bloqueadas; as actions usam para recusar o que o plano não cobre.",
+      "code": [
+        {
+          "label": "app/lib/plans.js",
+          "code": "export const FREE_PLAN = \"Grátis\";\nexport const BASIC_PLAN = \"Plano Básico\";\nexport const PRO_PLAN = \"Plano Pro\";\n\nexport const PLANS = {\n  [FREE_PLAN]: {\n    price: 0, maxActiveFlags: 1,\n    shapes: [\"rectangle\", \"pill\", \"outline\"],\n    advancedStyle: false, animations: false, scheduling: false, customIcon: false,\n  },\n  [BASIC_PLAN]: {\n    price: 5, maxActiveFlags: 10, shapes: \"all\",\n    advancedStyle: true, animations: false, scheduling: false, customIcon: false,\n  },\n  [PRO_PLAN]: {\n    price: 12, maxActiveFlags: Infinity, shapes: \"all\",\n    advancedStyle: true, animations: true, scheduling: true, customIcon: true,\n  },\n};\n\n/** Menor plano que suporta uma flag (usado no editor e no servidor). */\nexport function requiredPlanFor(flag) {\n  const shape = normalizeShape(flag.template);\n  const style = normalizeStyle(flag.style);\n  if (style.animation !== \"none\" || flag.startsAt || flag.endsAt || flag.iconImageUrl) {\n    return PRO_PLAN;\n  }\n  if (!PLANS[FREE_PLAN].shapes.includes(shape) || isAdvancedStyle(style)) {\n    return BASIC_PLAN;\n  }\n  return FREE_PLAN;\n}"
+        }
+      ],
+      "expected": "`requiredPlanFor({ template: \"burst\", style: {} })` devolve `\"Plano Básico\"`; com animação, devolve `\"Plano Pro\"`.",
+      "related": [
+        "flags-cobranca"
+      ]
+    },
+    {
+      "id": "flags-4",
+      "title": "4. CRUD de flags com validação no servidor",
+      "goal": "Criar, editar, duplicar e excluir flags sem confiar no front.",
+      "build": "Cada action segue a mesma ordem: validar o formulário, conferir o plano, gravar filtrando por `shop` e sincronizar o metafield de versão. Erros de campo voltam com status 422 e erro de plano com 403, para o `FlagForm` mostrar cada um no lugar certo.\n\nDuplicar cria a cópia **inativa**, para não estourar o limite de flags ativas do plano.",
+      "code": [
+        {
+          "label": "app/routes/app.flags.new.jsx",
+          "code": "export async function action({ request }) {\n  const { session, admin, billing } = await authenticate.admin(request);\n  const { data, errors } = parseFlagForm(await request.formData());\n\n  if (Object.keys(errors).length) {\n    return json({ errors }, { status: 422 });\n  }\n\n  const { planName } = await getCurrentPlan({ admin, session, billing });\n  const planError = await checkPlanLimits(session.shop, data, planName);\n  if (planError) {\n    return json({ formError: planError }, { status: 403 });\n  }\n\n  await createFlag(session.shop, data);\n  // grava a nova versão no metafield que o storefront lê\n  await syncFlagsToMetafield(admin, session.shop);\n\n  return redirect(\"/app/flags?toast=created\");\n}"
+        },
+        {
+          "label": "Limites do plano",
+          "code": "/** Verifica se a flag cabe no plano atual. Retorna mensagem de erro ou null. */\nexport async function checkPlanLimits(shop, data, planName, { excludeId } = {}) {\n  const required = requiredPlanFor(data);\n  if (!planCovers(planName, required)) {\n    return `Algumas opções escolhidas exigem o ${required}. Faça upgrade ou remova essas opções.`;\n  }\n  if (data.active) {\n    const max = PLANS[planName]?.maxActiveFlags ?? 1;\n    const active = await countActiveFlags(shop, { excludeId });\n    if (active >= max) {\n      return `Seu plano permite ${max} flags ativas. Desative outra flag ou faça upgrade.`;\n    }\n  }\n  return null;\n}"
+        },
+        {
+          "label": "Escrita sempre filtrada por shop",
+          "code": "export async function updateFlag(id, shop, data) {\n  // updateMany com filtro por shop: impede que uma loja altere flag de outra\n  const { count } = await prisma.flag.updateMany({\n    where: { id, shop },\n    data: { ...data, shop },\n  });\n  return count > 0;\n}"
+        }
+      ],
+      "expected": "No plano grátis, tentar ativar uma segunda flag mostra a mensagem do limite; escolher o formato \"selo\" pede upgrade para o Básico.",
+      "related": [
+        "build-app",
+        "app-home",
+        "security"
+      ]
+    },
+    {
+      "id": "flags-5",
+      "title": "5. Admin embutido: App Bridge, navegação e status do embed",
+      "goal": "Uma Home que guia o lojista até ver a primeira badge na loja.",
+      "build": "O `AppProvider` em `app/routes/app.jsx` é o **único** lugar que carrega o App Bridge (um segundo script derruba as checagens da App Store). O CSS da loja (`flags.css`) é importado no admin para o preview ser idêntico ao storefront.\n\nA Home lê o tema publicado para saber se o embed está ligado e usa o deep link `activateAppId` para abrir o editor de tema no lugar certo.",
+      "code": [
+        {
+          "label": "app/routes/app.jsx",
+          "code": "// app/routes/app.jsx: o único lugar que carrega o App Bridge\nimport { AppProvider } from \"@shopify/shopify-app-remix/react\";\nimport { NavMenu } from \"@shopify/app-bridge-react\";\n// o mesmo CSS da loja: o preview do admin fica idêntico ao storefront\nimport badgeStyles from \"../../extensions/flags/assets/flags.css?url\";\n\nexport const links = () => [\n  { rel: \"stylesheet\", href: polarisStyles },\n  { rel: \"stylesheet\", href: badgeStyles },\n  { rel: \"stylesheet\", href: adminStyles },\n];\n\nexport const loader = async ({ request }) => {\n  await authenticate.admin(request);\n  return json({ apiKey: process.env.SHOPIFY_API_KEY || \"\" });\n};\n\nexport default function App() {\n  const { apiKey } = useLoaderData();\n  return (\n    <AppProvider isEmbeddedApp apiKey={apiKey}>\n      <NavMenu>\n        <Link to=\"/app\" rel=\"home\">Início</Link>\n        <Link to=\"/app/flags\">Flags</Link>\n        <Link to=\"/app/billing\">Planos</Link>\n      </NavMenu>\n      <Outlet />\n    </AppProvider>\n  );\n}"
+        },
+        {
+          "label": "app/models/theme.server.js",
+          "code": "/**\n * O app embed está ligado no tema publicado? Lê config/settings_data.json.\n * Requer read_themes. Retorna true | false, ou null se não der para saber.\n */\nexport async function isAppEmbedEnabled(admin) {\n  const response = await admin.graphql(`#graphql\n    query MainThemeSettings {\n      themes(first: 1, roles: [MAIN]) {\n        nodes {\n          files(filenames: [\"config/settings_data.json\"]) {\n            nodes { body { ... on OnlineStoreThemeFileBodyText { content } } }\n          }\n        }\n      }\n    }`);\n  const result = await response.json();\n  const content = result.data?.themes?.nodes?.[0]?.files?.nodes?.[0]?.body?.content;\n  if (!content) return null;\n\n  // o arquivo pode começar com um comentário /* ... */ gerado pela Shopify\n  const settings = JSON.parse(content.replace(/^\\s*\\/\\*[\\s\\S]*?\\*\\//, \"\"));\n  // \"current\" pode ser o objeto de configurações ou o nome de um preset\n  const current =\n    typeof settings?.current === \"string\" ? settings?.presets?.[settings.current] : settings?.current;\n  return Object.values(current?.blocks ?? {}).some(\n    (block) =>\n      typeof block?.type === \"string\" &&\n      block.type.includes(\"/blocks/product-flag/\") &&\n      block.disabled !== true,\n  );\n}"
+        },
+        {
+          "label": "Deep link para o editor de tema",
+          "code": "// Link que abre o editor de tema já com o embed do app pronto para ligar\nconst themeEditorUrl =\n  `https://${shop}/admin/themes/current/editor?context=apps&activateAppId=${apiKey}/product-flag`;\n\n<Button url={themeEditorUrl} target=\"_blank\">Abrir editor de tema</Button>"
+        }
+      ],
+      "expected": "Com o embed desligado, a Home mostra o aviso e o botão; depois de ligar e salvar no editor, o passo fica marcado como concluído.",
+      "related": [
+        "app-home",
+        "online-store",
+        "flags-criacao-do-app"
+      ]
+    },
+    {
+      "id": "flags-6",
+      "title": "6. Theme app extension com app embed",
+      "goal": "Carregar o script das badges em qualquer tema sem editar código do tema.",
+      "build": "Use `shopify app generate extension` (tipo theme) e troque o bloco por um **app embed** (`target: body`). O Liquid só expõe dados em atributos `data-*` e carrega os assets com `defer`; quem posiciona as badges é o JavaScript.\n\nUse o formato atual do `shopify.extension.toml` (com `[[extensions]]` e `handle`) desde o início.",
+      "code": [
+        {
+          "label": "extensions/flags/shopify.extension.toml",
+          "code": "# extensions/flags/shopify.extension.toml\napi_version = \"2026-10\"\n\n[[extensions]]\nname = \"flags-extension\"\nhandle = \"flags-extension\"\ntype = \"theme\"\nuid = \"67fd2ad7-...\"   # o mesmo uid de antes da migração"
+        },
+        {
+          "label": "extensions/flags/blocks/product-flag.liquid",
+          "code": "{% comment %}\n  App embed (target: body): ligado uma vez em \"Personalizar tema > App embeds\".\n  Só expõe dados e carrega os assets; o flags.js posiciona as badges.\n{% endcomment %}\n\n{% if product %}\n  <div\n    class=\"flags-app-pdp-data\"\n    data-product-id=\"{{ product.id }}\"\n    data-product-title=\"{{ product.title | escape }}\"\n    data-product-handle=\"{{ product.handle }}\"\n    data-product-tags=\"{{ product.tags | join: ',' }}\"\n    data-product-collections=\"{{ product.collections | map: 'handle' | join: ',' }}\"\n    data-product-inventory=\"{{ product.selected_or_first_available_variant.inventory_quantity }}\"\n    hidden\n  ></div>\n{% endif %}\n\n<div\n  class=\"flags-app-shop-data\"\n  data-shop-domain=\"{{ shop.permanent_domain }}\"\n  data-flags-version=\"{{ shop.metafields.flags_app.version.value }}\"\n  hidden\n></div>\n\n<script src=\"{{ 'flags.js' | asset_url }}\" defer=\"defer\"></script>\n<link rel=\"stylesheet\" href=\"{{ 'flags.css' | asset_url }}\">\n\n{% schema %}\n{\n  \"name\": \"Flags de Produto\",\n  \"target\": \"body\"\n}\n{% endschema %}"
+        }
+      ],
+      "expected": "Em Personalizar tema → App embeds aparece \"Flags de Produto\"; ligado, a página de produto ganha as divs `.flags-app-pdp-data` e `.flags-app-shop-data`.",
+      "related": [
+        "extensions",
+        "online-store",
+        "flags-theme-extension"
+      ]
+    },
+    {
+      "id": "flags-7",
+      "title": "7. App Proxy, metafield de versão e cache",
+      "goal": "Entregar as flags ativas para a loja rápido e sempre atualizadas.",
+      "build": "A loja chama `/apps/flags` no próprio domínio. A Shopify assina e encaminha para o servidor, que valida com `authenticate.public.appProxy` e devolve só as flags ativas e dentro do agendamento.\n\nCada salvamento grava `flags_app.version`. Como o Liquid expõe essa versão, o script pede `?v=<versão>` e os dois caches (servidor e `sessionStorage`) são invalidados juntos.",
+      "code": [
+        {
+          "label": "app/models/flags.server.js",
+          "code": "/** Só as flags ativas e dentro do agendamento, no formato leve da loja. */\nexport async function getActiveFlagsForStorefront(shop) {\n  const flags = await prisma.flag.findMany({\n    where: { shop, active: true },\n    orderBy: { priority: \"desc\" },\n  });\n  const now = new Date();\n  return flags\n    .filter((f) => !(f.startsAt && now < f.startsAt) && !(f.endsAt && now > f.endsAt))\n    .map((f) => ({\n      condition_type: f.conditionType,\n      condition_value: f.conditionValue,\n      label_text: f.labelText,\n      background_color: f.backgroundColor,\n      text_color: f.textColor,\n      icon: f.icon,\n      icon_image_url: f.iconImageUrl,\n      template: f.template,\n      style: normalizeStyle(f.style),\n      position: f.position,\n      priority: f.priority,\n    }));\n}"
+        },
+        {
+          "label": "app/routes/apps.flags.jsx",
+          "code": "// app/routes/apps.flags.jsx: a loja chama /apps/flags no próprio domínio\nconst cache = new Map(); // por processo; com várias instâncias, use Redis\nconst CACHE_TTL_MS = 60 * 1000;\n\nexport async function loader({ request }) {\n  // a Shopify assina a requisição do App Proxy; a lib valida a assinatura\n  const { session } = await authenticate.public.appProxy(request);\n  if (!session) return json([]);\n\n  const { shop } = session;\n  // versão das flags enviada pela loja (?v=); muda a cada salvamento\n  const version = new URL(request.url).searchParams.get(\"v\") ?? \"\";\n\n  const cached = cache.get(shop);\n  if (cached && cached.version === version && Date.now() - cached.at < CACHE_TTL_MS) {\n    return json(cached.data);\n  }\n\n  const flags = await getActiveFlagsForStorefront(shop);\n  cache.set(shop, { data: flags, version, at: Date.now() });\n  return json(flags);\n}"
+        },
+        {
+          "label": "app/models/metafields.server.js",
+          "code": "// app/models/metafields.server.js: roda depois de criar, editar ou excluir flag\nawait admin.graphql(\n  `#graphql\n  mutation SetFlagsMetafield($metafields: [MetafieldsSetInput!]!) {\n    metafieldsSet(metafields: $metafields) {\n      userErrors { field message }\n    }\n  }`,\n  {\n    variables: {\n      metafields: [\n        { namespace: \"flags_app\", key: \"active_flags\", type: \"json\",\n          value: JSON.stringify(flags), ownerId: shopGid },\n        // muda a cada salvamento: o Liquid expõe e o flags.js invalida o cache\n        { namespace: \"flags_app\", key: \"version\", type: \"single_line_text_field\",\n          value: String(Date.now()), ownerId: shopGid },\n      ],\n    },\n  },\n);"
+        },
+        {
+          "label": "flags.js: cache no navegador",
+          "code": "const TTL_WITH_VERSION_MS = 10 * 60 * 1000; // invalidado na hora pela versão\nconst TTL_WITHOUT_VERSION_MS = 60 * 1000;   // metafield ainda não gravado\n\nfunction getCachedFlags(shop, version) {\n  try {\n    const raw = sessionStorage.getItem(`flags_app_${shop}`);\n    if (!raw) return null;\n    const cached = JSON.parse(raw);\n    if (cached.version !== version || Date.now() > cached.expiresAt) return null;\n    return cached.flags;\n  } catch (e) {\n    return null; // sessionStorage pode falhar em modo privado\n  }\n}\n\nasync function fetchFlags(shop, version) {\n  const cached = getCachedFlags(shop, version);\n  if (cached) return cached;\n  try {\n    // ?v= faz o App Proxy ignorar o cache do servidor quando a versão muda\n    const url = version ? `/apps/flags?v=${encodeURIComponent(version)}` : \"/apps/flags\";\n    const res = await fetch(url, { credentials: \"same-origin\" });\n    if (!res.ok) return [];\n    const flags = await res.json();\n    setCachedFlags(shop, version, flags);\n    return flags;\n  } catch (e) {\n    return []; // a loja nunca quebra por causa do app\n  }\n}"
+        }
+      ],
+      "expected": "Salvar uma flag no admin e recarregar a loja mostra a mudança na hora, sem esperar o TTL.",
+      "related": [
+        "metafields",
+        "graphql",
+        "performance"
+      ]
+    },
+    {
+      "id": "flags-8",
+      "title": "8. flags.js: regras e badge na página de produto",
+      "goal": "Mostrar as badges acima do título em qualquer tema.",
+      "build": "O script roda uma vez (`window.__flagsAppLoaded`), busca as flags e aplica as regras. O título é achado **pelo texto** vindo do Liquid, ignorando cópias fixas (sticky) e invisíveis; sem título, usa o `h1` e, por último, o formulário de compra.\n\nUm `MutationObserver` com debounce re-renderiza quando o tema troca a seção (variantes) ou adiciona cards.",
+      "code": [
+        {
+          "label": "Inicialização",
+          "code": "(function () {\n  if (window.__flagsAppLoaded) return; // o embed pode ser incluído duas vezes\n  window.__flagsAppLoaded = true;\n\n  async function init() {\n    const shopEl = document.querySelector(\".flags-app-shop-data\");\n    if (!shopEl) return;\n\n    const flags = await fetchFlags(shopEl.dataset.shopDomain, shopEl.dataset.flagsVersion || \"\");\n    if (!flags.length) return;\n\n    const render = () => {\n      renderPdpBadges(flags);\n      renderCardBadges(flags);\n    };\n    render();\n\n    // filtros, \"carregar mais\" e scroll infinito adicionam cards depois\n    let timer = null;\n    const observer = new MutationObserver(() => {\n      clearTimeout(timer);\n      timer = setTimeout(render, 250);\n    });\n    observer.observe(document.body, { childList: true, subtree: true });\n  }\n\n  if (document.readyState === \"loading\") {\n    document.addEventListener(\"DOMContentLoaded\", init);\n  } else {\n    init();\n  }\n})();"
+        },
+        {
+          "label": "Regras",
+          "code": "function matchFlags(flags, { tags, collections, inventory, productId }) {\n  const lowerTags = tags.map((t) => t.trim().toLowerCase());\n  const lowerCollections = collections.map((c) => c.trim().toLowerCase());\n  return flags\n    .filter((flag) => {\n      switch (flag.condition_type) {\n        case \"tag\":\n          return splitValues(flag.condition_value).some((t) => lowerTags.includes(t));\n        case \"collection\":\n          return splitValues(flag.condition_value).some((c) => lowerCollections.includes(c));\n        case \"stock\":\n          return inventory != null && inventory < parseInt(flag.condition_value, 10);\n        case \"products\":\n          return productId != null && parseProductIds(flag.condition_value).includes(String(productId));\n        default:\n          return false;\n      }\n    })\n    .sort((a, b) => b.priority - a.priority);\n}"
+        },
+        {
+          "label": "Onde inserir na página de produto",
+          "code": "// Seletores do título em ordem de preferência. Classes com \"title\" vêm por\n// último porque também casam cópias (ex.: barra fixa de compra do Horizon).\nconst PDP_TITLE_SELECTORS = [\n  \"h1\",\n  \"[role='heading'], h2, h3\",\n  \"[class*='title' i], [class*='heading' i]\",\n];\n\nfunction isUsableTitle(el) {\n  if (el.closest(EXCLUDED_AREAS) || el.closest(\"a[href*='/products/']\")) return false;\n  if (el.closest(\"[class*='sticky' i]\")) return false;\n  const rect = el.getBoundingClientRect();\n  return rect.width > 0 && rect.height > 0; // ignora cópias escondidas\n}\n\nfunction findPdpAnchor(productTitle) {\n  const scope = document.querySelector(\"main\") || document.body;\n  const wanted = normalizeText(productTitle); // título vindo do Liquid\n  if (wanted) {\n    for (const selector of PDP_TITLE_SELECTORS) {\n      for (const el of scope.querySelectorAll(selector)) {\n        if (normalizeText(el.textContent) === wanted && isUsableTitle(el)) return el;\n      }\n    }\n  }\n  return scope.querySelector(\"h1\") || scope.querySelector(\"form[action*='/cart/add']\");\n}\n\nfunction renderPdpBadges(flags) {\n  const dataEl = document.querySelector(\".flags-app-pdp-data\");\n  if (!dataEl) return;\n\n  const title = findPdpAnchor(dataEl.dataset.productTitle);\n  if (!title) return;\n  // temas que re-renderizam a seção (troca de variante) removem o grupo,\n  // por isso confere o vizinho em vez de um atributo\n  const previous = title.previousElementSibling;\n  if (previous && previous.classList.contains(\"fa-group--inline\")) return;\n\n  const inventoryRaw = dataEl.dataset.productInventory;\n  const matches = matchFlags(flags, {\n    tags: (dataEl.dataset.productTags || \"\").split(\",\").filter(Boolean),\n    collections: (dataEl.dataset.productCollections || \"\").split(\",\").filter(Boolean),\n    inventory: inventoryRaw === \"\" || inventoryRaw == null ? null : parseInt(inventoryRaw, 10),\n    productId: dataEl.dataset.productId || null,\n  });\n  if (matches.length === 0) return;\n\n  const group = document.createElement(\"div\");\n  group.className = \"fa-group fa-group--inline\";\n  matches.forEach((flag) => group.appendChild(buildBadgeEl(flag)));\n  title.parentNode.insertBefore(group, title);\n}"
+        }
+      ],
+      "expected": "Num produto com a tag `promo` e uma flag \"OFERTA\" para essa tag, a badge aparece acima do título no Dawn e no Horizon.",
+      "related": [
+        "online-store",
+        "flags-theme-extension"
+      ]
+    },
+    {
+      "id": "flags-9",
+      "title": "9. Badges nos cards de coleção, em qualquer tema",
+      "goal": "Sobrepor a badge na imagem do card sem depender da marcação do tema.",
+      "build": "Esta foi a parte que voltou na revisão. No Horizon, o link do card é um overlay vazio e a imagem fica fora dele. A regra que funcionou: o card é o **menor ancestral do link que tem imagem e aponta só para aquele produto**. A badge vai no maior container da imagem que ainda tem o tamanho dela.\n\nNos cards, os dados vêm de `/products/<handle>.js`, que não traz coleções nem estoque: ali valem só flags por tag e por produto.\n\nCarrinho, minicart, busca preditiva e quick add ficam de fora.",
+      "code": [
+        {
+          "label": "Achar o card",
+          "code": "const MAX_CARD_DEPTH = 8;\n\n// Card = menor ancestral do link que tem imagem e só aponta para esse produto.\n// Dawn: link no título; Horizon: <a class=\"product-card__link\"> vazio por cima do card.\nfunction findCard(anchor, handle) {\n  if (anchor.querySelector(\"img\")) return anchor;\n  let node = anchor.parentElement;\n  for (let depth = 0; node && node !== document.body && depth < MAX_CARD_DEPTH; depth++) {\n    if (node.querySelector(\"img\")) {\n      const links = node.querySelectorAll('a[href*=\"/products/\"]');\n      const single = Array.from(links).every(\n        (a) => extractHandle(a.getAttribute(\"href\") || \"\") === handle,\n      );\n      return single ? node : null; // achou a grade inteira, não um card\n    }\n    node = node.parentElement;\n  }\n  return null;\n}"
+        },
+        {
+          "label": "Renderizar nos cards",
+          "code": "async function renderCardBadges(flags) {\n  // nos cards só temos tags e id (via /products/<handle>.js):\n  // coleção e estoque baixo só funcionam na página de produto\n  const cardFlags = flags.filter(\n    (f) => f.condition_type === \"tag\" || f.condition_type === \"products\",\n  );\n  if (cardFlags.length === 0) return;\n\n  const pdpData = document.querySelector(\".flags-app-pdp-data\");\n  const currentHandle = pdpData ? pdpData.dataset.productHandle : null;\n  const pending = [];\n\n  document.querySelectorAll('a[href*=\"/products/\"]').forEach((anchor) => {\n    if (anchor.closest(EXCLUDED_AREAS)) return;\n    const handle = extractHandle(anchor.getAttribute(\"href\") || \"\");\n    if (!handle || handle === currentHandle) return;\n    const card = findCard(anchor, handle);\n    if (!card) return;\n    // um card tem vários links (imagem, título, overlay): processa uma vez só\n    if (card.closest(`[${RENDERED_ATTR}]`) || card.querySelector(`[${RENDERED_ATTR}]`)) return;\n    const root = findMediaBox(card);\n    if (!root) return;\n    card.setAttribute(RENDERED_ATTR, \"\");\n\n    pending.push(\n      fetchProduct(handle).then((product) => {\n        if (!product) return;\n        const matches = matchFlags(cardFlags, {\n          tags: product.tags || [], collections: [], inventory: null, productId: product.id,\n        });\n        if (matches.length) renderOnCard(root, matches);\n      }),\n    );\n  });\n  await Promise.all(pending);\n}"
+        },
+        {
+          "label": "Áreas excluídas",
+          "code": "const EXCLUDED_AREAS = [\n  \"cart-drawer\",\n  \"cart-drawer-items\",\n  \"cart-notification\",\n  \"cart-items\",\n  \"form[action$='/cart']\", // só o form do carrinho, não o /cart/add dos cards\n  \"#CartDrawer\",\n  \"#cart-notification\",\n  \"[id*='cart-drawer' i]\",\n  \"[id*='minicart' i]\",\n  \"[id*='mini-cart' i]\",\n  \"[class*='cart-drawer' i]\",\n  \"[class*='minicart' i]\",\n  \"[class*='mini-cart' i]\",\n  \"predictive-search\",\n  \"[class*='predictive-search' i]\",\n  // Horizon (e outros temas com custom elements)\n  \"cart-drawer-component\",\n  \"cart-items-component\",\n  \"predictive-search-component\",\n  \"quick-add-dialog\",\n].join(\",\");"
+        },
+        {
+          "label": "Testar sem deploy",
+          "code": "// Testar o flags.js num tema sem fazer deploy:\n// 1. abra a loja com o embed ligado (o .flags-app-shop-data precisa existir)\n// 2. cole o conteúdo novo do flags.js no console\n// 3. a trava window.__flagsAppLoaded impede rodar duas vezes; zere antes:\nwindow.__flagsAppLoaded = false;\n// ...cole aqui o flags.js..."
+        }
+      ],
+      "expected": "Na coleção, cada produto com a tag aparece com a badge sobre a imagem, uma vez só, e nada aparece no carrinho nem na busca.",
+      "related": [
+        "online-store",
+        "theme-blocks-horizon",
+        "flags-theme-extension"
+      ]
+    },
+    {
+      "id": "flags-10",
+      "title": "10. Cobrança com a Billing API",
+      "goal": "Free, Basic e Pro funcionando em lojas reais e nas lojas de teste dos revisores.",
+      "build": "Os planos pagos ficam no `billing` do `shopifyApp()`, com 7 dias de trial. Development stores recebem cobrança de teste automaticamente.\n\nNa consulta do plano, inclua **sempre** as assinaturas de teste: a loja do revisor pode não ser `partnerDevelopment` e ainda assim gerar assinatura de teste (foi o motivo da reprovação 1.2.2).",
+      "code": [
+        {
+          "label": "app/shopify.server.js: planos",
+          "code": "billing: {\n  [BASIC_PLAN]: {\n    trialDays: 7,\n    lineItems: [{\n      amount: PLANS[BASIC_PLAN].price,\n      currencyCode: \"USD\",\n      interval: BillingInterval.Every30Days,\n    }],\n  },\n  [PRO_PLAN]: {\n    trialDays: 7,\n    lineItems: [{\n      amount: PLANS[PRO_PLAN].price,\n      currencyCode: \"USD\",\n      interval: BillingInterval.Every30Days,\n    }],\n  },\n},"
+        },
+        {
+          "label": "Teste em development stores",
+          "code": "// Força teste (BILLING_TEST=true) ou real (=false) para todas as lojas.\n// Sem a variável, decide por loja.\nconst BILLING_TEST_OVERRIDE =\n  process.env.BILLING_TEST === \"true\" ? true : process.env.BILLING_TEST === \"false\" ? false : null;\n\nconst devStoreCache = new Map(); // o tipo da loja não muda durante a sessão\n\nasync function isDevelopmentStore(admin, shop) {\n  if (devStoreCache.has(shop)) return devStoreCache.get(shop);\n  try {\n    const response = await admin.graphql(`#graphql\n      query ShopPlan { shop { plan { partnerDevelopment } } }`);\n    const json = await response.json();\n    const isDev = Boolean(json.data?.shop?.plan?.partnerDevelopment);\n    devStoreCache.set(shop, isDev);\n    return isDev;\n  } catch (error) {\n    console.error(\"Não foi possível consultar o tipo da loja:\", await describeError(error));\n    return process.env.NODE_ENV !== \"production\";\n  }\n}\n\nexport async function isTestBilling({ admin, session }) {\n  if (BILLING_TEST_OVERRIDE != null) return BILLING_TEST_OVERRIDE;\n  return isDevelopmentStore(admin, session.shop);\n}"
+        },
+        {
+          "label": "Plano atual (versão corrigida)",
+          "code": "// DEPOIS: sempre inclui as de teste e prefere o plano mais alto\nexport async function getCurrentPlan(auth) {\n  const isTest = await isTestBilling(auth);\n  const { appSubscriptions } = await auth.billing.check({\n    plans: [BASIC_PLAN, PRO_PLAN],\n    isTest: true, // isTest no check só filtra; não muda a cobrança\n  });\n  const subscription =\n    appSubscriptions?.find((s) => s.name === PRO_PLAN) ??\n    appSubscriptions?.find((s) => s.name === BASIC_PLAN) ??\n    null;\n  const planName = subscription?.name ?? FREE_PLAN;\n  return {\n    planName,\n    features: getPlanFeatures(planName),\n    subscription,\n    isTest: subscription?.test ?? isTest,\n  };\n}"
+        },
+        {
+          "label": "app/routes/app.billing.jsx",
+          "code": "export async function action({ request }) {\n  const { billing, session, admin } = await authenticate.admin(request);\n  const plan = (await request.formData()).get(\"plan\");\n\n  if (plan === BASIC_PLAN || plan === PRO_PLAN) {\n    const isTest = await isTestBilling({ admin, session });\n    // lança um Response que redireciona para a tela de aprovação da Shopify\n    return await billing.request({ plan, isTest });\n  }\n\n  if (plan === FREE_PLAN) {\n    const { subscription, isTest } = await getCurrentPlan({ admin, session, billing });\n    if (subscription) {\n      await billing.cancel({ subscriptionId: subscription.id, isTest, prorate: true });\n    }\n    // mantém ativa só a flag de maior prioridade (limite do plano grátis)\n    const active = await prisma.flag.findMany({\n      where: { shop: session.shop, active: true },\n      orderBy: [{ priority: \"desc\" }, { createdAt: \"desc\" }],\n      select: { id: true },\n    });\n    const extra = active.slice(PLANS[FREE_PLAN].maxActiveFlags).map((f) => f.id);\n    if (extra.length) {\n      await prisma.flag.updateMany({ where: { id: { in: extra } }, data: { active: false } });\n      await syncFlagsToMetafield(admin, session.shop);\n    }\n    return json({ ok: true, deactivated: extra.length });\n  }\n\n  return json({ error: \"Plano inválido\" }, { status: 400 });\n}"
+        }
+      ],
+      "expected": "Numa dev store, Free → Basic → Pro libera os recursos na hora; voltar ao grátis desativa as flags excedentes e mostra quantas foram desativadas.",
+      "related": [
+        "flags-cobranca",
+        "non-deceptive"
+      ]
+    },
+    {
+      "id": "flags-11",
+      "title": "11. Ícone próprio pela Files API (Pro)",
+      "goal": "Deixar o lojista subir uma imagem para usar como ícone da badge.",
+      "build": "O arquivo vai para Arquivos da loja, não para o servidor do app. O fluxo é `stagedUploadsCreate` → POST no destino → `fileCreate` → esperar a URL. A rota confere o plano antes de qualquer coisa.",
+      "code": [
+        {
+          "label": "app/routes/app.flags.upload-icon.jsx",
+          "code": "// app/routes/app.flags.upload-icon.jsx (Pro): o arquivo vai para Arquivos da loja\nconst { features } = await getCurrentPlan({ admin, session, billing });\nif (!features.customIcon) {\n  return json({ error: \"Ícone próprio está disponível no Plano Pro.\" }, { status: 403 });\n}\n\n// 1. pede um destino de upload\nconst staged = await admin.graphql(`#graphql\n  mutation stagedUploadsCreate($input: [StagedUploadInput!]!) {\n    stagedUploadsCreate(input: $input) {\n      stagedTargets { url resourceUrl parameters { name value } }\n      userErrors { field message }\n    }\n  }`,\n  { variables: { input: [{ filename, mimeType, httpMethod: \"POST\", resource: \"IMAGE\" }] } },\n);\n\n// 2. envia o arquivo para o destino (parameters + file)\nawait fetch(target.url, { method: \"POST\", body: uploadForm });\n\n// 3. registra o arquivo na loja e espera a URL ficar pronta\nconst created = await admin.graphql(`#graphql\n  mutation fileCreate($files: [FileCreateInput!]!) {\n    fileCreate(files: $files) {\n      files { id fileStatus ... on MediaImage { image { url } } }\n      userErrors { field message }\n    }\n  }`,\n  { variables: { files: [{ originalSource: target.resourceUrl, contentType: \"IMAGE\" }] } },\n);\nconst url = createdFile.image?.url ?? (await pollForImageUrl(admin, createdFile.id));"
+        }
+      ],
+      "expected": "No Pro, o upload devolve uma URL do CDN da Shopify e a badge passa a mostrar a imagem; nos outros planos, a rota responde 403.",
+      "related": [
+        "graphql",
+        "graphql-avancado"
+      ]
+    },
+    {
+      "id": "flags-12",
+      "title": "12. Autenticação de app público: session tokens e tokens que expiram",
+      "goal": "Evitar o 403 da Admin API e o alerta de token depreciado.",
+      "build": "Apps públicos novos precisam de `expiringOfflineAccessTokens: true`. Sem isso, toda chamada à Admin API devolve **403** sem explicação.\n\nLojas instaladas antes da mudança têm token sem expiração. Apagar a sessão não basta (o token antigo continua válido e o dashboard alerta): troque pelo endpoint oficial de migração, ao abrir o app e em lote ao subir o servidor.\n\nE logue o corpo dos erros: a lib lança um `Response`, não um `Error`.",
+      "code": [
+        {
+          "label": "app/shopify.server.js",
+          "code": "const shopify = shopifyApp({\n  apiKey: process.env.SHOPIFY_API_KEY,\n  apiSecretKey: process.env.SHOPIFY_API_SECRET || \"\",\n  apiVersion: ApiVersion.July26,\n  scopes: process.env.SCOPES?.split(\",\"),\n  appUrl: process.env.SHOPIFY_APP_URL || \"\",\n  authPathPrefix: \"/auth\",\n  sessionStorage: new PrismaSessionStorage(prisma),\n  distribution: AppDistribution.AppStore,\n  billing: { /* Basic e Pro, ver etapa de cobrança */ },\n  hooks: {\n    afterAuth: async ({ session }) => {\n      shopify.registerWebhooks({ session });\n    },\n  },\n  future: {\n    unstable_newEmbeddedAuthStrategy: true, // session tokens + token exchange\n    // Apps públicos novos só podem usar tokens offline que expiram; tokens sem\n    // expiração recebem 403 da Admin API. A lib renova o token sozinha.\n    expiringOfflineAccessTokens: true,\n  },\n});"
+        },
+        {
+          "label": "app/models/offline-tokens.server.js",
+          "code": "// app/models/offline-tokens.server.js\nasync function exchangeLegacyToken(shop, accessToken) {\n  const response = await fetch(`https://${shop}/admin/oauth/access_token`, {\n    method: \"POST\",\n    headers: { \"Content-Type\": \"application/json\", Accept: \"application/json\" },\n    body: JSON.stringify({\n      client_id: process.env.SHOPIFY_API_KEY,\n      client_secret: process.env.SHOPIFY_API_SECRET,\n      grant_type: \"urn:ietf:params:oauth:grant-type:token-exchange\",\n      subject_token: accessToken,\n      subject_token_type: \"urn:shopify:params:oauth:token-type:offline-access-token\",\n      requested_token_type: \"urn:shopify:params:oauth:token-type:offline-access-token\",\n      expiring: \"1\",\n    }),\n  });\n  if (!response.ok) throw new Error(`token exchange respondeu ${response.status}`);\n  return response.json();\n}\n\nexport const isLegacyOfflineSession = (session) => !session.isOnline && !session.expires;\n\nexport async function migrateLegacyOfflineSession(session) {\n  const token = await exchangeLegacyToken(session.shop, session.accessToken);\n  if (!token.expires_in) throw new Error(\"token exchange não devolveu um token que expira\");\n  await prisma.session.update({\n    where: { id: session.id },\n    data: {\n      accessToken: token.access_token,\n      scope: token.scope,\n      expires: secondsFromNow(token.expires_in),\n      refreshToken: token.refresh_token ?? null,\n      refreshTokenExpires: token.refresh_token_expires_in\n        ? secondsFromNow(token.refresh_token_expires_in)\n        : null,\n    },\n  });\n}\n\n/** Migra todas as lojas de uma vez; roda ao subir o servidor. */\nexport async function migrateAllLegacyOfflineSessions() {\n  const legacy = await prisma.session.findMany({ where: { isOnline: false, expires: null } });\n  for (const session of legacy) {\n    try {\n      await migrateLegacyOfflineSession(session);\n    } catch (error) {\n      console.error(`[offline-tokens] falha ao migrar ${session.shop}: ${error.message}`);\n    }\n  }\n}"
+        },
+        {
+          "label": "authenticate.admin com migração",
+          "code": "// app/shopify.server.js\nasync function authenticateAdmin(request) {\n  const context = await shopify.authenticate.admin(request);\n  const { session } = context;\n  if (isLegacyOfflineSession(session)) {\n    try {\n      await migrateLegacyOfflineSession(session);\n    } catch (error) {\n      console.error(`[offline-tokens] falha ao migrar ${session.shop}: ${error.message}`);\n      await shopify.sessionStorage.deleteSession(session.id);\n    }\n    return shopify.authenticate.admin(request);\n  }\n  return context;\n}\n\n// lojas que não abrirem o app também precisam migrar\nmigrateAllLegacyOfflineSessions().catch((error) =>\n  console.error(`[offline-tokens] migração em lote falhou: ${error.message}`),\n);\n\nexport const authenticate = { ...shopify.authenticate, admin: authenticateAdmin };"
+        },
+        {
+          "label": "app/lib/describe-error.server.js",
+          "code": "/**\n * Texto legível de um erro da Admin API. A lib lança um Response (com o corpo\n * de erro da Shopify) em vez de um Error; aqui lemos esse corpo.\n */\nexport async function describeError(error) {\n  if (error instanceof Response) {\n    let body = \"\";\n    try {\n      body = await error.clone().text();\n    } catch (e) {\n      /* corpo já consumido */\n    }\n    return `HTTP ${error.status} ${body}`.trim();\n  }\n  // HttpResponseError da @shopify/shopify-api (ex.: billing.check)\n  if (error?.response?.body) {\n    return `HTTP ${error.response.code} ${JSON.stringify(error.response.body)}`;\n  }\n  return error?.message ?? String(error);\n}"
+        }
+      ],
+      "expected": "Nenhuma `Session` offline com `expires` nulo no banco, nenhum 403 nos logs e nenhum alerta de \"Deprecated offline token\" no Partner Dashboard.",
+      "related": [
+        "auth",
+        "security",
+        "flags-preparacao-tecnica"
+      ]
+    },
+    {
+      "id": "flags-13",
+      "title": "13. Webhooks obrigatórios e política de privacidade",
+      "goal": "Cumprir LGPD/GDPR e limpar tudo quando a loja desinstala.",
+      "build": "Registre `app/uninstalled` e os três tópicos de compliance no toml. Como essas rotas não usam a Admin API, valide **só o HMAC**: o `authenticate.webhook` tenta renovar o token de uma loja que já desinstalou e responde 500.\n\nPublique também a política de privacidade numa rota pública (`/privacy`), sem App Bridge, em inglês e português.",
+      "code": [
+        {
+          "label": "shopify.app.toml",
+          "code": "[webhooks]\napi_version = \"2026-10\"\n\n  [[webhooks.subscriptions]]\n  uri = \"/webhooks/app/uninstalled\"\n  topics = [ \"app/uninstalled\" ]\n\n  # Webhooks de privacidade obrigatórios para a App Store (LGPD/GDPR)\n  [[webhooks.subscriptions]]\n  uri = \"/webhooks/compliance\"\n  compliance_topics = [ \"customers/data_request\", \"customers/redact\", \"shop/redact\" ]"
+        },
+        {
+          "label": "verifyWebhook (HMAC)",
+          "code": "/**\n * Webhooks que não chamam a Admin API (desinstalação e compliance). O\n * authenticate.webhook da lib carrega e renova o token offline da loja; depois\n * da desinstalação a renovação é recusada e a lib responde 500.\n * Aqui só validamos a assinatura HMAC.\n */\nexport async function verifyWebhook(request) {\n  if (request.method !== \"POST\") {\n    throw new Response(undefined, { status: 405 });\n  }\n  const rawBody = await request.text();\n  const received = Buffer.from(request.headers.get(\"X-Shopify-Hmac-Sha256\") || \"\");\n  const expected = Buffer.from(\n    crypto\n      .createHmac(\"sha256\", process.env.SHOPIFY_API_SECRET || \"\")\n      .update(rawBody, \"utf8\")\n      .digest(\"base64\"),\n  );\n  if (received.length !== expected.length || !crypto.timingSafeEqual(received, expected)) {\n    throw new Response(undefined, { status: 401 });\n  }\n\n  const shop = request.headers.get(\"X-Shopify-Shop-Domain\");\n  // \"shop/redact\" -> \"SHOP_REDACT\", mesmo formato do topic da lib\n  const topic = (request.headers.get(\"X-Shopify-Topic\") || \"\").toUpperCase().replace(/[/.]/g, \"_\");\n  if (!shop || !topic) {\n    throw new Response(undefined, { status: 400 });\n  }\n  return { shop, topic, payload: JSON.parse(rawBody || \"{}\") };\n}"
+        },
+        {
+          "label": "app/uninstalled",
+          "code": "// app/routes/webhooks.app.uninstalled.jsx\nimport { verifyWebhook } from \"../shopify.server\";\nimport prisma from \"../db.server\";\n\nexport const action = async ({ request }) => {\n  const { shop } = await verifyWebhook(request);\n\n  await prisma.session.deleteMany({ where: { shop } });\n  await prisma.flag.deleteMany({ where: { shop } });\n  await prisma.shopSettings.deleteMany({ where: { shop } });\n\n  return new Response();\n};"
+        },
+        {
+          "label": "Compliance",
+          "code": "// app/routes/webhooks.compliance.jsx\n// O app não guarda dados de clientes (só flags e configurações da loja).\nexport const action = async ({ request }) => {\n  const { shop, topic } = await verifyWebhook(request);\n\n  switch (topic) {\n    case \"CUSTOMERS_DATA_REQUEST\":\n    case \"CUSTOMERS_REDACT\":\n      console.log(`[compliance] ${topic} de ${shop}: nenhum dado de cliente armazenado.`);\n      break;\n    case \"SHOP_REDACT\": // 48h depois da desinstalação\n      await prisma.$transaction([\n        prisma.flag.deleteMany({ where: { shop } }),\n        prisma.shopSettings.deleteMany({ where: { shop } }),\n        prisma.session.deleteMany({ where: { shop } }),\n      ]);\n      console.log(`[compliance] SHOP_REDACT: dados de ${shop} apagados.`);\n      break;\n    default:\n      return new Response(\"Tópico não tratado\", { status: 404 });\n  }\n  return new Response();\n};"
+        },
+        {
+          "label": "Testar em produção",
+          "code": "# sem assinatura: tem que responder 401\ncurl -i -X POST https://flags-app-web-production.up.railway.app/webhooks/compliance \\\n  -H \"X-Shopify-Topic: shop/redact\" -d '{}'\n\n# assinado pela Shopify: tem que responder 200\nnpx shopify app webhook trigger --topic shop/redact \\\n  --address https://flags-app-web-production.up.railway.app/webhooks/compliance"
+        },
+        {
+          "label": "app/routes/privacy.jsx",
+          "code": "// app/routes/privacy.jsx: página pública, sem autenticação e sem App Bridge\nexport const meta = () => [\n  { title: \"Privacy Policy · Flags: Product Badges\" },\n  { name: \"robots\", content: \"index,follow\" },\n];\n\nconst CONTENT = {\n  pt: {\n    title: \"Política de privacidade\",\n    sections: [\n      { h: \"1. Dados que coletamos e guardamos\", items: [/* loja, flags, ícones */] },\n      { h: \"2. Dados que acessamos sem guardar\", items: [/* produtos, tema, assinatura */] },\n      { h: \"3. Dados de clientes e visitantes da loja\", p: \"O App não coleta...\" },\n      // ...\n    ],\n  },\n  en: { /* mesma estrutura em inglês */ },\n};"
+        }
+      ],
+      "expected": "Requisição sem assinatura → 401; `shopify app webhook trigger` → 200; depois do `shop/redact`, nenhuma linha da loja no banco.",
+      "related": [
+        "webhooks",
+        "compliance",
+        "security"
+      ]
+    },
+    {
+      "id": "flags-14",
+      "title": "14. Hospedagem e deploy",
+      "goal": "Subir servidor e extensão na ordem certa e conferir o que está ativo.",
+      "build": "O servidor roda na Railway com Node 22 fixado (com Node 18 as libs quebram por falta do `crypto` global). O `start` aplica as migrations antes de subir.\n\nQuando servidor e extensão mudam juntos, suba primeiro o servidor e depois o `shopify app deploy`, que gera uma versão nova do app.\n\nEm produção, desligue o modo serverless/sleep do Postgres: o banco dormindo fez webhooks falharem com 500 na primeira requisição.",
+      "code": [
+        {
+          "label": "package.json",
+          "code": "{\n  \"scripts\": {\n    \"build\": \"remix vite:build\",\n    \"start\": \"prisma migrate deploy && remix-serve ./build/server/index.js\",\n    \"dev\": \"shopify app dev\",\n    \"deploy\": \"shopify app deploy\",\n    \"setup\": \"prisma generate && prisma migrate deploy\"\n  },\n  \"engines\": {\n    \"node\": \"22.x\"\n  }\n}"
+        },
+        {
+          "label": "Deploy",
+          "code": "# 1. servidor (Railway). O start aplica as migrations.\nnpx -y @railway/cli up --ci\n\n# 2. config do app + extensões (gera uma versão nova do app)\nnpx shopify app deploy --allow-updates --message \"Encontra cards no Horizon\"\n\n# 3. conferir\nnpx shopify app versions list\nnpx -y @railway/cli logs --deployment"
+        }
+      ],
+      "expected": "`shopify app versions list` mostra a versão nova ativa com a extensão, e os logs da Railway não têm erro na subida.",
+      "related": [
+        "cli",
+        "dev-dashboard"
+      ]
+    },
+    {
+      "id": "flags-15",
+      "title": "15. Checagens automáticas do Partner Dashboard",
+      "goal": "Deixar verdes App Bridge, session tokens e theme app extensions.",
+      "build": "As checagens rodam a cada 2 horas. No Flags:\n\n- **App Bridge e session tokens** falhavam por um segundo script do App Bridge no `root.jsx`, sem `data-api-key`. Remover resolveu.\n- **Theme app extensions** continuou vermelha com o embed ativo. O toml foi migrado para o formato `[[extensions]]` mantendo o `uid`, saiu uma versão nova e o app seguiu para envio e aprovação. Se não resolver, abra chamado no suporte de parceiros.",
+      "code": [
+        {
+          "label": "root.jsx antes",
+          "code": "// app/root.jsx ANTES (errado): segundo App Bridge, sem data-api-key\n<head>\n  ...\n  {!isPublicPage && (\n    <script src=\"https://cdn.shopify.com/shopifycloud/app-bridge.js\"></script>\n  )}\n  <Meta />\n  <Links />\n</head>"
+        },
+        {
+          "label": "root.jsx depois",
+          "code": "// app/root.jsx DEPOIS: nenhum script do App Bridge aqui.\n// O AppProvider (app/routes/app.jsx) injeta o script com data-api-key.\n<head>\n  <meta charSet=\"utf-8\" />\n  <meta name=\"viewport\" content=\"width=device-width,initial-scale=1\" />\n  <Meta />\n  <Links />\n</head>"
+        },
+        {
+          "label": "Toml antes e depois",
+          "code": "# ANTES: formato antigo, sem [[extensions]] e sem handle\nname = \"flags-extension\"\ntype = \"theme\"\nuid = \"67fd2ad7-...\"\n\n# extensions/flags/shopify.extension.toml\napi_version = \"2026-10\"\n\n[[extensions]]\nname = \"flags-extension\"\nhandle = \"flags-extension\"\ntype = \"theme\"\nuid = \"67fd2ad7-...\"   # o mesmo uid de antes da migração"
+        }
+      ],
+      "expected": "As três checagens verdes no Partner Dashboard e o botão de envio liberado.",
+      "related": [
+        "integrating",
+        "flags-checagens-automaticas"
+      ]
+    },
+    {
+      "id": "flags-16",
+      "title": "16. Listing, envio, revisão e publicação",
+      "goal": "Publicar o app na Shopify App Store.",
+      "build": "1. Loja de demonstração bonita → screenshots do admin e da loja, ícone e vídeo do fluxo.\n2. Textos para o lojista (título *Selos de Oferta e Destaque*), categoria, preço manual igual ao código, instruções de teste para o revisor.\n3. Visibilidade *fully visible*.\n4. Instalação do zero numa loja limpa, assinatura de teste, desinstalação e reinstalação.\n5. Envio (01/10/2026). Durante a revisão, só correções de bug.\n6. Feedback 5.1.2 (badge na página de produto) e 1.2.2 (upgrade para o Pro): corrigidos e respondidos com vídeo de prova.\n7. Aprovado e publicado em 05/10/2026.",
+      "code": [],
+      "expected": "O app no ar: [apps.shopify.com/flags-product-badges](https://apps.shopify.com/flags-product-badges).",
+      "related": [
+        "app-store-launch",
+        "flags-imagens-e-listing",
+        "flags-revisao",
+        "flags-aprendizados"
+      ]
+    }
+  ]
+}

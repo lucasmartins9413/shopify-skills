@@ -1,0 +1,30 @@
+{
+  "id": "pagamentos-e-gateways",
+  "title": "Pagamentos e gateways",
+  "desc": "Como o dinheiro efetivamente muda de mãos numa compra online, o papel de um gateway de pagamento, e onde o Shopify Payments entra nisso.",
+  "plan": {
+    "objetivo": "Entender o papel de um gateway de pagamento, a diferença entre usar o Shopify Payments e um gateway de terceiros, e por que isso importa mesmo pra quem só programa (não mexe com dinheiro diretamente).",
+    "prereq": "O que é checkout",
+    "tempo": "20min",
+    "doc": "https://help.shopify.com/en/manual/payments",
+    "steps": [
+      {
+        "title": "Entenda o que um gateway de pagamento realmente faz.",
+        "detail": "Um **gateway de pagamento** é o intermediário que pega os dados do cartão (ou pix, boleto, carteira digital) informados no checkout e conversa com bancos e bandeiras pra aprovar ou recusar a cobrança — em segundos. A loja nunca processa o pagamento \"sozinha\"; ela sempre depende de um gateway autorizado fazendo essa ponte com o sistema financeiro.\n\nNa prática, isso significa que toda loja Shopify precisa ter pelo menos um **provedor de pagamento** configurado antes de conseguir vender de verdade — sem isso, o checkout até carrega, mas nenhuma cobrança é concluída.",
+        "advanced": "\"Gateway recusou o pagamento\" pode significar coisas bem diferentes: cartão sem limite, dado divergente, ou o próprio banco emissor bloqueando por suspeita de fraude — do lado da loja, geralmente só se vê um código de erro genérico, sem saber qual das três aconteceu."
+      },
+      {
+        "title": "Diferencie Shopify Payments de um gateway de terceiros.",
+        "detail": "**Shopify Payments** é o gateway da própria Shopify, disponível nos mercados onde ela opera diretamente. Usá-lo simplifica bastante a operação: uma única conta, taxas mais previsíveis, e integração nativa com todo o resto do admin (pedidos, reembolsos, disputas aparecem no mesmo lugar).\n\nQuando Shopify Payments não está disponível (por país) ou o merchant já tem um provedor preferido, a loja usa um **gateway de terceiros** (ex: um processador local) — nesse caso, normalmente há uma taxa adicional cobrada pela Shopify, justamente porque a transação não passa pelo sistema de pagamento que ela mesma opera.",
+        "advanced": "Ao herdar um projeto de loja já existente, sempre confira qual gateway está ativo antes de mexer em fluxo de pagamento ou reembolso — o comportamento de apps e automações de pagamento pode variar dependendo se é Shopify Payments ou um gateway de terceiros."
+      },
+      {
+        "title": "Reconheça outras formas de pagamento que aparecem no checkout além de cartão.",
+        "detail": "Dependendo do mercado e da configuração da loja, o checkout pode oferecer, além de cartão de crédito/débito:\n\n- **Carteiras digitais** (Shop Pay, Apple Pay, Google Pay) — preenchem dado salvo automaticamente, reduzindo fricção;\n- **Métodos locais** (pix e boleto no Brasil, por exemplo) — essenciais em mercados onde cartão não é o método dominante;\n- **Compre agora, pague depois** (\"buy now, pay later\") — parcelamento oferecido por um provedor externo, aparecendo como mais uma opção dentro do checkout.\n\nCada método adicional geralmente exige configuração própria no admin, e nem todos estão disponíveis em todo país — vale nunca assumir que \"pix\" ou \"Apple Pay\" vão aparecer automaticamente sem checar a configuração da loja específica.",
+        "advanced": "Shop Pay é exclusivo do ecossistema Shopify e costuma converter melhor que cartão digitado manualmente, justamente por eliminar a etapa de preencher dado — é um dos argumentos comerciais mais usados pra convencer um merchant a migrar pra Shopify Payments."
+      }
+    ]
+  },
+  "categoryId": "fundamentos",
+  "categoryLabel": "Fundamentos de Ecommerce"
+}

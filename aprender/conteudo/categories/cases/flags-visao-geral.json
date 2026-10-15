@@ -1,0 +1,33 @@
+{
+  "id": "flags-visao-geral",
+  "title": "Case Flags: o app e a linha do tempo",
+  "desc": "O que é o Flags: Product Badges, a stack escolhida e como foram os 23 dias entre o primeiro commit e o app publicado na App Store.",
+  "plan": {
+    "objetivo": "Entender o case inteiro antes de entrar nos detalhes: o que o app faz, como ele foi montado e em que ordem as coisas aconteceram até a publicação.\n\nApp publicado: [Flags: Product Badges na Shopify App Store](https://apps.shopify.com/flags-product-badges).",
+    "prereq": "Nenhum. Este é o ponto de partida da trilha.",
+    "tempo": "20min",
+    "doc": "https://apps.shopify.com/flags-product-badges",
+    "steps": [
+      {
+        "title": "O produto: badges de produto editáveis, sem mexer no código do tema.",
+        "detail": "O Flags deixa o lojista criar selos como **Oferta**, **Novo** e **Pouco estoque** e escolher em quais produtos eles aparecem. A badge é exibida em cima da imagem nos cards de coleção e acima do título na página de produto.\n\n- **Condições de exibição:** tag do produto, coleção, estoque baixo ou produtos específicos.\n- **Visual:** 8 formatos (retângulo, pílula, contorno, etiqueta, bandeira, faixa de canto, círculo, selo), cores, gradiente, borda, sombra e animações.\n- **12 presets** prontos e preview ao vivo do card e da página de produto antes de salvar.\n\nNa App Store o listing ficou em pt-BR com o título **Selos de Oferta e Destaque**, na categoria *Store design → Animation and effects*. O nome do app no Partner Dashboard é **Flags: Product Badges**."
+      },
+      {
+        "title": "A stack: template Remix da Shopify, Postgres e hospedagem na Railway.",
+        "detail": "- **Admin embutido:** Remix + Polaris + App Bridge (`@shopify/shopify-app-remix`).\n- **Banco:** Prisma com PostgreSQL (sessões, flags e configurações da loja).\n- **Loja virtual:** theme app extension com um **app embed** (`target: body`) que carrega `flags.js` e `flags.css`.\n- **Dados na loja:** App Proxy (`/apps/flags`) que devolve as flags ativas, com cache.\n- **Hospedagem:** Railway (serviço web + Postgres), deploy direto da pasta local.\n- **Cobrança:** Billing API com planos Free, Basic (US$ 5) e Pro (US$ 12), 7 dias de trial.",
+        "code": "flags-app/\n├── app/\n│   ├── routes/          # admin (app.*), proxy (apps.flags), webhooks, privacy\n│   ├── components/      # FlagForm, BadgePreview, ProductMockup, ColorField\n│   ├── lib/             # badge.js, presets.js, plans.js\n│   ├── models/          # flags, billing, metafields, theme, offline-tokens\n│   └── shopify.server.js\n├── extensions/flags/    # theme app extension (app embed)\n│   ├── blocks/product-flag.liquid\n│   └── assets/flags.js, flags.css\n├── prisma/schema.prisma\n└── shopify.app.toml"
+      },
+      {
+        "title": "Linha do tempo: do primeiro commit à publicação.",
+        "detail": "1. **12/09/2026:** primeiro commit. MVP com editor de flags, condições, theme extension e App Proxy.\n2. **30/09:** editor novo (formatos, presets, preview), planos e tela de cobrança, banners do admin. No mesmo dia: preparação para a App Store (webhooks de privacidade, política de privacidade, upgrade das libs, tokens que expiram, cobrança de teste em development stores). Listing preenchido com textos, screenshots e vídeo.\n3. **01/10:** checagens de App Bridge e session tokens ficam verdes; a de theme app extensions continua falhando e o `shopify.extension.toml` é migrado. App enviado para revisão (referência 139025) e visibilidade trocada para *fully visible*.\n4. **02/10:** primeira resposta da revisão com dois problemas (5.1.2 e 1.2.2). Correções no `flags.js` para o tema Horizon, na consulta de plano e nos webhooks. Vídeos de prova gravados e enviados ao revisor.\n5. **05/10:** app aprovado e publicado."
+      },
+      {
+        "title": "Como seguir esta trilha.",
+        "detail": "Cada tópico seguinte cobre uma fase, na ordem em que ela aconteceu: criação do app, extensão de tema, cobrança, preparação técnica, imagens e listing, checagens automáticas, revisão e, por fim, os aprendizados. Os erros aparecem dentro da fase em que surgiram, com o sintoma, a causa e a correção.\n\nPara reconstruir o app etapa por etapa, com o código de cada parte, use o projeto **Flags: Product Badges** em Projetos.",
+        "advanced": "Os trechos de código são do repositório do Flags (Remix + Prisma + Railway). Se o seu app usa React Router 7 (o template atual da Shopify), os nomes de pacote mudam (`@shopify/shopify-app-react-router`), mas as configurações de `shopifyApp()` e as lições são as mesmas."
+      }
+    ]
+  },
+  "categoryId": "cases",
+  "categoryLabel": "Cases reais"
+}

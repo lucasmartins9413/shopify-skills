@@ -1,0 +1,76 @@
+{
+  "id": "graphql",
+  "title": "GraphQL",
+  "desc": "Aprenda a escrever queries e mutations em GraphQL e migre da REST Admin API.",
+  "plan": {
+    "objetivo": "Escrever queries e mutations GraphQL com confiança, entender o modelo de custo/rate limit da Admin API, e saber por que a Shopify migrou de REST pra GraphQL como padrão.",
+    "prereq": "Authentication",
+    "tempo": "5h",
+    "doc": "https://shopify.dev/docs/apps/build/graphql",
+    "steps": [
+      {
+        "title": "Entenda por que a Admin API é GraphQL, não REST.",
+        "detail": "Numa API REST tradicional, cada tipo de recurso tem seu próprio endpoint fixo (`/products`, `/orders`), e cada chamada devolve um formato de resposta pré-definido, geralmente com **mais campos do que você precisa** (over-fetching) ou exigindo múltiplas chamadas pra montar uma tela completa (under-fetching, tipo buscar o produto e depois, numa segunda chamada, suas variantes).\n\n**GraphQL** resolve os dois problemas com um único endpoint (`/admin/api/<versão>/graphql.json`), onde você declara exatamente quais campos quer, de quais recursos relacionados, numa única requisição. Isso reduz tanto a quantidade de chamadas de rede quanto o volume de dados trafegado — importante especialmente em apps embutidos, rodando dentro de um iframe com recursos e tempo de carregamento limitados.",
+        "advanced": "A Admin REST API ainda existe e funciona pra apps antigos, mas está em modo de manutenção — a Shopify recomenda GraphQL pra qualquer app novo, e algumas funcionalidades mais recentes da plataforma **só** são expostas via GraphQL, nunca chegando à REST API."
+      },
+      {
+        "title": "Abra o Admin API Explorer (GraphiQL) da sua dev store.",
+        "detail": "O GraphiQL é uma interface interativa pra explorar o schema completo, escrever queries com autocomplete e ver a documentação de cada campo sem sair do navegador. Acesse via `/admin/api/<versão>/graphql.json` na sua dev store, ou pelo GraphiQL que o Shopify CLI expõe durante `shopify app dev`.",
+        "advanced": "Cada campo de uma query consome **cost** do rate limit (visto em detalhe no passo sobre `extensions.cost` mais abaixo) — queries profundas demais (muitos níveis de objetos aninhados) podem estourar o limite antes mesmo de rodar."
+      },
+      {
+        "title": "Escreva sua primeira query: buscar produtos com campos específicos.",
+        "detail": "Uma **query** busca dados sem alterar nada na loja. Declare exatamente os campos que você precisa — nada mais, nada menos.",
+        "code": "query {\n  products(first: 5) {\n    nodes {\n      id\n      title\n      totalInventory\n    }\n  }\n}"
+      },
+      {
+        "title": "Escreva sua primeira mutation: criar um produto e tratar `userErrors`.",
+        "detail": "Uma **mutation** grava dados. Diferente de queries, toda mutation da Admin API segue um padrão consistente: ela sempre retorna um bloco `userErrors`, que você **deve** checar mesmo quando a chamada retorna sucesso HTTP — a API pode devolver status 200 com erros de validação de negócio dentro do próprio payload (ex: \"título não pode ficar em branco\").",
+        "code": "mutation {\n  productCreate(input: {title: \"Teste\"}) {\n    product { id }\n    userErrors { field message }\n  }\n}",
+        "advanced": "Sempre trate `userErrors` mesmo quando a mutation \"funciona\" — ignorar esse bloco é uma das causas mais comuns de bugs silenciosos em apps Shopify: o código segue como se tivesse dado certo, mas o produto nunca foi de fato criado."
+      },
+      {
+        "title": "Use variáveis em vez de valores hardcoded na query.",
+        "detail": "Em código real, você nunca escreve o valor direto dentro da string da query (abre brecha pra injeção e dificulta reuso) — declare variáveis tipadas na query e passe os valores separadamente.",
+        "code": "mutation CreateProduct($input: ProductInput!) {\n  productCreate(input: $input) {\n    product { id }\n    userErrors { field message }\n  }\n}\n\n// variáveis:\n{ \"input\": { \"title\": \"Camiseta\" } }"
+      },
+      {
+        "title": "Compare com a chamada REST equivalente para entender a migração.",
+        "detail": "REST usa endpoints fixos por recurso, com resposta em formato pré-definido; GraphQL usa um único endpoint e você escolhe exatamente os campos que precisa. Migrar um app de REST pra GraphQL geralmente significa: trocar múltiplos endpoints por queries/mutations específicas, e adaptar o código que lia `response.body.product.id` (REST) pra ler `response.data.productCreate.product.id` (GraphQL).",
+        "advanced": "Versões de API são datadas (ex: `2025-01`) e depreciadas em cerca de 1 ano — fixe a versão no `shopify.app.toml` e planeje upgrades regulares, testando contra a versão nova antes que a antiga pare de funcionar."
+      },
+      {
+        "title": "Leia o bloco `extensions.cost` da resposta pra entender o rate limit.",
+        "detail": "Toda resposta da Admin GraphQL API traz um bloco `extensions.cost` com `requestedQueryCost`, `actualQueryCost` e `throttleStatus` (quanto do balde de pontos ainda está disponível) — use isso pra prever quando uma query começa a ser limitada, em vez de só reagir ao erro `THROTTLED` depois que ele já aconteceu.",
+        "code": "\"extensions\": {\n  \"cost\": {\n    \"requestedQueryCost\": 52,\n    \"actualQueryCost\": 47,\n    \"throttleStatus\": {\n      \"maximumAvailable\": 2000,\n      \"currentlyAvailable\": 1953,\n      \"restoreRate\": 100\n    }\n  }\n}",
+        "advanced": "`currentlyAvailable` se recupera a uma taxa fixa (`restoreRate` por segundo) — em loops com muitas chamadas seguidas, espace as queries ou migre pra uma **bulk operation** (uma única operação assíncrona que processa grandes volumes de dados) em vez de tentar calcular o balde na mão."
+      },
+      {
+        "title": "Projeto — escreva um fluxo completo de criar, ler e atualizar um produto.",
+        "detail": "Vamos consolidar tudo: uma mutation de criação, uma query de leitura confirmando o resultado, e uma mutation de atualização — o ciclo CRUD básico que praticamente todo app usa em algum ponto."
+      },
+      {
+        "title": "Projeto — passo 1: crie um produto com uma variável tipada.",
+        "detail": "No GraphiQL da sua dev store, rode a mutation de criação usando variáveis, e anote o `id` retornado.",
+        "code": "mutation CreateProduct($input: ProductInput!) {\n  productCreate(input: $input) {\n    product { id title }\n    userErrors { field message }\n  }\n}"
+      },
+      {
+        "title": "Projeto — passo 2: leia o produto criado, pedindo só os campos que interessam.",
+        "detail": "Usando o `id` anotado, escreva uma query pedindo título, status e a primeira variante — pratique escolher só o necessário, sem trazer o objeto inteiro.",
+        "code": "query GetProduct($id: ID!) {\n  product(id: $id) {\n    title\n    status\n    variants(first: 1) { nodes { id price } }\n  }\n}"
+      },
+      {
+        "title": "Projeto — passo 3: atualize o título do produto e confirme via `userErrors`.",
+        "detail": "Rode uma mutation de atualização, confirme que `userErrors` vem vazio, e rode a query de leitura de novo pra confirmar que o título mudou de fato.",
+        "code": "mutation UpdateProduct($input: ProductInput!) {\n  productUpdate(input: $input) {\n    product { title }\n    userErrors { field message }\n  }\n}"
+      },
+      {
+        "title": "Projeto — passo 4: verifique o custo acumulado das três chamadas.",
+        "detail": "Compare o `extensions.cost.actualQueryCost` das três operações — mutations tendem a custar mais que queries simples. Anote o total gasto do balde de pontos.",
+        "advanced": "Se você for repetir esse fluxo de teste muitas vezes seguidas durante o desenvolvimento, monitore `currentlyAvailable` pra não ser bloqueado por throttling no meio de uma sessão de testes."
+      }
+    ]
+  },
+  "categoryId": "data",
+  "categoryLabel": "Data and logic"
+}

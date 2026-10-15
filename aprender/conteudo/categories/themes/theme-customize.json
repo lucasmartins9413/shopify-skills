@@ -1,0 +1,76 @@
+{
+  "id": "theme-customize",
+  "title": "Customize a theme",
+  "desc": "Atualize o visual e a experiência de um tema existente para as necessidades do merchant.",
+  "plan": {
+    "objetivo": "Aplicar tudo que foi visto na trilha até aqui num cenário realista: pegar um tema de terceiro já publicado numa loja e customizá-lo com segurança, sem quebrar o que já funciona.",
+    "prereq": "Build a new theme",
+    "tempo": "3h",
+    "doc": "https://shopify.dev/docs/storefronts/themes/getting-started/customize",
+    "steps": [
+      {
+        "title": "Entenda por que customizar é diferente de construir do zero.",
+        "detail": "Até aqui, a trilha construiu conhecimento sobre um tema que você mesmo criou, arquivo por arquivo. Na vida real, boa parte do trabalho de tema é o oposto: pegar um tema de terceiro (comprado na Theme Store, ou herdado de outro desenvolvedor) já publicado, com merchants reais usando, e fazer ajustes **sem entender 100% do código de antemão**.\n\nIsso muda a estratégia: em vez de escrever código do zero, você passa a maior parte do tempo **lendo** código de outra pessoa, entendendo convenções que não escolheu, e sendo bem mais conservador nas mudanças — o raio de impacto de um erro é maior, porque já existe gente comprando naquela loja.",
+        "advanced": "Antes de qualquer mudança num tema de produção, confirme com o cliente/merchant se existe uma janela de baixo tráfego pra fazer o deploy, mesmo publicando como tema não publicado primeiro — hábito básico de gestão de risco que vale a pena adotar desde já."
+      },
+      {
+        "title": "Baixe o código com `shopify theme pull`, com cuidado.",
+        "detail": "Use `theme pull` apontando o ID do tema específico que você vai customizar — nunca confie no comportamento padrão (que baixa o tema publicado) sem antes confirmar que é exatamente esse o tema que você quer, especialmente se a loja tiver múltiplos temas na biblioteca.",
+        "code": "shopify theme list --store=loja-do-cliente.myshopify.com\nshopify theme pull --theme=<id> --store=loja-do-cliente.myshopify.com",
+        "advanced": "`theme pull` sem `--theme` baixa o tema publicado por padrão — cuidado extra ao rodar isso num projeto que já tem mudanças locais não commitadas, porque ele sobrescreve arquivos locais sem aviso de conflito detalhado."
+      },
+      {
+        "title": "Identifique a section ou template certo antes de mexer em qualquer código.",
+        "detail": "Em vez de abrir arquivos aleatoriamente tentando adivinhar onde algo está, use a própria interface do editor de temas no admin: clique no elemento que você precisa mudar, veja o nome da section que aparece selecionada no painel lateral, e só então vá procurar esse arquivo no código local.",
+        "advanced": "Diffs grandes e inesperados em `settings_data.json` depois de um `theme pull` geralmente são só o editor registrando interações do merchant (reordenações, ajustes de settings) — não é necessariamente um bug seu, mas vale revisar o diff pra ter certeza."
+      },
+      {
+        "title": "Leia o schema antes de tocar no HTML/Liquid.",
+        "detail": "Ao entrar numa section desconhecida, leia o `{% schema %}` primeiro, de baixo pra cima — ele te diz rapidamente quais settings e blocks já existem, evitando que você adicione uma variável nova quando na verdade já existe um setting pronto fazendo o que você precisa, só com um nome que você não esperava.",
+        "advanced": "Temas comprados na Theme Store costumam ter schemas bem mais extensos que os temas que você constrói do zero pra aprender — reserve tempo real pra essa leitura antes de estimar quanto tempo uma customização vai levar."
+      },
+      {
+        "title": "Faça a alteração isolada num arquivo, evitando efeitos colaterais.",
+        "detail": "Prefira sempre a mudança de menor escopo possível: um setting novo numa section específica, em vez de uma mudança em `theme.liquid` ou num snippet muito reutilizado, quando o problema puder ser resolvido de forma isolada. Isso reduz drasticamente a superfície de teste necessária antes do deploy.",
+        "advanced": "Se a mudança pedida realmente exige tocar num arquivo de alto impacto (layout, um snippet usado em 10 lugares), documente explicitamente pro cliente que o teste vai precisar cobrir todos os pontos afetados, não só o que motivou o pedido original."
+      },
+      {
+        "title": "Sempre teste no preview local antes de subir pra loja real.",
+        "detail": "`theme dev` deve ser o único lugar onde você experimenta livremente. Só depois de validado ali é que faz sentido considerar subir pra loja — e mesmo assim, como um tema não publicado, nunca sobrescrevendo o tema ao vivo diretamente.",
+        "code": "shopify theme dev --store=loja-do-cliente.myshopify.com",
+        "advanced": "Prefira sempre `theme push --unpublished` a editar direto o tema ao vivo, mesmo em ajustes que parecem triviais (\"só trocar uma cor\") — o custo de rodar esse passo extra é baixo comparado ao risco de um erro de digitação afetar clientes reais em produção."
+      },
+      {
+        "title": "Projeto — customize um tema Dawn clonado como se fosse um pedido real de cliente.",
+        "detail": "Vamos simular um pedido de customização típico: adicionar um selo de \"Frete grátis\" configurável acima do botão de compra, na página de produto, num tema que você não escreveu."
+      },
+      {
+        "title": "Projeto — passo 1: clone o Dawn como se fosse o tema do cliente.",
+        "detail": "Se ainda não tem, clone o Dawn — ele serve bem como \"tema de terceiro\" pra esse exercício, já que você não o escreveu do zero.",
+        "code": "shopify theme init tema-cliente --clone-url https://github.com/Shopify/dawn.git\ncd tema-cliente"
+      },
+      {
+        "title": "Projeto — passo 2: use o editor de temas pra localizar a section certa.",
+        "detail": "Suba o `theme dev`, abra uma página de produto no editor, clique na área do botão de compra, e anote o nome exato da section selecionada no painel lateral.",
+        "code": "shopify theme dev --store=sua-loja-dev.myshopify.com"
+      },
+      {
+        "title": "Projeto — passo 3: leia o schema dessa section e adicione o novo setting.",
+        "detail": "Abra o arquivo correspondente, leia o schema existente por completo, e adicione um `checkbox` novo pra controlar a exibição do selo, seguindo exatamente as mesmas convenções de nomenclatura já usadas nos settings vizinhos.",
+        "code": "{\n  \"type\": \"checkbox\",\n  \"id\": \"show_free_shipping_badge\",\n  \"label\": \"Mostrar selo de frete grátis\",\n  \"default\": false\n}"
+      },
+      {
+        "title": "Projeto — passo 4: adicione o HTML condicional no ponto certo, sem reescrever o resto do arquivo.",
+        "detail": "Insira o trecho novo exatamente onde o cliente pediu (acima do botão de compra), sem reformatar ou \"melhorar\" outras partes do arquivo que não fazem parte do pedido — mudanças fora de escopo dificultam a revisão de quem vai aprovar essa customização.",
+        "code": "{% if section.settings.show_free_shipping_badge %}\n  <p class=\"badge badge--shipping\">Frete grátis</p>\n{% endif %}"
+      },
+      {
+        "title": "Projeto — passo 5: valide no preview e suba como tema não publicado.",
+        "detail": "Ligue e desligue o novo setting no editor pra confirmar que o comportamento é exatamente o pedido, depois suba como tema não publicado pra revisão do cliente.",
+        "code": "shopify theme push --unpublished --store=sua-loja-dev.myshopify.com"
+      }
+    ]
+  },
+  "categoryId": "themes",
+  "categoryLabel": "Temas (Storefronts)"
+}

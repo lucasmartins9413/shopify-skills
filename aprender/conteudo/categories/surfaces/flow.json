@@ -1,0 +1,63 @@
+{
+  "id": "flow",
+  "title": "Flow",
+  "desc": "Integre triggers, ações e templates na plataforma de automação da Shopify.",
+  "plan": {
+    "objetivo": "Entender o modelo de automação visual do Shopify Flow, integrar um trigger e uma action customizados do seu app, e montar um workflow de teste completo.",
+    "prereq": "App Home",
+    "tempo": "3h",
+    "doc": "https://shopify.dev/docs/apps/build/flow",
+    "steps": [
+      {
+        "title": "Entenda o que o Shopify Flow resolve, e onde seu app entra.",
+        "detail": "**Shopify Flow** é a plataforma de automação visual da Shopify — merchants montam workflows do tipo \"quando X acontece, faça Y\" através de um editor drag-and-drop, sem escrever código. Seu app pode participar desse sistema de duas formas:\n- fornecendo um **trigger** — um evento customizado que o merchant pode usar como ponto de partida de um workflow (ex: \"quando meu app detecta um aniversário de cliente\");\n- fornecendo uma **action** — um passo customizado que o workflow pode executar (ex: \"enviar uma mensagem via meu app\").\n\nIsso permite que a lógica do seu app se combine com toda a lógica nativa da Shopify e de outros apps dentro de um único workflow visual, sem você precisar construir sua própria interface de automação do zero.",
+        "advanced": "Pense em Flow como uma forma de expor **capacidades** do seu app pra automação sem exigir que o merchant entenda API ou código — é um investimento de UX que multiplica o valor percebido do app pra merchants não técnicos."
+      },
+      {
+        "title": "Defina um trigger customizado via `flowTriggerReceive`.",
+        "detail": "Triggers customizados são expostos via GraphQL Admin API através da mutation `flowTriggerReceive`, chamada pelo seu app no exato momento em que o evento de negócio acontece dentro da sua própria lógica (não é algo que a Shopify detecta sozinha — seu app é quem sabe quando o evento ocorreu, e avisa o Flow).",
+        "code": "mutation {\n  flowTriggerReceive(\n    body: \"{\\\"customer_id\\\": 123}\",\n    handle: \"birthday-detected\"\n  ) { userErrors { field message } }\n}",
+        "advanced": "Triggers customizados têm limite de payload e de frequência — não use pra eventos de altíssimo volume sem agregação prévia no seu próprio backend antes de notificar o Flow, já que cada chamada de trigger pode iniciar um workflow completo por merchant."
+      },
+      {
+        "title": "Registre o trigger/action como extension, declarando os campos de entrada.",
+        "detail": "A extension do tipo Flow Trigger ou Flow Action declara, no seu schema, quais campos de entrada aparecem no editor visual do Flow pro merchant configurar — por exemplo, um trigger de aniversário pode expor um campo \"quantos dias antes avisar\".",
+        "advanced": "Actions do Flow devem responder rápido (na casa de poucos segundos) ou o workflow do merchant trava esperando a resposta — se sua lógica de negócio for pesada, dispare-a de forma assíncrona e responda ao Flow imediatamente com um status de sucesso, processando o restante depois."
+      },
+      {
+        "title": "Crie um workflow de teste no Flow usando esse trigger.",
+        "detail": "No editor visual do Flow (Configurações → Apps e canais de vendas → Flow, ou pelo app Flow), monte a estrutura básica: **gatilho** (o trigger do seu app) → **condição** (opcional, ex: só se o cliente comprou nos últimos 30 dias) → **ação** (pode ser nativa da Shopify, como adicionar uma tag, ou também do seu app)."
+      },
+      {
+        "title": "Entenda que Flow roda de forma assíncrona, sem ordem garantida entre workflows.",
+        "detail": "Quando múltiplos workflows são disparados quase ao mesmo tempo (por exemplo, dois triggers diferentes acontecendo pro mesmo cliente em sequência rápida), a Shopify não garante a ordem de execução entre eles. Se sua lógica depende de uma sequência específica de eventos, isso precisa ser resolvido explicitamente no seu próprio backend (ex: guardando estado e checando pré-condições), não assumido como automático pelo Flow.",
+        "advanced": "Trate cada execução de workflow como potencialmente concorrente com outras — evite lógica que assume \"isso já rodou antes\" sem checar de fato o estado atual via API."
+      },
+      {
+        "title": "Projeto — implemente um trigger de \"cliente VIP\" e um workflow que reage a ele.",
+        "detail": "Vamos criar um cenário completo: seu app detecta que um cliente atingiu um total de compras que o qualifica como VIP, dispara um trigger customizado, e um workflow do Flow adiciona uma tag automaticamente."
+      },
+      {
+        "title": "Projeto — passo 1: gere a extension de Flow Trigger.",
+        "detail": "Rode o gerador escolhendo o tipo de trigger, e declare um campo de entrada simples (ex: valor mínimo de compra pra considerar VIP).",
+        "code": "shopify app generate extension\n# escolha \"Flow Trigger\""
+      },
+      {
+        "title": "Projeto — passo 2: dispare o trigger a partir de uma rota do seu app.",
+        "detail": "Simule a detecção do evento chamando `flowTriggerReceive` a partir de uma action do app (por exemplo, um botão \"Simular cliente VIP\" numa tela de teste).",
+        "code": "await admin.graphql(`#graphql\n  mutation {\n    flowTriggerReceive(\n      body: \"{\\\"customer_id\\\": \\\"gid://shopify/Customer/1\\\"}\",\n      handle: \"vip-customer-detected\"\n    ) { userErrors { field message } }\n  }`);"
+      },
+      {
+        "title": "Projeto — passo 3: monte o workflow no editor do Flow.",
+        "detail": "Crie um novo workflow escolhendo seu trigger customizado como gatilho, e adicione a ação nativa \"Adicionar tag ao cliente\", configurando a tag como \"vip\"."
+      },
+      {
+        "title": "Projeto — passo 4: dispare o trigger de teste e confirme a tag aplicada.",
+        "detail": "Acione o botão de simulação criado no passo 2, aguarde o processamento assíncrono do Flow, e confirme no admin que o cliente de teste recebeu a tag \"vip\" automaticamente.",
+        "advanced": "Se a tag não aparecer imediatamente, aguarde alguns instantes antes de investigar — a execução de workflows no Flow não é instantânea, e uma checagem prematura pode parecer uma falha que na verdade é só latência normal de processamento assíncrono."
+      }
+    ]
+  },
+  "categoryId": "surfaces",
+  "categoryLabel": "Surfaces"
+}

@@ -1,0 +1,72 @@
+{
+  "id": "seo-robots-sitemap",
+  "title": "robots.txt e sitemap.xml",
+  "desc": "Customize o robots.txt com os objects nativos do Liquid — e entenda por que o sitemap.xml não é customizável.",
+  "plan": {
+    "objetivo": "Entender a diferença entre robots.txt (customizável via Liquid) e sitemap.xml (fixo, gerado pela plataforma), e customizar regras de rastreamento com segurança usando os objects nativos.",
+    "prereq": "Fundamentos de SEO para e-commerce",
+    "tempo": "3h",
+    "doc": "https://shopify.dev/docs/storefronts/themes/seo/robots-txt",
+    "steps": [
+      {
+        "title": "Entenda a diferença fundamental entre os dois arquivos.",
+        "detail": "Os dois arquivos respondem perguntas diferentes pros crawlers de busca:\n- **`robots.txt`** — \"quais partes do site você **pode** visitar?\" — um conjunto de regras de permissão/bloqueio por user-agent (Googlebot, Bingbot, etc.).\n- **`sitemap.xml`** — \"aqui está a **lista completa** de URLs que existem e merecem ser indexadas\" — um mapa do site, não uma regra de acesso.\n\nNa Shopify, **`sitemap.xml` é gerado automaticamente e não é customizável** — não existe um template Liquid pra ele, ele reflete direto o catálogo/conteúdo publicado da loja e se atualiza sozinho. Já o `robots.txt` **é customizável**, através de um template Liquid dedicado — e é nisso que este tópico foca."
+      },
+      {
+        "title": "Crie o template `robots.txt.liquid` — mas confirme o contexto antes.",
+        "detail": "Pra customizar as regras, crie um arquivo `templates/robots.txt.liquid` no seu tema (pelo editor de código, menu de contexto da pasta Templates). A partir daí, o Liquid expõe objects específicos pra montar as regras de forma estruturada, em vez de escrever texto solto.",
+        "advanced": "Guarde esse detalhe pro tópico final da trilha (checklist de Theme Store): temas submetidos à Theme Store **não podem** incluir um `robots.txt.liquid` customizado — é um requisito explícito de reprovação. Customização de robots.txt é uma ferramenta pra lojas com temas privados/customizados, não pra temas que serão vendidos na Theme Store."
+      },
+      {
+        "title": "Conheça os seis objects disponíveis nesse template.",
+        "detail": "O template `robots.txt.liquid` tem acesso a objects específicos, só disponíveis nesse contexto: `robots` (o conjunto completo de regras), `group` (um agrupamento de regras por user-agent), `rule` (uma regra individual dentro de um grupo), `user_agent` (o crawler ao qual o grupo se aplica), `sitemap` (URL do sitemap a declarar) e `request` (informação da requisição atual, útil pra lógica por domínio)."
+      },
+      {
+        "title": "Adicione uma regra nova a um grupo existente, sem substituir tudo.",
+        "detail": "Em vez de reescrever o arquivo do zero (arriscado — fácil de remover sem querer uma regra que a Shopify já cuidava por padrão), itere sobre os grupos padrão (`robots.default_groups`) e **adicione** uma regra condicional a um grupo específico. O exemplo abaixo bloqueia páginas com parâmetro de busca interna (`?q=`) só no grupo que aplica a **todos** os crawlers (`user_agent.value == '*'`).",
+        "code": "{% for group in robots.default_groups %}\n  {%- for rule in group.rules -%}\n    {{ rule }}\n  {%- endfor -%}\n\n  {%- if group.user_agent.value == '*' -%}\n    Disallow: /*?q=*\n  {%- endif -%}\n\n  Sitemap: {{ sitemap }}\n{% endfor %}",
+        "advanced": "Preferir sempre iterar sobre os grupos/regras padrão (em vez de escrever tudo manualmente) é o que a documentação oficial chama de \"fortemente recomendado\" — isso garante que você herda automaticamente qualquer ajuste que a própria Shopify fizer nos defaults, sem precisar replicar manualmente."
+      },
+      {
+        "title": "Bloqueie um caminho só num domínio específico, usando `request.host`.",
+        "detail": "Em lojas com múltiplos domínios por mercado (Shopify Markets), pode ser necessário aplicar uma regra só num domínio específico — por exemplo, bloquear uma versão de idioma que não deveria ser indexada naquele domínio. O object `request.host` permite essa lógica condicional.",
+        "code": "{% if request.host == 'loja.fr' %}\n  Disallow: /en/\n{% endif %}"
+      },
+      {
+        "title": "Remova uma regra padrão específica, quando realmente necessário.",
+        "detail": "Pra remover (em vez de adicionar) uma regra padrão, filtre pelo `directive` e `value` da regra dentro do loop, pulando-a com `unless` — usado com moderação, já que remover uma regra padrão da Shopify é uma decisão que deveria ter uma razão de negócio clara e documentada.",
+        "code": "{% for rule in group.rules %}\n  {% unless rule.directive == 'Disallow' and rule.value == '/some-path' %}\n    {{ rule }}\n  {% endunless %}\n{% endfor %}"
+      },
+      {
+        "title": "Adicione regras totalmente customizadas, fora do loop padrão.",
+        "detail": "Pra bloquear ou permitir um crawler específico por completo, ou declarar um sitemap adicional, escreva as linhas manualmente, fora do loop de `default_groups`.",
+        "code": "User-agent: crawler-indesejado\nDisallow: /\n\nUser-agent: Googlebot\nAllow: /\n\nSitemap: https://sua-loja.com/sitemap.xml"
+      },
+      {
+        "title": "Projeto — customize o robots.txt bloqueando resultados de busca interna, preservando o resto.",
+        "detail": "Vamos implementar exatamente o cenário mais comum de customização: impedir que URLs de busca interna (`?q=`) sejam rastreadas, sem perder nenhuma regra padrão da Shopify."
+      },
+      {
+        "title": "Projeto — passo 1: crie o template `robots.txt.liquid`.",
+        "detail": "Pelo editor de código do tema, crie o arquivo em `templates/robots.txt.liquid`, começando só com o loop padrão (sem nenhuma regra extra ainda), pra confirmar que o comportamento default continua idêntico.",
+        "code": "{% for group in robots.default_groups %}\n  {%- for rule in group.rules -%}{{ rule }}{%- endfor -%}\n  Sitemap: {{ sitemap }}\n{% endfor %}"
+      },
+      {
+        "title": "Projeto — passo 2: confirme que o robots.txt renderizado bate com o padrão anterior.",
+        "detail": "Acesse `/robots.txt` no preview e compare com o comportamento anterior — nesse ponto, nada deveria ter mudado, já que você só reimplementou o default explicitamente.",
+        "code": "https://sua-loja-dev.myshopify.com/robots.txt"
+      },
+      {
+        "title": "Projeto — passo 3: adicione a regra de bloqueio de busca interna.",
+        "detail": "Insira a condicional `Disallow: /*?q=*` dentro do grupo que se aplica a todos os crawlers, como mostrado na teoria deste tópico."
+      },
+      {
+        "title": "Projeto — passo 4: recarregue e confirme que a nova regra aparece, sem quebrar as demais.",
+        "detail": "Acesse `/robots.txt` de novo e confirme visualmente: a regra nova (`Disallow: /*?q=*`) aparece, e todas as regras padrão continuam presentes e intactas.",
+        "advanced": "Guarde este template — ele é o ponto de partida mais seguro pra qualquer customização futura de robots.txt: sempre partindo do loop padrão intacto, adicionando por cima, nunca reescrevendo do zero."
+      }
+    ]
+  },
+  "categoryId": "seo",
+  "categoryLabel": "SEO"
+}

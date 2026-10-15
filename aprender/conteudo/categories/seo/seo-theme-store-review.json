@@ -1,0 +1,71 @@
+{
+  "id": "seo-theme-store-review",
+  "title": "Checklist de SEO pra Theme Store",
+  "desc": "Os requisitos reais de SEO da revisão da Theme Store — incluindo a regra que pega muita gente de surpresa: robots.txt.liquid é proibido.",
+  "plan": {
+    "objetivo": "Consolidar tudo visto na trilha num checklist de revisão real, cruzando com os requisitos oficiais de SEO da Theme Store — incluindo a exigência (pouco conhecida) que proíbe robots.txt.liquid customizado.",
+    "prereq": "SEO em storefronts headless (Hydrogen)",
+    "tempo": "2h",
+    "doc": "https://shopify.dev/docs/storefronts/themes/store/requirements",
+    "steps": [
+      {
+        "title": "Entenda que a Theme Store tem uma seção de requisitos dedicada exclusivamente a SEO.",
+        "detail": "Diferente de boa parte dos requisitos de qualidade (performance, acessibilidade), que são avaliados de forma mais geral, a revisão da Theme Store tem uma **seção específica de SEO** no checklist oficial — o que sinaliza o quanto a Shopify considera isso crítico pra um tema ser aprovado pra venda. Os itens dessa seção não são sugestões, são requisitos bloqueantes de aprovação."
+      },
+      {
+        "title": "Requisito 1 — o snippet de metadata SEO é obrigatório.",
+        "detail": "A exigência textual da documentação: *\"Themes must contain the theme SEO metadata code snippet with the title, meta description, and canonical URL.\"* — ou seja, exatamente os três elementos implementados no tópico \"Metadata de SEO no tema\" desta trilha (`page_title`, `page_description`, `canonical_url`) são obrigatórios, não opcionais, pra qualquer tema submetido.",
+        "advanced": "Reaproveite diretamente o bloco de código do tópico de Metadata como checklist de conformidade aqui — se seu `theme.liquid` já tem os três elementos implementados exatamente como mostrado lá, esse requisito específico já está atendido."
+      },
+      {
+        "title": "Requisito 2 — rich product snippets são obrigatórios, e precisam ser testados.",
+        "detail": "A exigência textual: *\"Themes must include Google's rich product snippets. To test your structured data, use Google's Structured Data Testing Tool.\"* — isso corresponde diretamente ao tópico \"Dados estruturados e rich snippets\" desta trilha: todo tema submetido precisa gerar `structured_data` de produto (e a Shopify espera que você tenha testado isso, não só implementado às cegas).",
+        "code": "https://search.google.com/test/rich-results"
+      },
+      {
+        "title": "Requisito 3 — robots.txt.liquid customizado é proibido (não opcional).",
+        "detail": "Esse é o requisito que mais pega desenvolvedores desprevenidos, porque contradiz a intuição de \"mais customização é melhor\": a exigência textual é *\"Themes must not include a robots.txt.liquid template.\"* — temas pra Theme Store **não podem** ter o template customizado visto no tópico \"robots.txt e sitemap.xml\" desta trilha.\n\nA razão prática: um tema vendido publicamente vai ser usado por milhares de merchants diferentes, com necessidades de rastreamento muito diferentes entre si — um robots.txt customizado e fixo no código do tema poderia bloquear crawlers de forma inadequada pra parte desses merchants, sem eles nem saberem. Customização de robots.txt fica reservada pra temas privados/sob encomenda, não pra temas de distribuição em massa.",
+        "advanced": "Se você desenvolveu um tema customizando o robots.txt seguindo o tópico anterior da trilha, e depois decide submetê-lo à Theme Store, **remova esse template antes de submeter** — é uma causa direta e garantida de rejeição."
+      },
+      {
+        "title": "Requisito 4 (adjacente) — o atributo `lang` no `<html>`.",
+        "detail": "Não está na seção de SEO propriamente dita, mas é diretamente relacionado (afeta tanto acessibilidade quanto rastreamento de idioma): *\"The `<html>` element must specify a `lang` attribute. The `lang` attribute value can be populated with the locale property of the request object.\"*",
+        "code": "<html lang=\"{{ request.locale.iso_code }}\">"
+      },
+      {
+        "title": "Requisito 5 (adjacente) — sempre use o object `routes` pra gerar URLs, nunca hardcode.",
+        "detail": "Também fora da seção de SEO nominal, mas com impacto direto nela: *\"You must use the routes object for generating dynamic URLs to your storefront... This ensures that your theme supports any changes that Shopify makes to the URL format.\"* — URLs hardcoded quebram silenciosamente se a Shopify um dia mudar algum padrão de rota, afetando diretamente canonical, hreflang e todo link interno do tema.",
+        "code": "<a href=\"{{ routes.cart_url }}\">Carrinho</a>\n<a href=\"{{ routes.all_products_collection_url }}\">Todos os produtos</a>"
+      },
+      {
+        "title": "Requisito 6 (adjacente, acessibilidade) — `alt` obrigatório em toda imagem de produto.",
+        "detail": "Também tecnicamente na seção de Acessibilidade do checklist, mas com sobreposição direta com SEO (texto alternativo é lido tanto por leitores de tela quanto por crawlers de imagem): *\"All images require the alt attribute. Themes must use image.alt or image_url | image_tag: alt: string for product images.\"*",
+        "code": "{{ product.featured_image | image_url: width: 800 | image_tag: alt: product.featured_image.alt }}"
+      },
+      {
+        "title": "Projeto — rode o checklist completo de SEO no tema construído ao longo da trilha.",
+        "detail": "Vamos percorrer, item por item, os seis requisitos (e adjacentes) contra o tema de trabalho usado nos tópicos anteriores desta trilha de SEO."
+      },
+      {
+        "title": "Projeto — passo 1: confirme os três elementos de metadata no `theme.liquid`.",
+        "detail": "Abra `layout/theme.liquid` e confirme visualmente a presença de `page_title`, `page_description` e `canonical_url`, exatamente como implementado no tópico de Metadata."
+      },
+      {
+        "title": "Projeto — passo 2: confirme e teste o `structured_data` de produto.",
+        "detail": "Confirme que a section de produto gera o schema via `{{ product | structured_data }}`, e valide no Rich Results Test — sem esse teste passar, o requisito não está de fato atendido, só \"tecnicamente presente\"."
+      },
+      {
+        "title": "Projeto — passo 3: confirme a ausência de `robots.txt.liquid` (ou remova, se existir).",
+        "detail": "Verifique se `templates/robots.txt.liquid` existe no projeto — se você seguiu o tópico anterior da trilha e criou esse arquivo, e o tema em questão é destinado à Theme Store, remova-o agora.",
+        "code": "ls templates/robots.txt.liquid 2>/dev/null && echo \"remover antes de submeter\" || echo \"OK, ausente\""
+      },
+      {
+        "title": "Projeto — passo 4: confirme `lang`, `routes` e `alt` nos três pontos certos.",
+        "detail": "Confira o atributo `lang` na tag `<html>`, confirme que links internos usam o object `routes` (não URLs escritas à mão), e confirme que a imagem principal de produto tem `alt` vindo de `image.alt`. Feche o projeto com os seis itens confirmados — esse é, literalmente, o checklist que reduz o risco de rejeição por SEO numa submissão real à Theme Store.",
+        "advanced": "Esse checklist complementa (não substitui) os tópicos \"Theme Check\" e \"Shopify Theme Store\" da trilha de Temas — rode também o Theme Check completo antes de qualquer submissão real, já que ele cobre categorias de requisito além de SEO."
+      }
+    ]
+  },
+  "categoryId": "seo",
+  "categoryLabel": "SEO"
+}

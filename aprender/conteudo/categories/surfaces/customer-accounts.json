@@ -1,0 +1,64 @@
+{
+  "id": "customer-accounts",
+  "title": "Customer accounts",
+  "desc": "Estenda as páginas de status do pedido e a experiência do cliente autenticado.",
+  "plan": {
+    "objetivo": "Entender a diferença entre a página de status do pedido e a conta do cliente, escolher o target certo entre contas novas e legadas, e lidar com dados sensíveis com o devido cuidado.",
+    "prereq": "Checkout",
+    "tempo": "3h",
+    "doc": "https://shopify.dev/docs/apps/build/customer-accounts",
+    "steps": [
+      {
+        "title": "Diferencie a página de status do pedido da conta do cliente.",
+        "detail": "São dois momentos distintos da jornada do comprador:\n- **Order status page** — a página que aparece **logo depois** de finalizar uma compra, mesmo pra compradores que fizeram checkout como convidado (sem criar conta). Mostra o resumo do pedido, rastreio, e é um ótimo lugar pra oferecer algo relacionado àquela compra específica (ex: upsell, programa de fidelidade).\n- **Conta do cliente (customer account)** — a área autenticada e persistente, onde o cliente logado vê seu histórico completo de pedidos, endereços salvos e dados de perfil, entre visitas diferentes.\n\nEscolher o tipo certo de extension depende de qual desses dois momentos faz sentido pro que você quer mostrar.",
+        "advanced": "Contas de cliente **novas** e **legadas** têm APIs e pontos de extensão diferentes — confirme qual a loja usa (Configurações → Contas de cliente, no admin) antes de escolher o target, já que uma extension pensada pro modelo novo não funciona automaticamente no legado, e vice-versa."
+      },
+      {
+        "title": "Gere a extension escolhendo entre order status e profile block.",
+        "detail": "O CLI pergunta qual tipo de extension gerar — order status page ou bloco de perfil/conta — e já cria o `target` correspondente no `shopify.extension.toml`.",
+        "code": "shopify app generate extension\n# escolha \"Customer account UI extension\"\n\ntarget = \"customer-account.order-status.block.render\""
+      },
+      {
+        "title": "Entenda por que essa é uma das superfícies mais sensíveis em termos de dados.",
+        "detail": "A conta do cliente concentra informação pessoal identificável (PII): nome completo, e-mail, telefone, endereços físicos, histórico de compras. Extensions que rodam aqui têm acesso potencial a esse tipo de dado — o que exige tratamento especial tanto tecnicamente (nunca logar PII em texto puro, nunca enviar pra serviços de terceiros sem consentimento claro) quanto em termos de aprovação da Shopify.",
+        "advanced": "Dados sensíveis do cliente (endereço, telefone) exigem **escopos de proteção de dados** aprovados separadamente pela Shopify, além dos escopos normais de API — declare e justifique isso explicitamente na submissão do app, não assuma que os escopos básicos já cobrem esse acesso."
+      },
+      {
+        "title": "Leia dados do cliente/pedido disponíveis no contexto da extension.",
+        "detail": "Assim como admin extensions recebem contexto sobre o recurso atual, customer account extensions recebem informação sobre o cliente logado e/ou o pedido em questão (na order status page), através de hooks/APIs específicas da extension.",
+        "code": "import { useCustomer, useOrder } from '@shopify/ui-extensions-react/customer-account';\n\nfunction Extension() {\n  const customer = useCustomer();\n  const order = useOrder();\n  // use com cuidado — são dados pessoais reais do comprador\n}"
+      },
+      {
+        "title": "Logue como cliente numa dev store, não como staff.",
+        "detail": "Faça login como **cliente** (não como staff no admin) na dev store pra ver a extension no contexto real do comprador — a visão de staff no admin não reproduz a experiência de conta de cliente, que é uma superfície completamente separada, com sua própria autenticação e layout.",
+        "advanced": "O `target` errado entre modelo de conta novo e legado é uma causa muito comum de extension \"invisível\" mesmo com código correto — se a extension não aparecer de jeito nenhum ao logar como cliente, esse é o primeiro ponto a revisar."
+      },
+      {
+        "title": "Projeto — construa um bloco de \"produtos recomendados\" na página de status do pedido.",
+        "detail": "Vamos criar uma extension simples de order status page, que sugere produtos relacionados logo após a compra — um padrão clássico de upsell pós-checkout."
+      },
+      {
+        "title": "Projeto — passo 1: gere a extension com o target de order status.",
+        "detail": "Rode o gerador escolhendo customer account UI extension, e confirme o target no toml.",
+        "code": "shopify app generate extension\n# target: customer-account.order-status.block.render"
+      },
+      {
+        "title": "Projeto — passo 2: leia os itens do pedido através do hook de pedido.",
+        "detail": "Use `useOrder` (ou equivalente do template gerado) pra ler quais produtos foram comprados nesse pedido específico.",
+        "code": "const order = useOrder();\nconst produtosComprados = order?.lineItems?.map(item => item.id) ?? [];"
+      },
+      {
+        "title": "Projeto — passo 3: busque produtos relacionados via Storefront API.",
+        "detail": "Com base nos produtos comprados, faça uma chamada à Storefront API (não à Admin API — essa extension roda no contexto do comprador, então usa a API pública) buscando produtos da mesma coleção ou com tags parecidas.",
+        "advanced": "Prefira a Storefront API (não a Admin) sempre que a extension rodar no contexto do comprador final, não do merchant — é a API desenhada especificamente pra esse tipo de acesso público e seguro."
+      },
+      {
+        "title": "Projeto — passo 4: renderize a lista e teste logado como cliente real.",
+        "detail": "Exiba os produtos sugeridos usando componentes nativos da extension, complete uma compra de teste na dev store, e confirme que o bloco aparece corretamente na página de status do pedido logo em seguida — logado como cliente, não como staff.",
+        "code": "shopify app dev --store=sua-loja-dev.myshopify.com"
+      }
+    ]
+  },
+  "categoryId": "surfaces",
+  "categoryLabel": "Surfaces"
+}

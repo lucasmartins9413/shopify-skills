@@ -1,0 +1,16 @@
+{
+  "id": "quality",
+  "label": "Quality",
+  "intro": "Siga as diretrizes da Shopify para performance, acessibilidade, segurança e conformidade.",
+  "topicCount": 8,
+  "topicIds": [
+    "performance",
+    "accessibility",
+    "localize",
+    "integrating",
+    "mobile",
+    "non-deceptive",
+    "compliance",
+    "security"
+  ]
+}

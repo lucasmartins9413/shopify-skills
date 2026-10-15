@@ -1,0 +1,70 @@
+{
+  "id": "functions-fulfillment",
+  "title": "Functions: fulfillment constraints e order routing",
+  "desc": "Controle de qual localização sai cada item: restrições de cumprimento e ranking de locais no roteamento de pedidos.",
+  "plan": {
+    "objetivo": "Entender as duas Functions que influenciam onde o pedido é atendido — Fulfillment Constraints (restrições) e Order Routing Location Rule (prioridades) — e quando usar cada uma.",
+    "prereq": "Shopify Functions",
+    "tempo": "3h",
+    "doc": "https://shopify.dev/docs/api/functions/latest/fulfillment-constraints",
+    "steps": [
+      {
+        "title": "Entenda o problema: de onde sai cada item?",
+        "detail": "Com várias localizações (depósitos, lojas físicas), a Shopify decide de qual local cada item sai. Por padrão isso segue regras do admin (proximidade, prioridade). Duas Functions permitem regras suas:\n\n- **Fulfillment Constraints** — *restrições rígidas*: \"esses itens **só** podem sair desses locais\" ou \"**tudo** precisa sair do mesmo local\".\n- **Order Routing Location Rule** — *ranking*: dá **prioridade** aos locais, sem proibir nenhum."
+      },
+      {
+        "title": "Fulfillment Constraints: target e operações.",
+        "detail": "Target: `cart.fulfillment-constraints.generate.run`. Duas operações:\n\n- **`deliverableLinesMustFulfillFromAdd`** — as linhas indicadas só podem sair dos locais listados.\n- **`deliverableLinesMustFulfillFromSameLocationAdd`** — as linhas indicadas precisam sair **do mesmo local**.",
+        "advanced": "Casos de uso reais: kits que precisam sair juntos, pedidos grandes só de depósito, evitar local sem capacidade e impedir que itens em promoção saiam de lojas físicas."
+      },
+      {
+        "title": "Registre a extensão e a input query.",
+        "detail": "A query pede as linhas entregáveis, os locais (com um metafield que os classifique) e a configuração da regra.",
+        "code": "[[extensions]]\nname = \"Regras de cumprimento\"\nhandle = \"regras-cumprimento\"\ntype = \"function\"\n\n  [[extensions.targeting]]\n  target = \"cart.fulfillment-constraints.generate.run\"\n  input_query = \"src/cart_fulfillment_constraints_generate_run.graphql\"\n  export = \"cart-fulfillment-constraints-generate-run\"\n\nquery CartFulfillmentConstraintsGenerateRunInput {\n  cart {\n    deliverableLines {\n      id\n    }\n  }\n  locations {\n    id\n    metafield(namespace: \"custom\", key: \"tipo\") {\n      value\n    }\n  }\n  fulfillmentConstraintRule {\n    metafield(namespace: \"$app:config\", key: \"limites\") {\n      jsonValue\n    }\n  }\n}"
+      },
+      {
+        "title": "Restrinja onde os itens podem sair.",
+        "detail": "Exemplo: acima de um limite de itens, o pedido só pode sair de locais marcados como \"depósito\". Abaixo do limite, devolve lista vazia de operações (sem restrição).",
+        "code": "// src/cart_fulfillment_constraints_generate_run.js\n// Pedidos com mais de N itens só saem de depósitos (não de lojas físicas).\nexport function cartFulfillmentConstraintsGenerateRun(input) {\n  const itemLimit = input.fulfillmentConstraintRule?.metafield?.jsonValue?.itemLimit ?? Infinity;\n\n  if (input.cart.deliverableLines.length <= itemLimit) {\n    return { operations: [] };\n  }\n\n  const depositos = input.locations\n    .filter((location) => location.metafield?.value === \"deposito\")\n    .map((location) => location.id);\n\n  return {\n    operations: [\n      {\n        deliverableLinesMustFulfillFromAdd: {\n          deliverableLineIds: input.cart.deliverableLines.map((line) => line.id),\n          locationIds: depositos,\n        },\n      },\n    ],\n  };\n}"
+      },
+      {
+        "title": "Exija o mesmo local.",
+        "detail": "Para kits e pedidos que não podem ser divididos, use a operação de \"mesmo local\".",
+        "code": "// \"tudo do mesmo lugar\": kits precisam sair juntos de uma única localização\n{\n  deliverableLinesMustFulfillFromSameLocationAdd: {\n    deliverableLineIds: input.cart.deliverableLines.map((line) => line.id),\n  },\n}",
+        "advanced": "**Restrições mutuamente exclusivas travam o checkout**: se uma regra exige o local A e outra exige o local B para as mesmas linhas, não há como atender. Teste combinações."
+      },
+      {
+        "title": "Limites e incompatibilidades.",
+        "detail": "- Até **25** Functions de fulfillment constraints por loja.\n- Incompatível com **pré-venda** e com alguns cenários de edição de pedido.\n- Depende de locais bem configurados no admin (com metafields que você consiga usar como critério)."
+      },
+      {
+        "title": "Order Routing Location Rule: o ranking.",
+        "detail": "Enquanto a restrição **proíbe**, o roteamento **prioriza**: você devolve, por grupo de fulfillment, uma lista de locais com um `rank` (número inteiro não negativo; **menor = maior prioridade**). Locais omitidos ficam por último. A Shopify escolhe o de maior prioridade.",
+        "code": "// Order Routing (Location Rule) — só Shopify Plus, sob solicitação.\n// target: cart.fulfillment-groups.location-rankings.generate.run\nexport function cartFulfillmentGroupsLocationRankingsGenerateRun(input) {\n  const operations = input.fulfillmentGroups.map((group) => {\n    // menor rank = maior prioridade; localizações omitidas ficam por último\n    const rankings = (group.inventoryLocationHandles ?? []).map((handle, index) => ({\n      locationHandle: handle,\n      rank: index,\n    }));\n\n    return {\n      fulfillmentGroupLocationRankingAdd: {\n        fulfillmentGroupHandle: group.handle,\n        rankings,\n      },\n    };\n  });\n\n  return { operations };\n}",
+        "advanced": "Target: `cart.fulfillment-groups.location-rankings.generate.run`. Esta API está **disponível sob solicitação apenas para lojas Shopify Plus** (beta) — não dá pra testar em qualquer dev store."
+      },
+      {
+        "title": "Quando usar cada uma.",
+        "detail": "- **Proibição** (\"nunca do local X\", \"sempre juntos\") → **Fulfillment Constraints**.\n- **Preferência** (\"prefira o depósito com estoque mais rotativo\", \"deprioritize o local lotado\") → **Order Routing**.\n\nRegra prática: se violar a regra faz o pedido **não poder existir**, é restrição; se só faz o pedido **ficar pior**, é ranking."
+      },
+      {
+        "title": "Projeto — regra de \"grandes pedidos só saem de depósito\".",
+        "detail": "Vai classificar locais por metafield e aplicar a restrição."
+      },
+      {
+        "title": "Projeto — passo 1: classifique os locais.",
+        "detail": "Em uma dev store com pelo menos duas localizações, crie o metafield de local `custom.tipo` e marque uma como \"deposito\" e outra como \"loja\"."
+      },
+      {
+        "title": "Projeto — passo 2: implemente e teste localmente.",
+        "detail": "Escreva a Function do passo 4 com limite configurado por metafield e rode `shopify app function run` com carrinhos de 2 e de 10 linhas: o segundo deve restringir aos depósitos."
+      },
+      {
+        "title": "Projeto — passo 3: valide no checkout.",
+        "detail": "Faça o deploy, ative a regra e finalize um pedido grande. No admin, confira em qual local o pedido foi atribuído."
+      }
+    ]
+  },
+  "categoryId": "data",
+  "categoryLabel": "Data and logic"
+}

@@ -1,0 +1,76 @@
+{
+  "id": "graphql-no-app",
+  "title": "GraphQL dentro do seu app",
+  "desc": "Como o template do app chama a Admin API: authenticate.admin, loaders e actions, tipos gerados com codegen, jobs em background e escopos.",
+  "plan": {
+    "objetivo": "Chamar a Admin API GraphQL de dentro do código do app com segurança: da rota do admin ao background job, com tipos gerados e os escopos corretos.",
+    "prereq": "GraphQL",
+    "tempo": "4h",
+    "doc": "https://shopify.dev/docs/api/shopify-app-react-router/latest/authenticate/admin",
+    "steps": [
+      {
+        "title": "Entenda o que authenticate.admin devolve.",
+        "detail": "No template do app, toda rota do admin começa com `authenticate.admin(request)`. Ele valida a requisição (o token de sessão que vem do admin), carrega a sessão da loja do banco e devolve o que você precisa: `admin` (cliente GraphQL já autenticado), `session` (loja e token) e `redirect`.",
+        "code": "import { authenticate } from \"../shopify.server\";\n\nexport const loader = async ({ request }) => {\n  const { admin, session } = await authenticate.admin(request);\n  // admin.graphql(...) já fala com a loja de session.shop\n  return null;\n};",
+        "advanced": "Se o token for inválido ou expirado, `authenticate.admin` lança uma resposta de redirect pro fluxo de reautenticação — por isso você **não** deve envolvê-lo num try/catch que engula a exceção."
+      },
+      {
+        "title": "Chame a Admin API com admin.graphql.",
+        "detail": "`admin.graphql(query, { variables })` devolve uma `Response` do fetch. Você precisa chamar `.json()` nela. O comentário `#graphql` no começo da string liga o realce de sintaxe no editor e o codegen.",
+        "code": "export const loader = async ({ request }) => {\n  const { admin } = await authenticate.admin(request);\n\n  const response = await admin.graphql(\n    `#graphql\n    query Products($first: Int!) {\n      products(first: $first) {\n        nodes { id title status }\n      }\n    }`,\n    { variables: { first: 10 } },\n  );\n\n  const { data } = await response.json();\n  return { products: data.products.nodes };\n};"
+      },
+      {
+        "title": "Separe leitura (loader) de escrita (action).",
+        "detail": "Convenção das rotas: o **loader** roda no servidor ao abrir a página e é o lugar das **queries**; a **action** recebe o envio de um formulário (POST) e é o lugar das **mutations**. Isso evita disparar mutation só por carregar a tela.",
+        "code": "export const action = async ({ request }) => {\n  const { admin } = await authenticate.admin(request);\n  const form = await request.formData();\n\n  const response = await admin.graphql(\n    `#graphql\n    mutation Rename($input: ProductInput!) {\n      productUpdate(input: $input) {\n        product { id title }\n        userErrors { field message }\n      }\n    }`,\n    { variables: { input: { id: form.get(\"id\"), title: form.get(\"title\") } } },\n  );\n\n  const { data } = await response.json();\n  return { errors: data.productUpdate.userErrors };\n};"
+      },
+      {
+        "title": "Dispare mutations do cliente com useFetcher.",
+        "detail": "Pra um botão que executa uma mutation sem trocar de página, use o `useFetcher` do React Router: ele envia pra `action` da rota, sem navegação, e te dá o estado (`state`) e o resultado (`data`).",
+        "code": "import { useFetcher } from \"react-router\";\n\nexport default function Page() {\n  const fetcher = useFetcher();\n  const saving = fetcher.state !== \"idle\";\n\n  return (\n    <button\n      disabled={saving}\n      onClick={() =>\n        fetcher.submit({ id: \"gid://shopify/Product/1\", title: \"Novo\" }, { method: \"POST\" })\n      }\n    >\n      Renomear\n    </button>\n  );\n}",
+        "advanced": "Mostre o `userErrors` retornado pela `action` ao lojista (via `fetcher.data`). Um botão que \"não faz nada\" porque a mutation falhou em silêncio é reclamação comum na revisão da App Store."
+      },
+      {
+        "title": "Gere tipos TypeScript com o codegen.",
+        "detail": "Sem tipos, `data.products.nodes` é `any`. O template inclui o **GraphQL codegen**: ele lê suas strings marcadas com `#graphql`, valida contra o schema real da Admin API e gera os tipos do resultado e das variáveis.",
+        "code": "# rodar uma vez (ou em modo watch)\nnpm run graphql-codegen\n\n# resultado: tipos gerados em app/types/*.d.ts\n# o admin.graphql passa a inferir data e variables automaticamente",
+        "advanced": "O codegen também **falha** se você digitou um campo que não existe. É um \"teste\" gratuito das suas queries contra o schema — vale rodar no CI. O nome exato do script pode variar por versão do template: confira o `package.json`."
+      },
+      {
+        "title": "Configure os escopos (access scopes) certos.",
+        "detail": "A Admin API só devolve o que o app tem permissão pra ver. Os escopos ficam no `shopify.app.toml`. Cada recurso tem um par `read_*`/`write_*` (`write_` inclui `read_`). Pedir escopo demais atrapalha a aprovação na App Store; pedir de menos dá `ACCESS_DENIED`.",
+        "code": "# shopify.app.toml\n[access_scopes]\nscopes = \"read_products,write_products,read_orders\"\n\n# depois de mudar, publique a configuração:\nshopify app deploy",
+        "advanced": "Ao aumentar os escopos, lojas que já instalaram precisam **aprovar de novo**. Com a instalação gerenciada (escopos declarados no toml) a Shopify pede a reaprovação no admin pra você."
+      },
+      {
+        "title": "Chame a API fora de uma rota do admin: webhooks e jobs.",
+        "detail": "Um webhook ou job agendado não tem lojista com a tela aberta, então não há token de sessão de admin. Pra webhooks, `authenticate.webhook` já devolve um `admin` se houver sessão offline da loja. Pra jobs, use `unauthenticated.admin(shop)`, que carrega a sessão **offline** guardada no banco.",
+        "code": "import { unauthenticated } from \"../shopify.server\";\n\n// dentro de um job/cron; shop vem do seu banco\nconst { admin } = await unauthenticated.admin(\"minha-loja.myshopify.com\");\n\nconst res = await admin.graphql(`#graphql\n  query { shop { name } }`);",
+        "advanced": "`unauthenticated` é só pra código **que você mesmo** dispara. Nunca exponha uma rota pública que receba o `shop` como parâmetro e chame `unauthenticated.admin` com ele."
+      },
+      {
+        "title": "Use a versão de API certa e sobrescreva quando precisar.",
+        "detail": "A versão padrão vem do `shopify.server.ts` (`apiVersion`). Você pode sobrescrever numa chamada específica — útil quando um campo novo só existe numa versão mais recente do que o resto do app já adotou.",
+        "code": "await admin.graphql(QUERY, {\n  variables,\n  apiVersion: \"2025-07\",\n});"
+      },
+      {
+        "title": "Projeto — uma tela de produtos com edição de título.",
+        "detail": "Vai usar loader (query), action (mutation), useFetcher e tipos gerados."
+      },
+      {
+        "title": "Projeto — passo 1: liste produtos no loader.",
+        "detail": "Crie `app/routes/app.produtos.tsx` com um `loader` que busca `products(first: 10)` (id, title, status) e renderize a lista. Confirme que o escopo `read_products` está no `shopify.app.toml`."
+      },
+      {
+        "title": "Projeto — passo 2: edite o título com uma action.",
+        "detail": "Adicione a `action` com `productUpdate` e um `useFetcher` por linha. Ao salvar, exiba os `userErrors` se houver (teste enviando título vazio)."
+      },
+      {
+        "title": "Projeto — passo 3: rode o codegen e trate throttling.",
+        "detail": "Rode o codegen e remova qualquer `any` da rota. Envolva a chamada no helper de retry do tópico GraphQL avançado e confirme que um erro `THROTTLED` simulado não quebra a tela."
+      }
+    ]
+  },
+  "categoryId": "data",
+  "categoryLabel": "Data and logic"
+}

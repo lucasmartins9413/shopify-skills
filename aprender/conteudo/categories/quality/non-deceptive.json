@@ -1,0 +1,64 @@
+{
+  "id": "non-deceptive",
+  "title": "Non-deceptive code",
+  "desc": "Atenda aos requisitos da Shopify para comportamento transparente e honesto do app.",
+  "plan": {
+    "objetivo": "Reconhecer dark patterns comuns (mesmo sutis) em telas de cobrança e permissão, e revisar o app garantindo transparência em cada ponto de decisão do merchant.",
+    "prereq": "Integrating with Shopify",
+    "tempo": "1h30",
+    "doc": "https://shopify.dev/docs/apps/build/non-deceptive-code",
+    "steps": [
+      {
+        "title": "Entenda o que \"non-deceptive code\" significa na prática.",
+        "detail": "Esse requisito da Shopify cobre algo mais amplo que \"não minta explicitamente\": ele proíbe qualquer design de interface que **engane por omissão ou por manipulação visual**, mesmo sem uma mentira literal escrita em algum lugar. O exemplo clássico: um botão \"Ativar\" que parece disparar um recurso gratuito, mas na verdade inicia uma cobrança recorrente sem nenhum aviso claro antes do clique."
+      },
+      {
+        "title": "Reconheça dark patterns sutis, não só os óbvios.",
+        "detail": "Nem todo dark pattern é uma mentira explícita — muitos são sobre **manipulação visual de ênfase**. Um exemplo comum: o botão de \"Cancelar\" ou \"Recusar\" renderizado pequeno, cinza e discreto, enquanto o botão de \"Confirmar\"/\"Aceitar\" é grande, colorido e chama toda a atenção — isso nudge (empurra) o usuário pra uma decisão sem ele realmente pesar as duas opções de forma equilibrada.",
+        "advanced": "Dark patterns sutis contam como comportamento enganoso pra Shopify **mesmo sem nenhuma cobrança envolvida** — o requisito não é só sobre dinheiro, é sobre respeitar a autonomia de decisão do merchant em qualquer contexto (permissões, dados, configurações)."
+      },
+      {
+        "title": "Garanta transparência antes da ação, não depois.",
+        "detail": "Toda tela que envolve **pagamento**, **permissão** ou **coleta de dados** precisa deixar isso explícito **antes** da ação ser executada, nunca só depois (num aviso pós-fato ou nos termos de uso genéricos que quase ninguém lê). Se uma ação vai gerar uma cobrança, o valor e a periodicidade devem estar visíveis no mesmo lugar onde o merchant clica pra confirmar."
+      },
+      {
+        "title": "Use a Billing API corretamente pra cobranças recorrentes.",
+        "detail": "Cobranças recorrentes precisam de **consentimento explícito e renovado**, implementado através de `AppSubscription` da Billing API — não basta um aviso genérico enterrado nos termos de uso do app. A própria API de cobrança já força um fluxo onde o merchant vê claramente o valor e a periodicidade antes de aprovar.",
+        "code": "mutation {\n  appSubscriptionCreate(\n    name: \"Plano Pro\",\n    returnUrl: \"https://seu-app.com/billing/callback\",\n    lineItems: [{\n      plan: { appRecurringPricingDetails: { price: { amount: 29.90, currencyCode: BRL } } }\n    }]\n  ) { confirmationUrl userErrors { field message } }\n}",
+        "advanced": "A `confirmationUrl` retornada pela Billing API leva o merchant a uma tela **controlada pela própria Shopify**, não pelo seu app — isso é deliberado: garante que o merchant vê uma confirmação de cobrança neutra e padronizada, sem nenhuma manipulação visual possível do lado do app."
+      },
+      {
+        "title": "Revise cada tela de permissão do app com a mesma régua.",
+        "detail": "Além de cobrança, o mesmo princípio vale pra pedidos de permissão/escopo (\"seu app quer acesso a dados de cliente\") e coleta de dados — cada um desses momentos deveria explicar, em linguagem simples, **o que** está sendo pedido e **por quê**, antes do merchant confirmar."
+      },
+      {
+        "title": "Documente qualquer ajuste feito para atender aos requisitos.",
+        "detail": "Anote, no README interno do app (ou em qualquer sistema de documentação do time), quais telas foram revisadas sob essa ótica e o que foi especificamente ajustado — cria um rastro útil pra referência futura, especialmente se o app crescer e outras pessoas passarem a trabalhar nele.",
+        "advanced": "Documentação interna desse tipo ajuda em auditorias futuras e em possíveis disputas de revisão da App Store — trate como parte natural do processo de desenvolvimento, não como burocracia extra e dispensável."
+      },
+      {
+        "title": "Projeto — audite as telas de cobrança e permissão do seu app.",
+        "detail": "Vamos revisar sistematicamente qualquer tela do app que envolva dinheiro, permissão ou dados, aplicando o checklist visto acima."
+      },
+      {
+        "title": "Projeto — passo 1: liste todas as telas que envolvem cobrança, permissão ou coleta de dados.",
+        "detail": "Percorra o app inteiro e liste cada tela/momento que se encaixa numa dessas três categorias — mesmo que o app ainda não tenha cobrança implementada, projete essa lista pensando em quando ela existir."
+      },
+      {
+        "title": "Projeto — passo 2: para cada tela listada, confirme onde a informação relevante aparece.",
+        "detail": "Pra cada item da lista, responda: o valor/periodicidade/tipo de dado pedido está visível no mesmo lugar onde o merchant confirma a ação, ou só em algum texto secundário/termos de uso?"
+      },
+      {
+        "title": "Projeto — passo 3: revise a ênfase visual dos botões de confirmar/cancelar.",
+        "detail": "Em cada tela com uma decisão binária (confirmar/cancelar, aceitar/recusar), confirme que os dois botões têm ênfase visual equilibrada — nenhum dos dois deveria ser visualmente \"escondido\" em relação ao outro."
+      },
+      {
+        "title": "Projeto — passo 4: implemente uma cobrança de teste usando a Billing API corretamente.",
+        "detail": "Se o app ainda não tem billing implementado, crie um fluxo mínimo usando `appSubscriptionCreate`, confirme que a `confirmationUrl` retornada leva a uma tela de confirmação clara, e complete o fluxo de teste até a assinatura ser ativada.",
+        "code": "shopify app dev --store=sua-loja-dev.myshopify.com"
+      }
+    ]
+  },
+  "categoryId": "quality",
+  "categoryLabel": "Quality"
+}

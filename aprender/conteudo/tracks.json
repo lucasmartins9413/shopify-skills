@@ -1,0 +1,201 @@
+{
+  "fundamentos-ecommerce": {
+    "label": "Fundamentos de Ecommerce",
+    "intro": "Se situe no mundo do comércio eletrônico antes de programar: o que é uma loja online, checkout, PDV, pedidos e onde o desenvolvedor entra nisso tudo.",
+    "topicIds": [
+      "o-que-e-ecommerce",
+      "anatomia-loja-online",
+      "catalogo-produtos-variantes",
+      "o-que-e-checkout",
+      "pagamentos-e-gateways",
+      "pedidos-e-fulfillment",
+      "o-que-e-pdv",
+      "multi-channel-e-marketplaces",
+      "modelos-de-venda-b2b-b2c",
+      "temas-apps-extensoes",
+      "papel-do-desenvolvedor-parceiro"
+    ]
+  },
+  "primeiro-app": {
+    "label": "Primeiro app do zero",
+    "intro": "Do zero até um app funcionando no admin, seguindo a ordem certa de pré-requisitos.",
+    "topicIds": [
+      "scaffold",
+      "dev-env",
+      "cli",
+      "build-app",
+      "prisma",
+      "auth",
+      "graphql",
+      "graphql-no-app",
+      "graphql-avancado",
+      "app-home"
+    ]
+  },
+  "checkout-vendas": {
+    "label": "Checkout e vendas customizadas",
+    "intro": "Personalize checkout, crie descontos e opções de compra pra fluxos de venda específicos.",
+    "topicIds": [
+      "extensions",
+      "checkout",
+      "functions",
+      "functions-validation",
+      "functions-cart-transform",
+      "functions-delivery",
+      "functions-payment",
+      "functions-fulfillment",
+      "functions-config-e-limites",
+      "discounts",
+      "purchase-options",
+      "customer-accounts"
+    ]
+  },
+  "dados-automacoes": {
+    "label": "Dados e automações",
+    "intro": "Leia e grave dados da loja, reaja a eventos e conecte agentes de IA.",
+    "topicIds": [
+      "auth",
+      "graphql",
+      "graphql-avancado",
+      "graphql-no-app",
+      "bulk-operations",
+      "webhooks",
+      "events",
+      "metafields",
+      "metaobjects",
+      "flow",
+      "storefront-mcp"
+    ]
+  },
+  "b2b-mercados": {
+    "label": "B2B e mercados globais",
+    "intro": "Venda no atacado e em múltiplos mercados, e distribua produtos por vários canais.",
+    "topicIds": [
+      "merchandising",
+      "markets",
+      "b2b",
+      "channels",
+      "orders",
+      "collective"
+    ]
+  },
+  "pronto-app-store": {
+    "label": "Pronto para a App Store",
+    "intro": "Checklist final de qualidade antes de submeter o app: performance, acessibilidade, segurança e conformidade.",
+    "topicIds": [
+      "integrating",
+      "non-deceptive",
+      "compliance",
+      "security",
+      "performance",
+      "accessibility",
+      "mobile",
+      "localize"
+    ]
+  },
+  "meu-primeiro-tema": {
+    "label": "Meu primeiro tema",
+    "intro": "Construa um tema Shopify nativo do zero até a primeira section customizada, usando Liquid.",
+    "topicIds": [
+      "theme-create",
+      "theme-architecture",
+      "liquid",
+      "theme-layouts",
+      "theme-templates",
+      "theme-sections",
+      "theme-blocks",
+      "theme-cli",
+      "theme-github"
+    ]
+  },
+  "tema-pronto-theme-store": {
+    "label": "Tema pronto para a Theme Store",
+    "intro": "Checklist de qualidade pra deixar um tema pronto pra vender na Shopify Theme Store.",
+    "topicIds": [
+      "theme-config",
+      "theme-schema",
+      "theme-locales",
+      "theme-best-practices",
+      "theme-check",
+      "theme-os20",
+      "theme-store",
+      "performance",
+      "accessibility"
+    ]
+  },
+  "temas-frontend": {
+    "label": "Temas Shopify: trilha completa",
+    "intro": "Do setup do CLI até um tema pronto pra Theme Store, seguindo a ordem em que os conceitos aparecem no dia a dia do desenvolvimento de um tema.",
+    "topicIds": [
+      "theme-create",
+      "theme-cli",
+      "theme-github",
+      "theme-architecture",
+      "liquid",
+      "theme-snippets",
+      "theme-layouts",
+      "theme-templates",
+      "theme-sections",
+      "theme-section-groups",
+      "theme-blocks",
+      "theme-blocks-horizon",
+      "theme-os20",
+      "theme-config",
+      "theme-schema",
+      "theme-locales",
+      "theme-customize",
+      "theme-best-practices",
+      "theme-check",
+      "theme-store"
+    ]
+  },
+  "seo-completo": {
+    "label": "SEO completo",
+    "intro": "Do fundamento (por que o Google ranqueia o que ranqueia) até o checklist real de submissão da Theme Store — metadata, dados estruturados, robots.txt, hreflang, performance e SEO em apps e headless.",
+    "topicIds": [
+      "seo-fundamentals",
+      "seo-metadata",
+      "seo-structured-data",
+      "seo-robots-sitemap",
+      "seo-content-architecture",
+      "seo-international",
+      "seo-performance",
+      "seo-apps",
+      "seo-headless",
+      "seo-theme-store-review"
+    ]
+  },
+  "temas-b2b": {
+    "label": "Temas Shopify para B2B",
+    "intro": "Construa um tema para venda no atacado: base de temas, modelo de empresas/catálogos e depois a camada B2B no Liquid — preços de catálogo, regras de quantidade e volume pricing.",
+    "topicIds": [
+      "theme-create",
+      "theme-cli",
+      "theme-architecture",
+      "liquid",
+      "theme-snippets",
+      "theme-sections",
+      "theme-blocks",
+      "b2b",
+      "theme-b2b-liquid",
+      "theme-b2b-pricing",
+      "theme-customize",
+      "theme-check"
+    ]
+  },
+  "case-flags-app-store": {
+    "label": "Case real: Flags, do zero à App Store",
+    "intro": "O passo a passo do Flags: Product Badges, app publicado na Shopify App Store em 05/10/2026: criação, extensão de tema, cobrança, imagens e listing, checagens, revisão, erros e aprendizados.",
+    "topicIds": [
+      "flags-visao-geral",
+      "flags-criacao-do-app",
+      "flags-theme-extension",
+      "flags-cobranca",
+      "flags-preparacao-tecnica",
+      "flags-imagens-e-listing",
+      "flags-checagens-automaticas",
+      "flags-revisao",
+      "flags-aprendizados"
+    ]
+  }
+}

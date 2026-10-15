@@ -1,0 +1,74 @@
+{
+  "id": "b2b",
+  "title": "B2B",
+  "desc": "Construa para vendas por atacado com gestão de empresas, catálogos e draft orders.",
+  "plan": {
+    "objetivo": "Entender o modelo de dados B2B (company, location, contact), criar um catálogo de preços específico e gerar um pedido de atacado completo.",
+    "prereq": "Product merchandising",
+    "tempo": "4h",
+    "doc": "https://shopify.dev/docs/apps/build/b2b",
+    "steps": [
+      {
+        "title": "Entenda por que vender pra empresas é fundamentalmente diferente de vender pra um consumidor final.",
+        "detail": "No modelo B2C (consumidor final), cada cliente é uma pessoa com seu próprio carrinho e preço padrão. No **B2B** (venda pra empresas/atacado), o comprador não é uma pessoa isolada — é uma **empresa (company)**, que pode ter várias **locations** (endereços/filiais diferentes) e vários **contatos** (pessoas autorizadas a comprar em nome dela), cada combinação possivelmente com seu próprio catálogo de produtos disponíveis, preços negociados e condições de pagamento (como prazo de 30/60 dias, em vez de pagamento à vista).\n\nEsse modelo de dados adicional (`Company` → `CompanyLocation` → `CompanyContact`) é o que permite, por exemplo, que uma rede de lojas parceira tenha 5 filiais, cada uma com seu próprio comprador autorizado e talvez até preços ligeiramente diferentes entre elas.",
+        "advanced": "Company locations têm seus próprios endereços de entrega e contatos — não confunda o endereço da company em si (mais um dado cadastral, tipo sede) com os endereços de cada location, que são os que efetivamente recebem entregas."
+      },
+      {
+        "title": "Crie uma company e um contato B2B via Admin API.",
+        "detail": "`companyCreate` cria a empresa; `companyContactCreate` associa uma pessoa a ela com um papel (ex: comprador, administrador).",
+        "code": "mutation {\n  companyCreate(input: {company: {name: \"Loja Parceira\"}}) {\n    company { id }\n  }\n}"
+      },
+      {
+        "title": "Crie uma location para essa company, com endereço próprio.",
+        "detail": "`companyLocationAssignAddress` define o endereço de uma location específica — importante lembrar que uma company pode ter várias locations, cada uma com seu próprio endereço de entrega e, potencialmente, catálogo/condições diferentes.",
+        "code": "mutation {\n  companyLocationAssignAddress(\n    locationId: \"gid://shopify/CompanyLocation/1\",\n    address: { address1: \"Rua Exemplo, 123\", city: \"São Paulo\", countryCode: BR },\n    addressTypeInput: SHIPPING\n  ) { userErrors { field message } }\n}"
+      },
+      {
+        "title": "Associe um catálogo de preços específico a essa company location.",
+        "detail": "Um **catálogo B2B** define o que uma company location específica pode comprar e por qual preço — parecido conceitualmente com os price lists de markets, mas escopado por empresa/location, não por região geográfica.",
+        "code": "mutation {\n  catalogCreate(input: {\n    companyLocationIds: [\"gid://shopify/CompanyLocation/1\"],\n    title: \"Catálogo Loja Parceira\",\n    status: ACTIVE\n  }) {\n    catalog { id }\n    userErrors { field message }\n  }\n}",
+        "advanced": "Catálogos B2B podem ter preços fixos ou por regra, igual a markets — mas são escopados por `CompanyLocation`, não por localização geográfica do comprador, então o mesmo produto pode ter preços diferentes pra duas empresas diferentes na mesma cidade, dependendo do acordo comercial de cada uma."
+      },
+      {
+        "title": "Gere um draft order B2B com termos de pagamento.",
+        "detail": "`draftOrderCreate` com `purchasingEntity.purchasingCompany` apontando pra company location gera o pedido no contexto B2B correto — herdando automaticamente catálogo e preços associados àquela empresa.",
+        "code": "mutation {\n  draftOrderCreate(input: {\n    lineItems: [{ variantId: \"gid://shopify/ProductVariant/1\", quantity: 10 }],\n    purchasingEntity: {\n      purchasingCompany: {\n        companyLocationId: \"gid://shopify/CompanyLocation/1\"\n      }\n    }\n  }) { draftOrder { id } userErrors { field message } }\n}",
+        "advanced": "Draft orders B2B geram faturas com **termos de pagamento** (net 30, net 60 etc., configurados via `paymentTermsTemplateId`) — um modelo de cobrança completamente diferente do checkout padrão de cartão à vista usado em B2C."
+      },
+      {
+        "title": "Converta o draft order num pedido real com `draftOrderComplete`.",
+        "detail": "Depois de revisado (e possivelmente ajustado), o draft order é convertido num pedido de verdade, seguindo o mesmo fluxo de fulfillment coberto no tópico \"Orders and fulfillment\" da trilha.",
+        "code": "mutation {\n  draftOrderComplete(id: \"gid://shopify/DraftOrder/1\") {\n    draftOrder { order { id } }\n    userErrors { field message }\n  }\n}"
+      },
+      {
+        "title": "Teste o checkout como o contato B2B, não como staff no admin.",
+        "detail": "Faça login como o contato da company (via convite ou conta de cliente) pra ver catálogo, preço e condições de pagamento **exatamente como o comprador vê** — a visão de staff no admin não reproduz o checkout B2B real, que tem sua própria interface adaptada ao contexto de compra empresarial.",
+        "advanced": "Locations diferentes da mesma company podem ter catálogos e termos de pagamento distintos — teste explicitamente com mais de uma location se o merchant tiver esse cenário, já que um teste com uma única location pode esconder um bug que só aparece com múltiplas."
+      },
+      {
+        "title": "Projeto — monte o fluxo B2B completo: empresa, catálogo, pedido e checkout como comprador.",
+        "detail": "Vamos passar pelo ciclo inteiro, do cadastro da empresa até a experiência de compra do contato B2B."
+      },
+      {
+        "title": "Projeto — passo 1: crie a company, a location e o contato.",
+        "detail": "Rode as três mutations em sequência: `companyCreate`, `companyLocationAssignAddress` e `companyContactCreate`, anotando os IDs gerados."
+      },
+      {
+        "title": "Projeto — passo 2: crie um catálogo com um preço 15% abaixo do padrão.",
+        "detail": "Configure o catálogo dessa company location com um ajuste de desconto, simulando um preço negociado de atacado.",
+        "code": "mutation {\n  catalogCreate(input: {\n    companyLocationIds: [\"gid://shopify/CompanyLocation/<id>\"],\n    title: \"Catálogo Parceiro Atacado\",\n    status: ACTIVE\n  }) { catalog { id } }\n}"
+      },
+      {
+        "title": "Projeto — passo 3: gere um draft order de 10 unidades e converta em pedido.",
+        "detail": "Rode `draftOrderCreate` com quantidade de atacado, depois `draftOrderComplete` pra confirmar o pedido."
+      },
+      {
+        "title": "Projeto — passo 4: logue como o contato B2B e confirme o preço no checkout.",
+        "detail": "Acesse a loja como o contato criado (via conta de cliente), navegue até o produto usado no teste, e confirme que o preço exibido já reflete o desconto de atacado configurado no catálogo — sem precisar de nenhum cupom manual.",
+        "advanced": "Se o preço de atacado não aparecer, confirme primeiro se o contato está de fato autenticado como parte daquela company location específica — B2B exige esse vínculo explícito pra aplicar qualquer catálogo customizado."
+      }
+    ]
+  },
+  "categoryId": "commerce",
+  "categoryLabel": "Commerce"
+}

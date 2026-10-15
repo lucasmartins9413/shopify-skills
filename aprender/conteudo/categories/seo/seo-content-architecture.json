@@ -1,0 +1,62 @@
+{
+  "id": "seo-content-architecture",
+  "title": "Arquitetura de conteúdo e URLs",
+  "desc": "Hierarquia de headings, handles de URL, redirecionamentos e o problema real de conteúdo duplicado em coleções filtradas.",
+  "plan": {
+    "objetivo": "Estruturar headings corretamente, gerenciar handles de URL e redirecionamentos, e entender (e mitigar) o problema mais comum de conteúdo duplicado em e-commerce: filtros e ordenação de coleção.",
+    "prereq": "Metadata de SEO no tema",
+    "tempo": "3h",
+    "doc": "https://help.shopify.com/en/manual/promoting-marketing/seo/seo-overview",
+    "steps": [
+      {
+        "title": "Entenda por que a hierarquia de headings importa além da estética visual.",
+        "detail": "Motores de busca usam `<h1>`, `<h2>`, `<h3>`... pra entender a **estrutura lógica** do conteúdo de uma página, de forma parecida com um sumário — não só pra decidir tamanho de fonte. A regra prática:\n\n- **Um único `<h1>` por página**, sendo o título principal daquele conteúdo específico (o nome do produto, o título do artigo).\n- `<h2>` pra seções principais dentro da página, `<h3>` pra subseções — sem pular níveis (não vá de `<h1>` direto pra `<h3>`).\n- Elementos de **layout** (logo do header, título do footer) não deveriam competir pelo `<h1>` — normalmente usam `<div>`/`<span>` estilizados, ou headings de nível mais baixo.\n\nUm erro clássico em temas customizados: o logo do header sendo marcado como `<h1>` em toda página (porque \"parece\" o elemento mais importante visualmente), deixando o título real do produto/artigo como `<h2>` ou pior.",
+        "advanced": "Isso também é um requisito de **acessibilidade**, não só de SEO — leitores de tela navegam por heading, então uma hierarquia errada prejudica os dois públicos ao mesmo tempo (veja o tópico de Accessibility na trilha de Quality)."
+      },
+      {
+        "title": "Entenda o handle de URL e por que ele é praticamente permanente.",
+        "detail": "Todo recurso da Shopify (produto, coleção, página, artigo) tem um **handle** — a parte da URL que o identifica (`/products/camiseta-azul`). O handle é gerado automaticamente a partir do título na criação, mas pode ser editado manualmente no admin. URLs curtas e descritivas, com palavras relevantes, ajudam tanto SEO quanto a experiência de quem compartilha o link.\n\nO detalhe crítico: **mudar o handle depois de publicado muda a URL** — qualquer link externo ou resultado já indexado que apontava pra URL antiga passa a dar 404, a menos que você configure um redirecionamento.",
+        "advanced": "Evite mudar handles de páginas que já têm tráfego orgânico estabelecido só por preferência estética — o ganho de SEO de uma URL \"mais bonita\" raramente compensa o risco de perder posicionamento acumulado, a menos que o redirecionamento seja configurado com cuidado (próximo passo)."
+      },
+      {
+        "title": "Configure redirecionamentos 301 ao mudar ou remover uma URL.",
+        "detail": "Sempre que um handle muda, ou um produto/página é removido, configure um **redirecionamento** em Loja Online → Navegação → Redirecionamentos de URL no admin — isso envia tanto usuários quanto crawlers da URL antiga pra uma nova, preservando parte do valor de SEO acumulado, em vez de simplesmente quebrar o link com um 404.",
+        "code": "mutation {\n  urlRedirectCreate(urlRedirect: {\n    path: \"/products/nome-antigo\",\n    target: \"/products/nome-novo\"\n  }) {\n    urlRedirect { id }\n    userErrors { field message }\n  }\n}",
+        "advanced": "Redirecionamentos em cadeia (A → B → C) funcionam, mas cada salto extra atrasa o rastreamento e dilui um pouco o sinal de SEO transferido — sempre que perceber uma cadeia, atualize o redirect original pra apontar direto no destino final (A → C)."
+      },
+      {
+        "title": "Entenda o problema real de conteúdo duplicado: filtros e ordenação de coleção.",
+        "detail": "Esse é o problema técnico mais comum e mais subestimado em e-commerce: uma página de coleção com filtros (`?color=azul`) e ordenação (`?sort_by=price-ascending`) gera, tecnicamente, uma **URL nova pra cada combinação** — mesmo que o conteúdo seja quase idêntico ao da coleção sem filtro. Isso pode gerar centenas de URLs \"duplicadas\" indexáveis, diluindo a autoridade de SEO entre várias versões quase-iguais da mesma página em vez de concentrar tudo numa só.\n\nO canonical (visto no tópico de Metadata) resolve boa parte disso automaticamente: a Shopify já aponta essas variações filtradas de volta pra URL canônica da coleção, na maioria dos casos."
+      },
+      {
+        "title": "Complemente o canonical com dados estruturados de navegação (breadcrumbs).",
+        "detail": "Além de resolver duplicação, ajude o Google a entender a **hierarquia de navegação** com um schema `BreadcrumbList` — mostra explicitamente que \"Camiseta Azul\" está dentro de \"Camisetas\", que está dentro de \"Roupas\". Isso também pode fazer o Google exibir a trilha de navegação diretamente no resultado de busca, em vez da URL crua.",
+        "code": "<script type=\"application/ld+json\">\n{\n  \"@context\": \"https://schema.org\",\n  \"@type\": \"BreadcrumbList\",\n  \"itemListElement\": [\n    { \"@type\": \"ListItem\", \"position\": 1, \"name\": \"Roupas\", \"item\": \"{{ shop.url }}/collections/roupas\" },\n    { \"@type\": \"ListItem\", \"position\": 2, \"name\": \"Camisetas\", \"item\": \"{{ shop.url }}/collections/camisetas\" },\n    { \"@type\": \"ListItem\", \"position\": 3, \"name\": \"{{ product.title }}\", \"item\": \"{{ canonical_url }}\" }\n  ]\n}\n</script>"
+      },
+      {
+        "title": "Projeto — implemente breadcrumbs visuais e estruturados numa página de produto.",
+        "detail": "Vamos construir a trilha de navegação visível na tela **e** o schema correspondente, reforçando os dois lados (usuário e motor de busca) da mesma informação."
+      },
+      {
+        "title": "Projeto — passo 1: crie um snippet de breadcrumb visual.",
+        "detail": "Monte um snippet reutilizável que mostra a hierarquia coleção → produto na própria página, usando `render` como visto na trilha de Temas.",
+        "code": "<!-- snippets/breadcrumb.liquid -->\n<nav aria-label=\"breadcrumb\">\n  <a href=\"{{ collection.url }}\">{{ collection.title }}</a> /\n  <span>{{ product.title }}</span>\n</nav>"
+      },
+      {
+        "title": "Projeto — passo 2: adicione o schema `BreadcrumbList` correspondente.",
+        "detail": "Logo abaixo do breadcrumb visual, adicione o script JSON-LD com os mesmos itens, montado dinamicamente a partir de `collection` e `product`."
+      },
+      {
+        "title": "Projeto — passo 3: teste com um produto pertencente a mais de uma coleção.",
+        "detail": "Confirme visualmente que o breadcrumb reflete a coleção pela qual o cliente realmente navegou até chegar no produto (via `collection`), não uma coleção fixa arbitrária."
+      },
+      {
+        "title": "Projeto — passo 4: valide o schema no Rich Results Test.",
+        "detail": "Cole a página no validador do Google (mesmo usado no tópico de dados estruturados) e confirme que o `BreadcrumbList` é reconhecido corretamente.",
+        "advanced": "Revise também a hierarquia de heading dessa mesma página enquanto estiver nela — é um bom momento pra confirmar que existe só um `<h1>` (o nome do produto), não o breadcrumb ou o logo do header competindo pela mesma marcação."
+      }
+    ]
+  },
+  "categoryId": "seo",
+  "categoryLabel": "SEO"
+}

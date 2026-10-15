@@ -1,0 +1,30 @@
+{
+  "id": "o-que-e-checkout",
+  "title": "O que é checkout",
+  "desc": "Por que o checkout é o momento mais crítico da loja, o que ele precisa resolver, e por que a Shopify trata essa parte de um jeito diferente do resto do tema.",
+  "plan": {
+    "objetivo": "Entender o que é o checkout, por que ele concentra a maior parte da fricção (e da confiança) de uma compra, e por que a Shopify limita o quanto ele pode ser modificado livremente.",
+    "prereq": "Catálogo, produtos e variantes",
+    "tempo": "20min",
+    "doc": "https://help.shopify.com/en/manual/checkout-settings/checkout",
+    "steps": [
+      {
+        "title": "Entenda o que o checkout precisa resolver em poucos segundos.",
+        "detail": "O **checkout** é a sequência de telas em que o cliente confirma quem é, pra onde entregar e como vai pagar. Em pouco tempo, ele precisa:\n\n- coletar endereço de entrega (e calcular frete);\n- calcular impostos corretamente pra aquele endereço;\n- oferecer formas de pagamento em que o cliente confia;\n- comunicar com clareza total antes de cobrar (nada de custo surpresa na última tela).\n\nÉ também a página onde o cliente está mais perto de desistir — qualquer atrito aqui (formulário longo, erro de validação confuso, poucas opções de pagamento) custa uma venda que, até ali, estava praticamente fechada.",
+        "advanced": "\"Abandono de checkout\" é diferente de \"abandono de carrinho\": o segundo é antes de começar o checkout, o primeiro é já dentro dele — times de e-commerce tratam os dois como métricas separadas, porque as causas costumam ser diferentes (carrinho: indecisão; checkout: fricção do processo)."
+      },
+      {
+        "title": "Entenda por que o checkout é tratado como parte da plataforma, não do tema.",
+        "detail": "Diferente de home, coleção e produto — que são conteúdo do tema, totalmente customizável — o **checkout roda em infraestrutura controlada diretamente pela Shopify**, otimizada e protegida centralmente para todas as lojas ao mesmo tempo. Isso existe por duas razões:\n\n1. **Segurança e conformidade**: checkout lida com dado de pagamento; centralizar isso reduz superfície de ataque e mantém a Shopify em conformidade com padrões da indústria (como PCI DSS) sem que cada loja precise resolver isso sozinha.\n2. **Performance e confiabilidade em escala**: o checkout precisa continuar funcionando mesmo em picos enormes de tráfego (ex: Black Friday) — um código customizado, mal otimizado, dentro do checkout de milhares de lojas seria um risco operacional.\n\nPor isso, personalização de checkout acontece através de mecanismos específicos e controlados (extensões, Shopify Functions) — não editando arquivos livremente como num tema.",
+        "advanced": "Esse modelo é relativamente recente na história da Shopify — versões antigas do checkout (e o antigo `checkout.liquid`) permitiam edição mais direta. Ao ler tutorial antigo sobre \"customizar o checkout.liquid\", desconfie: esse caminho está sendo descontinuado em favor das extensões de checkout, o assunto da trilha \"Checkout e vendas customizadas\"."
+      },
+      {
+        "title": "Reconheça os limites de plano como parte do modelo de checkout.",
+        "detail": "Algumas capacidades de customização de checkout (como certos tipos de extensão ou o nível de acesso via Shopify Functions) dependem do **plano** contratado pela loja — normalmente disponíveis a partir de planos mais avançados (Shopify Plus). Isso não é uma limitação técnica arbitrária: é a Shopify equilibrando \"todo mundo tem um checkout rápido e seguro por padrão\" com \"lojas maiores, com necessidade de customização mais profunda, pagam por esse nível extra de controle\".",
+        "advanced": "Ao planejar um projeto de app ou extensão de checkout pra um cliente, sempre confirme o plano da loja antes de prometer uma funcionalidade — é comum descobrir tarde demais que o recurso desejado exige Shopify Plus."
+      }
+    ]
+  },
+  "categoryId": "fundamentos",
+  "categoryLabel": "Fundamentos de Ecommerce"
+}

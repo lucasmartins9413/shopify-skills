@@ -1,0 +1,45 @@
+{
+  "id": "flags-cobranca",
+  "title": "Case Flags: planos e cobrança com a Billing API",
+  "desc": "Free, Basic e Pro com trial, cobrança de teste automática em development stores e o bug de plano que reprovou o app na revisão.",
+  "plan": {
+    "objetivo": "Cobrar assinatura pelo próprio app de um jeito que funcione nas lojas reais **e** nas lojas de teste dos revisores da Shopify.",
+    "prereq": "Criação do app com distribuição Public.",
+    "tempo": "1h30",
+    "doc": "https://shopify.dev/docs/apps/launch/billing",
+    "steps": [
+      {
+        "title": "Defina os planos no `shopifyApp()` e os limites num arquivo só.",
+        "detail": "Os planos pagos ficam no `billing` do `shopifyApp()`. Nomes, preços e recursos de cada plano ficam em `app/lib/plans.js`, usado tanto pela tela de planos quanto pela validação no servidor.\n\n- **Free:** 1 flag ativa; retângulo, pílula e contorno.\n- **Basic (US$ 5/30 dias):** 10 flags; todos os formatos e presets; gradiente, borda, sombra, cantos.\n- **Pro (US$ 12/30 dias):** flags ilimitadas; animações, agendamento e ícone próprio.",
+        "code": "billing: {\n  [BASIC_PLAN]: {\n    trialDays: 7,\n    lineItems: [{\n      amount: PLANS[BASIC_PLAN].price,\n      currencyCode: \"USD\",\n      interval: BillingInterval.Every30Days,\n    }],\n  },\n  [PRO_PLAN]: {\n    trialDays: 7,\n    lineItems: [{\n      amount: PLANS[PRO_PLAN].price,\n      currencyCode: \"USD\",\n      interval: BillingInterval.Every30Days,\n    }],\n  },\n},",
+        "advanced": "Valide os limites **no servidor** também. Esconder o botão no front não basta: o revisor e qualquer lojista podem chamar a action direto."
+      },
+      {
+        "title": "Na listagem, use preço manual (não Managed Pricing).",
+        "detail": "Quando a cobrança é feita pelo app via Billing API, a seção de preços do listing fica em **manual pricing**, com os mesmos valores do código. Managed Pricing é a alternativa em que a Shopify hospeda a página de planos; misturar as duas coisas confunde a revisão."
+      },
+      {
+        "title": "Cobrança de teste automática em development stores.",
+        "detail": "As lojas dos revisores são development stores e **recusam cobrança real**. O app consulta `shop.plan.partnerDevelopment` e manda `isTest: true` nessas lojas. A variável `BILLING_TEST=true|false` força um modo para todas as lojas, se precisar.",
+        "code": "// Força teste (BILLING_TEST=true) ou real (=false) para todas as lojas.\n// Sem a variável, decide por loja.\nconst BILLING_TEST_OVERRIDE =\n  process.env.BILLING_TEST === \"true\" ? true : process.env.BILLING_TEST === \"false\" ? false : null;\n\nconst devStoreCache = new Map(); // o tipo da loja não muda durante a sessão\n\nasync function isDevelopmentStore(admin, shop) {\n  if (devStoreCache.has(shop)) return devStoreCache.get(shop);\n  try {\n    const response = await admin.graphql(`#graphql\n      query ShopPlan { shop { plan { partnerDevelopment } } }`);\n    const json = await response.json();\n    const isDev = Boolean(json.data?.shop?.plan?.partnerDevelopment);\n    devStoreCache.set(shop, isDev);\n    return isDev;\n  } catch (error) {\n    console.error(\"Não foi possível consultar o tipo da loja:\", await describeError(error));\n    return process.env.NODE_ENV !== \"production\";\n  }\n}\n\nexport async function isTestBilling({ admin, session }) {\n  if (BILLING_TEST_OVERRIDE != null) return BILLING_TEST_OVERRIDE;\n  return isDevelopmentStore(admin, session.shop);\n}"
+      },
+      {
+        "title": "Tela de planos: assinar, trocar e voltar ao grátis.",
+        "detail": "Assinar chama `billing.request`, que lança um `Response` de redirect para a tela de aprovação da Shopify (por isso o `catch` precisa relançar quando o erro é um `Response`). Voltar ao grátis cancela a assinatura com `prorate: true` e **desativa** (não apaga) as flags além do limite, mantendo a de maior prioridade.",
+        "code": "export async function action({ request }) {\n  const { billing, session, admin } = await authenticate.admin(request);\n  const plan = (await request.formData()).get(\"plan\");\n\n  if (plan === BASIC_PLAN || plan === PRO_PLAN) {\n    const isTest = await isTestBilling({ admin, session });\n    // lança um Response que redireciona para a tela de aprovação da Shopify\n    return await billing.request({ plan, isTest });\n  }\n\n  if (plan === FREE_PLAN) {\n    const { subscription, isTest } = await getCurrentPlan({ admin, session, billing });\n    if (subscription) {\n      await billing.cancel({ subscriptionId: subscription.id, isTest, prorate: true });\n    }\n    // mantém ativa só a flag de maior prioridade (limite do plano grátis)\n    const active = await prisma.flag.findMany({\n      where: { shop: session.shop, active: true },\n      orderBy: [{ priority: \"desc\" }, { createdAt: \"desc\" }],\n      select: { id: true },\n    });\n    const extra = active.slice(PLANS[FREE_PLAN].maxActiveFlags).map((f) => f.id);\n    if (extra.length) {\n      await prisma.flag.updateMany({ where: { id: { in: extra } }, data: { active: false } });\n      await syncFlagsToMetafield(admin, session.shop);\n    }\n    return json({ ok: true, deactivated: extra.length });\n  }\n\n  return json({ error: \"Plano inválido\" }, { status: 400 });\n}"
+      },
+      {
+        "title": "Erro da revisão (1.2.2): o upgrade para o Pro \"travava\".",
+        "detail": "**Sintoma:** o revisor aprovava o Pro e o app continuava mostrando o plano Free.\n\n**Causa:** a loja do revisor era uma loja de teste da Shopify que **não** é `partnerDevelopment`. O app pedia `isTest: false`, a Shopify criava a assinatura como teste mesmo assim, e o `billing.check({ isTest: false })` filtrava essa assinatura. Para o app, a loja não tinha plano.\n\n**Correção:** a consulta sempre inclui assinaturas de teste (`isTest: true` no `check` só filtra, não muda a cobrança) e, se houver mais de uma, vale a mais alta.",
+        "code": "// ANTES: filtrava pela mesma flag usada no pedido\nconst isTest = await isTestBilling(auth);\nconst { appSubscriptions } = await auth.billing.check({\n  plans: [BASIC_PLAN, PRO_PLAN],\n  isTest, // false na loja do revisor -> a assinatura de teste some\n});\nconst subscription = appSubscriptions?.[0] ?? null;\n\n// DEPOIS: sempre inclui as de teste e prefere o plano mais alto\nexport async function getCurrentPlan(auth) {\n  const isTest = await isTestBilling(auth);\n  const { appSubscriptions } = await auth.billing.check({\n    plans: [BASIC_PLAN, PRO_PLAN],\n    isTest: true, // isTest no check só filtra; não muda a cobrança\n  });\n  const subscription =\n    appSubscriptions?.find((s) => s.name === PRO_PLAN) ??\n    appSubscriptions?.find((s) => s.name === BASIC_PLAN) ??\n    null;\n  const planName = subscription?.name ?? FREE_PLAN;\n  return {\n    planName,\n    features: getPlanFeatures(planName),\n    subscription,\n    isTest: subscription?.test ?? isTest,\n  };\n}",
+        "advanced": "Para responder a revisão, foi gravado um vídeo mostrando Free → Basic → Pro numa loja de teste. Vídeo curto com o fluxo exato que o revisor reclamou é a resposta mais rápida."
+      },
+      {
+        "title": "Teste o ciclo completo antes de enviar.",
+        "detail": "1. Assinar o Basic, conferir o trial e os limites.\n2. Trocar para o Pro e conferir que os recursos liberam na hora.\n3. Cancelar e conferir a volta ao Free e o limite de 1 flag ativa.\n4. Repetir numa loja que não seja development store, se tiver uma."
+      }
+    ]
+  },
+  "categoryId": "cases",
+  "categoryLabel": "Cases reais"
+}

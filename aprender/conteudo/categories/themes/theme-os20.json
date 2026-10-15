@@ -1,0 +1,67 @@
+{
+  "id": "theme-os20",
+  "title": "Migrar para Online Store 2.0",
+  "desc": "Adicione e remova sections de qualquer template, e prepare o tema para app blocks.",
+  "plan": {
+    "objetivo": "Entender exatamente o que muda tecnicamente ao migrar um tema legado (templates Liquid) para Online Store 2.0 (templates JSON), e planejar essa migração com segurança.",
+    "prereq": "Sections",
+    "tempo": "4h",
+    "doc": "https://shopify.dev/docs/storefronts/themes/os20",
+    "steps": [
+      {
+        "title": "Entenda o que \"Online Store 2.0\" realmente significa.",
+        "detail": "\"OS 2.0\" não é uma versão de software que você instala — é o nome dado a um conjunto de capacidades da plataforma de temas, lançadas a partir de 2021: templates JSON, sections em qualquer template (não só na home), app blocks, metafields nativos mais acessíveis em Liquid, e theme blocks. Um tema é \"OS 2.0\" quando adota esse modelo; um tema \"legado\" é o que ainda usa só templates `.liquid` com HTML/lógica hardcoded.\n\nA motivação central da migração: dar ao merchant o poder de customizar qualquer página (não só a home) sem precisar de um desenvolvedor pra cada ajuste de layout, e abrir a porta pra apps de personalização visual via app blocks.",
+        "advanced": "Não existe um \"modo de compatibilidade\" — um tema é JSON ou é Liquid por tipo de template. Um mesmo tema pode ter `product.json` (OS 2.0) e ainda ter `page.liquid` (legado) durante uma migração incremental, mas cada tipo de recurso migra de uma vez, não parcialmente."
+      },
+      {
+        "title": "Compare lado a lado um template Liquid antigo com o JSON equivalente.",
+        "detail": "Um template Liquid antigo (`product.liquid`) mistura estrutura, conteúdo e lógica direto no mesmo arquivo — tudo hardcoded. Um template JSON (`product.json`) só lista **quais sections** aparecem e em que ordem; a lógica de cada uma vive isolada no arquivo da própria section. Essa separação é o que torna o resultado mais flexível e editável pelo merchant sem tocar em código.",
+        "code": "<!-- product.liquid (legado, simplificado) -->\n<div class=\"product\">\n  <h1>{{ product.title }}</h1>\n  <p>{{ product.price | money }}</p>\n</div>\n\n// product.json (OS 2.0, equivalente)\n{\n  \"sections\": {\n    \"main\": { \"type\": \"main-product\" }\n  },\n  \"order\": [\"main\"]\n}",
+        "advanced": "A migração raramente é 100% automática pra temas muito customizados. Planeje tempo explícito pra reescrever manualmente a lógica mais complexa que estava hardcoded no `.liquid` antigo, extraindo-a pra dentro de uma section nova com schema — não existe uma ferramenta que faz esse trabalho de extração por você."
+      },
+      {
+        "title": "Converta uma página fixa numa section customizável.",
+        "detail": "O padrão de migração mais comum: pegue o HTML fixo de um template Liquid antigo, mova pra dentro de uma nova section com `{% schema %}`, e troque o template legado por um JSON que só referencia essa section.",
+        "code": "<!-- sections/page-content.liquid (nova) -->\n<div class=\"page-content\">\n  <h1>{{ page.title }}</h1>\n  <div class=\"rte\">{{ page.content }}</div>\n</div>\n\n{% schema %}\n{ \"name\": \"Conteúdo da página\" }\n{% endschema %}\n\n<!-- templates/page.json (substituindo page.liquid) -->\n{\n  \"sections\": {\n    \"main\": { \"type\": \"page-content\" }\n  },\n  \"order\": [\"main\"]\n}",
+        "advanced": "Depois da migração, valide se merchants antigos não perderam customizações feitas no editor visual do tema legado. O `settings_data.json` antigo pode não mapear 1:1 pro novo schema — settings com IDs diferentes simplesmente não recebem o valor salvo antes, silenciosamente."
+      },
+      {
+        "title": "Confirme que a página aceita app blocks depois da migração.",
+        "detail": "App blocks só funcionam em templates JSON. O teste mais direto de que a migração deu certo, do ponto de vista prático: abrir a página no editor de temas e verificar se a opção de adicionar um app block aparece (mesmo que você não tenha nenhum app instalado, o botão \"Adicionar bloco de app\" deve existir na section preparada pra isso).",
+        "advanced": "App blocks só aparecem como opção pro merchant depois que a section realmente declara `{ \"type\": \"@app\" }` no schema de blocks — não é automático só por o template já ser JSON. Confira o tópico \"Blocks\" da trilha se esse passo não estiver claro."
+      },
+      {
+        "title": "Planeje a migração incrementalmente, tipo de página por tipo de página.",
+        "detail": "Não é preciso (nem recomendável) migrar o tema inteiro de uma vez. Uma ordem prática costuma ser: comece pelos tipos de página mais simples e menos customizados (página institucional, `page.liquid`), valide o padrão, depois avance pros mais complexos (produto, coleção), que geralmente concentram mais lógica de negócio hardcoded.",
+        "advanced": "Documente, à medida que migra, quais settings antigos de `settings_data.json` não têm equivalente novo — essa lista vira o checklist de \"o que avisar aos merchants que vão perder uma customização\" antes de publicar a migração de verdade."
+      },
+      {
+        "title": "Projeto — migre uma página institucional legada pra OS 2.0.",
+        "detail": "Vamos simular uma migração real e pequena: transformar uma página \"Sobre nós\" que hoje usa `page.liquid` hardcoded numa versão OS 2.0 com uma section customizável."
+      },
+      {
+        "title": "Projeto — passo 1: identifique o HTML fixo do template legado.",
+        "detail": "Abra o `page.liquid` (ou crie um de exemplo, se seu tema já é 100% OS 2.0) e copie o bloco de HTML que hoje renderiza o conteúdo da página, sem nenhuma abstração.",
+        "code": "<!-- templates/page.liquid (exemplo de partida) -->\n<div class=\"page-width\">\n  <h1>{{ page.title }}</h1>\n  <div class=\"rte\">{{ page.content }}</div>\n</div>\n{% schema %}{% endschema %}"
+      },
+      {
+        "title": "Projeto — passo 2: crie a section equivalente com schema mínimo.",
+        "detail": "Extraia exatamente esse HTML pra um novo arquivo de section, adicionando um schema com nome (mesmo que sem settings ainda).",
+        "code": "<!-- sections/page-content.liquid -->\n<div class=\"page-width\">\n  <h1>{{ page.title }}</h1>\n  <div class=\"rte\">{{ page.content }}</div>\n</div>\n\n{% schema %}\n{ \"name\": \"Conteúdo da página\" }\n{% endschema %}"
+      },
+      {
+        "title": "Projeto — passo 3: crie o `page.json` referenciando a nova section.",
+        "detail": "Crie o template JSON, apagando (ou renomeando com backup) o `page.liquid` antigo pra evitar conflito entre os dois formatos coexistindo pro mesmo tipo de recurso.",
+        "code": "// templates/page.json\n{\n  \"sections\": {\n    \"main\": { \"type\": \"page-content\" }\n  },\n  \"order\": [\"main\"]\n}"
+      },
+      {
+        "title": "Projeto — passo 4: valide no preview e confirme que app blocks agora são aceitos.",
+        "detail": "Suba o preview, abra uma página institucional de teste, e confirme visualmente que o conteúdo renderiza igual a antes — e que agora é possível adicionar sections/blocks extras nessa página pelo editor, o que era impossível no formato legado.",
+        "code": "shopify theme dev --store=sua-loja-dev.myshopify.com",
+        "advanced": "Se você tinha customizações salvas em `settings_data.json` associadas ao `page.liquid` antigo, confirme manualmente se algum valor precisa ser recriado no novo schema — esse é o ponto mais comum de perda silenciosa de dados numa migração real."
+      }
+    ]
+  },
+  "categoryId": "themes",
+  "categoryLabel": "Temas (Storefronts)"
+}

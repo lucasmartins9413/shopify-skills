@@ -1,0 +1,70 @@
+{
+  "id": "theme-check",
+  "title": "Theme Check",
+  "desc": "Capture erros e reforce boas práticas enquanto você programa o tema.",
+  "plan": {
+    "objetivo": "Rodar, entender e customizar o Theme Check — o linter oficial de temas — integrando-o no editor e (opcionalmente) num pipeline de CI.",
+    "prereq": "Shopify CLI (temas)",
+    "tempo": "1h30",
+    "doc": "https://shopify.dev/docs/storefronts/themes/tools/theme-check",
+    "steps": [
+      {
+        "title": "Entenda o que o Theme Check verifica, em quatro categorias.",
+        "detail": "Theme Check é um analisador estático — ele lê o código sem executá-lo — que cobre quatro grandes categorias de problema:\n\n1. **Sintaxe Liquid inválida** — tags mal fechadas, objects/filters que não existem.\n2. **Performance** — padrões conhecidos por serem custosos (ex: `all_products` sem filtro dentro de um loop).\n3. **Acessibilidade** — imagens sem `alt`, contraste, uso incorreto de elementos semânticos.\n4. **Schema** — settings mal formados, tipos de setting com campos obrigatórios faltando (como o `min`/`max`/`step` de um `range`, visto no tópico de Sections).\n\nCada regra tem uma severidade própria (erro, aviso, informação), e a lista completa de regras está documentada em [shopify.dev](https://shopify.dev/docs/storefronts/themes/tools/theme-check/checks).",
+        "advanced": "Theme Check não substitui teste manual — ele pega problemas mecânicos e padrões conhecidos, mas UX ruim ou uma decisão de design questionável passam batido pelo linter, mesmo com o código tecnicamente correto."
+      },
+      {
+        "title": "Rode o Theme Check na raiz do tema.",
+        "detail": "O comando varre todos os arquivos do tema e imprime a lista completa de problemas encontrados, agrupados por arquivo, com o número da linha exata.",
+        "code": "shopify theme check",
+        "advanced": "Rode `shopify theme check` regularmente durante o desenvolvimento, não só antes de um deploy — pegar um problema assim que ele é introduzido é muito mais barato do que descobri-lo semanas depois, já emaranhado com outras mudanças."
+      },
+      {
+        "title": "Leia e corrija um warning real do seu projeto.",
+        "detail": "Comece pelos avisos mais simples de resolver — variável Liquid declarada e nunca usada, chave de locale sem referência em nenhum arquivo — eles já limpam boa parte da lista e ajudam a se acostumar com o formato de saída do linter antes de partir pra correções mais complexas de performance ou acessibilidade.",
+        "advanced": "Nem todo warning precisa virar bloqueio de commit — calibre a severidade de cada regra conforme o risco real dela pro seu contexto específico (ver próximo passo, sobre customização de configuração)."
+      },
+      {
+        "title": "Customize as regras com um `.theme-check.yml`.",
+        "detail": "Times com convenções próprias podem ajustar severidade de regras específicas, ou ignorar arquivos/pastas inteiras (como uma pasta de vendor de terceiros que você não controla) através de um arquivo de configuração na raiz do tema.",
+        "code": "# .theme-check.yml\nextends: theme-check:recommended\n\nignore:\n  - vendor/**\n\nUnusedAssign:\n  enabled: false",
+        "advanced": "Documente no próprio arquivo (via comentário, se o formato permitir, ou no README do projeto) **por que** cada regra foi desativada — sem esse contexto, a próxima pessoa não sabe se pode reativar a regra com segurança."
+      },
+      {
+        "title": "Integre o Theme Check ao editor com a extensão oficial.",
+        "detail": "A extensão oficial da Shopify pro VS Code (\"Shopify Liquid\") roda o Theme Check em tempo real, sublinhando o problema diretamente no editor enquanto você digita — sem precisar rodar o comando manualmente a cada mudança. Ela também traz o autocomplete de objects/filters do Liquid e o suporte a LiquidDoc visto no tópico de Snippets.",
+        "advanced": "Configure o editor pra rodar \"format on save\" junto com o linting sempre que possível — reduz drasticamente discussões de estilo em code review, deixando a ferramenta decidir formatação em vez de opinião pessoal."
+      },
+      {
+        "title": "Rode o Theme Check no CI, antes de qualquer deploy.",
+        "detail": "Adicionar `shopify theme check` como um passo obrigatório do pipeline de CI (GitHub Actions, GitLab CI, etc.) impede que erros cheguem a uma revisão da Theme Store ou a um cliente de produção — o problema é pego automaticamente, antes de qualquer humano revisar o pull request.",
+        "code": "# exemplo de step em GitHub Actions\n- name: Run Theme Check\n  run: shopify theme check --fail-level=error"
+      },
+      {
+        "title": "Projeto — configure Theme Check de ponta a ponta no seu tema.",
+        "detail": "Vamos deixar o Theme Check rodando localmente, no editor, e documentado — a base pra qualquer projeto de tema levado a sério."
+      },
+      {
+        "title": "Projeto — passo 1: rode o Theme Check e corrija todos os erros (não warnings) encontrados.",
+        "detail": "Erros (diferente de warnings) tipicamente indicam algo genuinamente quebrado — resolva todos antes de seguir pros próximos passos.",
+        "code": "shopify theme check"
+      },
+      {
+        "title": "Projeto — passo 2: crie um `.theme-check.yml` na raiz do projeto.",
+        "detail": "Mesmo que você não precise desativar nenhuma regra ainda, crie o arquivo estendendo o conjunto recomendado — deixa o projeto pronto pra ajustes futuros sem precisar descobrir a sintaxe do zero depois.",
+        "code": "extends: theme-check:recommended"
+      },
+      {
+        "title": "Projeto — passo 3: instale a extensão oficial no seu editor e confirme o linting em tempo real.",
+        "detail": "Abra qualquer arquivo `.liquid` do projeto, introduza um erro proposital (ex: uma tag sem fechar), e confirme que o editor sublinha o problema antes mesmo de você salvar o arquivo. Desfaça o erro depois."
+      },
+      {
+        "title": "Projeto — passo 4: adicione o Theme Check como step de CI, mesmo num projeto pessoal.",
+        "detail": "Se o projeto está num repositório GitHub, adicione um workflow simples de CI que rode `shopify theme check` a cada push — mesmo em projetos de estudo, isso constrói o hábito de tratar o linter como parte do fluxo, não como uma etapa manual opcional.",
+        "code": "name: Theme Check\non: [push]\njobs:\n  theme-check:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n      - run: npm install -g @shopify/cli\n      - run: shopify theme check --fail-level=error"
+      }
+    ]
+  },
+  "categoryId": "themes",
+  "categoryLabel": "Temas (Storefronts)"
+}

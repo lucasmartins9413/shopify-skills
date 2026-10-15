@@ -1,0 +1,66 @@
+{
+  "id": "integrating",
+  "title": "Integrating with Shopify",
+  "desc": "Siga boas práticas para embutir seu app no admin da Shopify.",
+  "plan": {
+    "objetivo": "Entender por que um app embutido precisa seguir padrões estritos de navegação e UI, e corrigir os desvios mais comuns desses padrões.",
+    "prereq": "App Home",
+    "tempo": "2h",
+    "doc": "https://shopify.dev/docs/apps/build/integrating-with-shopify",
+    "steps": [
+      {
+        "title": "Entenda por que \"parecer nativo\" não é só estética — é sobre confiança.",
+        "detail": "Um app embutido roda dentro de um iframe no admin, mas o merchant não pensa nele como \"um site de terceiro dentro de outro site\" — a expectativa é de continuidade total com o resto da experiência do admin. Quando um app quebra essa continuidade (uma navegação que se comporta de forma estranha, um modal que parece deslocado, um link que abre e some o admin inteiro), o merchant não pensa \"ah, é só uma limitação técnica do iframe\" — ele perde confiança na qualidade e na segurança do app como um todo.\n\nÉ por isso que a Shopify mantém um checklist rígido de integração, cobrindo navegação, autenticação e comportamento dentro do iframe."
+      },
+      {
+        "title": "Use App Bridge pra navegação, nunca `window.location` direto.",
+        "detail": "**App Bridge** cuida de navegação (`Redirect`), modais (`Modal`) e toasts (`Toast`) de forma consistente com o resto do admin — evite reimplementar isso com `window.location.href` ou bibliotecas próprias de UI, que não sabem lidar corretamente com o contexto de iframe.",
+        "code": "import { useAppBridge } from '@shopify/app-bridge-react';\nconst shopify = useAppBridge();\nshopify.toast.show('Salvo com sucesso');"
+      },
+      {
+        "title": "Entenda a Content Security Policy (CSP) restritiva do iframe do admin.",
+        "detail": "O admin roda seu app num iframe protegido por uma **CSP (Content Security Policy)** restritiva — uma política de segurança do navegador que limita o que scripts podem fazer dentro daquela página. Scripts de terceiros que dependem de `eval()` ou de código inline sem um `nonce` (um token de autorização específico daquela requisição) podem ser **bloqueados silenciosamente**, sem erro óbvio na tela — só investigando o console do navegador é que o bloqueio aparece.",
+        "advanced": "Se uma biblioteca de terceiro parar de funcionar só dentro do admin (mas funcionar normalmente fora dele), a CSP é a primeira suspeita — confira o console do navegador por mensagens de \"Content Security Policy directive\" antes de investigar qualquer outra causa."
+      },
+      {
+        "title": "Abra links externos em nova aba, nunca navegando o iframe pra fora do admin.",
+        "detail": "Um link normal (`<a href=\"...\">`) sem `target=\"_blank\"`, apontando pra um domínio externo, navega o **próprio iframe** pra fora — o merchant literalmente \"sai\" do admin sem perceber, ficando preso numa página externa dentro do espaço que antes mostrava seu app.",
+        "code": "<a href=\"https://exemplo.com\" target=\"_blank\" rel=\"noopener\">Ver mais</a>",
+        "advanced": "Navegação pra fora do admin sem `target=\"_blank\"` faz o merchant \"sumir\" do fluxo do admin de forma confusa — trate isso como bug crítico de UX, não como um detalhe menor, porque a confusão resultante é genuinamente desorientadora pra quem não esperava sair do contexto."
+      },
+      {
+        "title": "Use os componentes de modal do App Bridge, não implementações próprias.",
+        "detail": "Abrir modais fora do App Bridge (por exemplo, um modal CSS/JS customizado renderizado dentro do próprio iframe) quebra a experiência — ele fica \"preso\" dentro do espaço pequeno do iframe, em vez de sobrepor a tela inteira do admin como um modal nativo faria. Sempre use os componentes de modal do próprio App Bridge, que sabem se comunicar com o admin ao redor pra renderizar corretamente."
+      },
+      {
+        "title": "Revise o checklist oficial de embedded apps antes de considerar o app pronto.",
+        "detail": "O [checklist oficial de embedded apps](https://shopify.dev/docs/apps/build/integrating-with-shopify) cobre sistematicamente navegação, autenticação e comportamento dentro do iframe — revisá-lo item por item, mesmo que pareça repetitivo com o que já foi discutido aqui, é a forma mais confiável de não deixar passar um desvio de padrão antes de submeter o app pra revisão."
+      },
+      {
+        "title": "Projeto — audite seu app em busca de violações de integração comuns.",
+        "detail": "Vamos revisar sistematicamente o app construído ao longo da trilha, procurando pelos três desvios mais comuns discutidos acima."
+      },
+      {
+        "title": "Projeto — passo 1: procure por `window.location` no código do frontend.",
+        "detail": "Faça uma busca textual por `window.location` em todo o código do frontend do app — cada ocorrência é candidata a ser substituída por navegação via App Bridge.",
+        "code": "grep -r \"window.location\" app/"
+      },
+      {
+        "title": "Projeto — passo 2: procure por links externos sem `target=\"_blank\"`.",
+        "detail": "Revise todos os `<a href=\"http...\">` do código, confirmando que cada um aponta pra fora do domínio da própria loja e tem `target=\"_blank\" rel=\"noopener\"` configurado.",
+        "code": "grep -rn \"<a href=\\\"http\" app/"
+      },
+      {
+        "title": "Projeto — passo 3: teste um fluxo de \"salvar com sucesso\" usando toast do App Bridge.",
+        "detail": "Se o app ainda usa `alert()` ou uma notificação customizada pra confirmar ações, substitua por `shopify.toast.show()` e teste o resultado visualmente dentro do admin."
+      },
+      {
+        "title": "Projeto — passo 4: abra o DevTools e confirme ausência de erros de CSP.",
+        "detail": "Com o app rodando dentro do admin da dev store, abra o console do navegador e navegue por todas as telas do app, confirmando que nenhuma mensagem de Content Security Policy aparece — se aparecer, identifique e resolva a origem antes de seguir.",
+        "advanced": "Esse tipo de auditoria vale a pena repetir sempre que uma nova biblioteca de terceiro for adicionada ao projeto — é o tipo de regressão que passa despercebida em teste manual superficial, mas aparece claramente no console."
+      }
+    ]
+  },
+  "categoryId": "quality",
+  "categoryLabel": "Quality"
+}

@@ -1,0 +1,18 @@
+{
+  "id": "seo",
+  "label": "SEO",
+  "intro": "Otimize temas e apps pra aparecer bem no Google — metadata, dados estruturados, hreflang, robots.txt, performance e os requisitos reais da Theme Store.",
+  "topicCount": 10,
+  "topicIds": [
+    "seo-fundamentals",
+    "seo-metadata",
+    "seo-structured-data",
+    "seo-robots-sitemap",
+    "seo-content-architecture",
+    "seo-international",
+    "seo-performance",
+    "seo-apps",
+    "seo-headless",
+    "seo-theme-store-review"
+  ]
+}

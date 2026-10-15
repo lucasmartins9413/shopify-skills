@@ -1,0 +1,31 @@
+{
+  "id": "flags-aprendizados",
+  "title": "Case Flags: aprendizados e próximos passos",
+  "desc": "O que fica para o próximo app: decisões para tomar no início, erros para não repetir e o que vem depois do lançamento.",
+  "plan": {
+    "objetivo": "Transformar o case num checklist para os próximos apps.",
+    "prereq": "Ter passado pelos tópicos anteriores do case.",
+    "tempo": "20min",
+    "doc": "https://shopify.dev/docs/apps/launch/built-for-shopify",
+    "steps": [
+      {
+        "title": "Decisões para tomar no primeiro dia.",
+        "detail": "- Distribuição **Public** se o app vai cobrar pela Billing API.\n- `expiringOfflineAccessTokens: true` e `unstable_newEmbeddedAuthStrategy: true` desde o início, para não precisar migrar tokens depois.\n- **i18n** no admin e no embed se o app for internacional.\n- Node LTS fixado no `engines`.\n- `shopify.extension.toml` no formato atual.\n- Banco sem modo serverless em produção."
+      },
+      {
+        "title": "Erros para não repetir.",
+        "detail": "1. Logar `error` cru: os erros da Admin API vêm num `Response`; leia o corpo.\n2. Usar `authenticate.webhook` em rotas que não precisam da Admin API: com tokens que expiram, ela quebra depois da desinstalação.\n3. Filtrar assinaturas com `isTest: false` no `billing.check`: a loja do revisor pode gerar assinatura de teste mesmo assim.\n4. Carregar o App Bridge duas vezes.\n5. Testar a extensão só no Dawn: teste também no Horizon.\n6. Deixar o script da loja rodar no carrinho e na busca preditiva."
+      },
+      {
+        "title": "Hábitos que funcionaram.",
+        "detail": "- Um commit por correção, com a causa explicada na mensagem. O histórico virou a documentação do que deu errado.\n- Vídeo de prova para cada resposta ao revisor.\n- Checklist de publicação escrito durante o processo (`docs/requisitos-publicacao-shopify.md` no repositório do app), para reusar no próximo.\n- Validar em produção com casos reais: requisição sem assinatura (401) e `shopify app webhook trigger` (200)."
+      },
+      {
+        "title": "Próximos passos do Flags.",
+        "detail": "- **Internacionalizar:** admin e nome do embed estão fixos em português. O plano é suportar inglês escolhendo o idioma pelo locale do admin do lojista e publicar o listing em inglês (a cobrança já é em USD).\n- **Built for Shopify:** selo opcional, só depois de uso real. Pede 50+ instalações líquidas em lojas com plano pago, 5+ avaliações com nota 4+, e Core Web Vitals do admin (LCP < 2,5 s, CLS < 0,1, INP < 200 ms) medidos em 100+ carregamentos.\n- **Primeiras avaliações:** com 0 reviews no lançamento, pedir avaliação aos primeiros lojistas é o que mais move o app na busca."
+      }
+    ]
+  },
+  "categoryId": "cases",
+  "categoryLabel": "Cases reais"
+}

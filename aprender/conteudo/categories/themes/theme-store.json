@@ -1,0 +1,65 @@
+{
+  "id": "theme-store",
+  "title": "Shopify Theme Store",
+  "desc": "Publique temas para milhões de merchants através da Theme Store.",
+  "plan": {
+    "objetivo": "Entender os requisitos reais de submissão à Theme Store, montar um checklist de pré-submissão e planejar o compromisso de suporte contínuo que vem depois da aprovação.",
+    "prereq": "Best practices",
+    "tempo": "2h",
+    "doc": "https://shopify.dev/docs/storefronts/themes/store",
+    "steps": [
+      {
+        "title": "Entenda os quatro pilares dos requisitos de submissão.",
+        "detail": "Os requisitos oficiais da Theme Store cobrem, principalmente:\n\n- **Suporte a templates**: um número mínimo de tipos de página com design dedicado e de qualidade (não só reaproveitando um layout genérico pra tudo).\n- **Customização real**: opções reais de cores, tipografia e layout no editor — o merchant precisa conseguir diferenciar visualmente uma loja da outra usando o mesmo tema, só com o editor.\n- **Performance mínima**: metas de Lighthouse/Core Web Vitals — um tema lento é rejeitado independente da qualidade visual.\n- **Integridade de código**: ausência de código enganoso, ofuscado, ou dependências de terceiros não declaradas claramente ao merchant.\n\nA lista completa e atualizada de requisitos está em [shopify.dev](https://shopify.dev/docs/storefronts/themes/store/requirements) — como esses critérios evoluem, ela é sempre a fonte da verdade, mais do que qualquer checklist externo (inclusive este).",
+        "advanced": "A revisão inclui teste manual de um revisor humano, além do Theme Check automatizado — erros sutis de UX (um formulário confuso, um fluxo de checkout com atrito desnecessário) também podem barrar a aprovação, mesmo com o linter 100% limpo."
+      },
+      {
+        "title": "Rode o Theme Check e corrija todos os erros bloqueantes antes de submeter.",
+        "detail": "Erros (não meros warnings) do Theme Check são bloqueantes pra submissão — a revisão nem chega à parte manual se o linter automatizado já falhar. Resolva tudo antes de considerar o tema pronto pra enviar.",
+        "code": "shopify theme check --fail-level=error"
+      },
+      {
+        "title": "Monte um checklist próprio cruzando requisitos oficiais com o estado real do tema.",
+        "detail": "Transforme a lista de requisitos numa checklist prática, item por item, com uma coluna de status (\"feito\", \"parcial\", \"não se aplica\") — isso expõe rapidamente lacunas antes de gastar o tempo de submissão formal, que costuma ter um ciclo de revisão relativamente longo.",
+        "advanced": "Concorrência na Theme Store é alta — diferenciação real de design ou nicho (ex: um tema pensado especificamente pra lojas de moda sustentável, com seções que fazem sentido só nesse contexto) pesa tanto quanto a qualidade técnica pura do código na decisão de compra do merchant."
+      },
+      {
+        "title": "Valide performance com Lighthouse, não só \"no olho\".",
+        "detail": "Rode uma auditoria de Lighthouse (Chrome DevTools → aba Lighthouse) numa página de produto e numa de coleção com dados reais (não uma dev store vazia) — carrinho populado, catálogo com dezenas de produtos, imagens em tamanho real. Métricas medidas numa loja de teste vazia costumam ser otimistas demais e não refletem o que um revisor (ou merchant real) vai experimentar.",
+        "advanced": "Preste atenção especial a Largest Contentful Paint (LCP) e Cumulative Layout Shift (CLS) — são as métricas de Core Web Vitals mais frequentemente citadas em rejeições de temas por performance insuficiente."
+      },
+      {
+        "title": "Prepare a documentação e as imagens de listagem da submissão.",
+        "detail": "Além do código, a submissão exige material de apresentação: descrição do tema, imagens de preview em diferentes contextos (desktop e mobile), e clareza sobre o que o tema oferece de diferente. Trate isso com o mesmo cuidado que o código — é a primeira coisa que o merchant vê antes mesmo de instalar."
+      },
+      {
+        "title": "Planeje o compromisso de suporte contínuo pós-aprovação.",
+        "detail": "Um tema aprovado na Theme Store não é um entregável único — a Shopify exige compromisso de manutenção: corrigir bugs reportados por merchants, acompanhar mudanças na plataforma (novos tipos de setting, mudanças em APIs do Liquid) e responder a tickets de suporte dentro de prazos esperados. Avalie isso como parte real da decisão de submeter, não como um detalhe posterior.",
+        "advanced": "Temas com histórico de suporte fraco podem ser removidos da Theme Store mesmo depois de aprovados — a aprovação inicial não é uma garantia permanente de permanência na loja."
+      },
+      {
+        "title": "Projeto — monte o checklist de pré-submissão para o seu tema de estudo.",
+        "detail": "Mesmo sem intenção real de submeter agora, montar esse checklist é o melhor exercício pra consolidar toda a trilha — ele força você a revisitar praticamente todos os tópicos anteriores sob a ótica de \"isso está pronto pra produção de verdade?\"."
+      },
+      {
+        "title": "Projeto — passo 1: liste os tipos de template que seu tema cobre hoje.",
+        "detail": "Abra `templates/` e liste todos os tipos de página com um template dedicado e com design de fato pensado (não um placeholder genérico)."
+      },
+      {
+        "title": "Projeto — passo 2: rode o Theme Check com falha em erros e documente o resultado.",
+        "detail": "Rode o linter no modo estrito e anote o resultado — zero erros é o mínimo esperado antes de considerar qualquer submissão real.",
+        "code": "shopify theme check --fail-level=error"
+      },
+      {
+        "title": "Projeto — passo 3: rode Lighthouse numa página de produto com dados realistas.",
+        "detail": "Popule sua dev store com produtos, imagens em tamanho real e um carrinho com itens, depois rode a auditoria — anote as pontuações de Performance e Acessibilidade, e liste os itens apontados pra melhorar."
+      },
+      {
+        "title": "Projeto — passo 4: escreva o checklist final, cruzando os três passos anteriores.",
+        "detail": "Consolide tudo num único documento (ou nas suas anotações deste tópico): templates cobertos, status do Theme Check, pontuação de Lighthouse, e uma lista clara do que falta pra esse tema estar genuinamente pronto pra revisão — fechando a trilha completa de temas com um retrato honesto do estado atual do seu projeto."
+      }
+    ]
+  },
+  "categoryId": "themes",
+  "categoryLabel": "Temas (Storefronts)"
+}

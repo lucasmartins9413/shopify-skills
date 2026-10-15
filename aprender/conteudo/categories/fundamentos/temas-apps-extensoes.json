@@ -1,0 +1,35 @@
+{
+  "id": "temas-apps-extensoes",
+  "title": "Tema vs. app vs. extensão",
+  "desc": "As três camadas onde você realmente vai programar na Shopify — e como saber, diante de um pedido, qual delas resolve o problema.",
+  "plan": {
+    "objetivo": "Entender a diferença entre tema, app e extensão como as três camadas de customização da Shopify, pra conseguir decidir rapidamente qual delas usar diante de um pedido novo.",
+    "prereq": "Modelos de venda: B2C, B2B e D2C",
+    "tempo": "25min",
+    "doc": "https://shopify.dev/docs/apps/build",
+    "steps": [
+      {
+        "title": "Reconheça as três camadas onde código roda numa loja Shopify.",
+        "detail": "Até aqui a trilha falou de **conceitos** de e-commerce. A partir de agora, cada um desses conceitos vira código em uma (ou mais) de três camadas:\n\n1. **Tema**: controla a aparência e o conteúdo da storefront — home, coleção, produto — escrito principalmente em **Liquid**, a linguagem de template da Shopify.\n2. **App**: um programa independente, rodando no seu próprio servidor, que estende o que a Shopify faz — automatiza tarefa, integra com outro sistema, adiciona funcionalidade nova ao admin.\n3. **Extensão**: um pedaço de código de um app que é injetado dentro de uma superfície específica e controlada da Shopify — um bloco no checkout, uma seção no admin, uma regra de desconto — sem o app precisar (ou poder) reescrever a página inteira.\n\nEssas três camadas conversam entre si o tempo todo: um app pode ler dados que um tema usa; uma extensão de tema é código de app rodando dentro da storefront.",
+        "advanced": "\"Extensão de tema\" (theme app extension) é frequentemente confundida com \"tema\" — mas o código dela pertence a um **app**, não ao tema; o merchant só decide onde encaixar o bloco dentro do editor de temas. Essa distinção importa pra saber onde reportar bug e onde o código realmente vive."
+      },
+      {
+        "title": "Veja o mesmo dado, produto, sendo lido de dois jeitos diferentes.",
+        "detail": "No **tema**, ler o título de um produto é acessar um objeto Liquid já disponível na página, sem autenticação nenhuma — o merchant é dono do tema e do storefront onde ele roda:",
+        "code": "<h1>{{ product.title }}</h1>"
+      },
+      {
+        "title": "Compare com o mesmo dado sendo lido por um app.",
+        "detail": "Já num **app**, o mesmo título de produto vem de uma chamada autenticada à Admin API — o app não tem acesso automático a nada, precisa provar (via token) que tem permissão pra ler aquela loja específica:",
+        "code": "const { admin } = await authenticate.admin(request);\nconst response = await admin.graphql(`#graphql\n  query { product(id: $id) { title } }`, { variables: { id } });",
+        "advanced": "Essa diferença de modelo de acesso — tema lendo direto do contexto da página vs. app autenticando explicitamente — é uma das razões pelas quais tema e app são tratados como superfícies de segurança completamente diferentes: o tema roda no navegador do cliente final, público; o app roda em servidor próprio, autenticado."
+      },
+      {
+        "title": "Use um teste rápido pra decidir qual camada resolve um pedido novo.",
+        "detail": "Diante de um pedido (\"o cliente quer que...\"), um teste prático:\n\n- É sobre **aparência ou conteúdo do site**, sem lógica de negócio nova? → provavelmente **tema**.\n- Precisa **guardar dado próprio, chamar serviço externo, ou automatizar algo fora da página**? → provavelmente **app**.\n- Precisa **aparecer dentro de uma superfície controlada** (checkout, admin, ponto de venda) sem reescrever a página toda? → provavelmente **extensão** de um app.\n\nNa dúvida, comece perguntando \"isso é sobre como a loja parece, ou sobre o que a loja faz\" — aparência tende a tema, comportamento/integração tende a app."
+      }
+    ]
+  },
+  "categoryId": "fundamentos",
+  "categoryLabel": "Fundamentos de Ecommerce"
+}

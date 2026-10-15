@@ -1,0 +1,40 @@
+{
+  "id": "flags-revisao",
+  "title": "Case Flags: envio, revisão e aprovação",
+  "desc": "Como foi o envio, os dois problemas apontados pelo revisor (5.1.2 e 1.2.2), os erros de infraestrutura no meio do caminho e a aprovação.",
+  "plan": {
+    "objetivo": "Passar pela revisão da Shopify respondendo cada problema com correção e prova.",
+    "prereq": "Checagens automáticas verdes e listing completo.",
+    "tempo": "Dias (depende da fila da Shopify)",
+    "doc": "https://shopify.dev/docs/apps/launch/app-store-review/review-process",
+    "steps": [
+      {
+        "title": "Antes de enviar, instale do zero numa loja limpa.",
+        "detail": "1. Instalar o app numa development store nova.\n2. Ativar o embed e ver as badges em coleção e página de produto.\n3. Assinar um plano (cobrança de teste) e usar os recursos pagos.\n4. Desinstalar e reinstalar: tem que funcionar sem erro e sem deixar resto no tema.\n5. Acompanhar os logs do servidor durante tudo isso."
+      },
+      {
+        "title": "Envie e prepare o e-mail para o contato do revisor.",
+        "detail": "O Flags foi enviado em 01/10/2026 (referência 139025, status *Submitted*). Libere `noreply@shopify.com` no seu e-mail para não perder as mensagens da revisão.\n\nDurante a revisão: **só correção de bug**, nada de funcionalidade nova. Para editar o listing é preciso retirar o envio e enviar de novo (a visibilidade é a exceção)."
+      },
+      {
+        "title": "Problema 5.1.2: a badge \"OFERTA\" não aparecia na página de produto.",
+        "detail": "O revisor testou no **Dawn**, com um produto em promoção, e não viu a badge. O App Proxy respondia 200 para a loja dele, então o problema estava no navegador: a condição não batia com o produto ou o script não achava onde inserir a badge.\n\nInvestigando, o app também falhava no **Horizon** (card com link em overlay e título duplicado numa barra fixa). O `flags.js` foi reescrito para achar card e título de forma independente do tema (detalhes no tópico da theme extension), validado no Horizon injetando o script no console da loja e publicado na versão 15. A resposta ao revisor foi acompanhada de um vídeo de prova.",
+        "advanced": "Dois detalhes que valem para as instruções de teste:\n\n- O embed é ativado **por tema**. Se o revisor troca o tema da loja de teste, precisa ligar o embed de novo.\n- O Flags não tem uma condição \"produto em promoção\": a badge depende de tag, coleção, estoque ou produtos escolhidos, e nos cards só valem tag e produtos. Diga exatamente qual tag colocar no produto e onde a badge deve aparecer."
+      },
+      {
+        "title": "Problema 1.2.2: o upgrade para o Pro ficava preso.",
+        "detail": "Era o filtro de assinaturas de teste no `billing.check` (detalhes no tópico de cobrança). Depois da correção, foi gravado um vídeo com Free → Basic → Pro funcionando e enviado na resposta."
+      },
+      {
+        "title": "Erros de infraestrutura que apareceram no meio da revisão.",
+        "detail": "- **Webhooks 500 para lojas desinstaladas:** resolvido validando só o HMAC (tópico de preparação técnica).\n- **Alerta \"Deprecated offline token\":** resolvido com o endpoint oficial de migração.\n- **Postgres da Railway dormindo:** o banco estava em modo serverless e \"dormia\" sem tráfego. A primeira requisição depois disso (às vezes um webhook) falhava com 500. Em produção, desligue o modo serverless/sleep do banco."
+      },
+      {
+        "title": "Aprovação e publicação.",
+        "detail": "O app foi aprovado e publicado em **05/10/2026**, 4 dias depois do primeiro envio e 23 dias depois do primeiro commit.\n\nListing: [apps.shopify.com/flags-product-badges](https://apps.shopify.com/flags-product-badges)"
+      }
+    ]
+  },
+  "categoryId": "cases",
+  "categoryLabel": "Cases reais"
+}

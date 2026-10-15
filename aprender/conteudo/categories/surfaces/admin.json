@@ -1,0 +1,70 @@
+{
+  "id": "admin",
+  "title": "Admin",
+  "desc": "Adicione ações, blocos e impressão às páginas de recursos no admin da Shopify.",
+  "plan": {
+    "objetivo": "Entender quando usar admin actions versus admin blocks, associar corretamente uma extension a um recurso e ler o contexto de dados que ela recebe.",
+    "prereq": "App Home",
+    "tempo": "3h",
+    "doc": "https://shopify.dev/docs/apps/build/admin",
+    "steps": [
+      {
+        "title": "Entenda a diferença entre agir na página de um recurso e ter sua própria página.",
+        "detail": "App Home é a tela **do seu app**, acessada pelo menu — mas boa parte das ações úteis de um app fazem mais sentido acontecendo **dentro** da página de um recurso já existente, como um produto ou um pedido, sem o merchant precisar sair de onde está pra ir até seu app. Admin actions e admin blocks resolvem exatamente isso: eles injetam funcionalidade do seu app diretamente nas páginas nativas de recursos do admin.",
+        "advanced": "Pense em admin extensions como \"funcionalidade emprestada pro contexto certo\" — o merchant nunca precisa saber que aquela ação/bloco vem de um app de terceiro parado noutro lugar; ela aparece exatamente onde faz sentido, no fluxo de trabalho dele."
+      },
+      {
+        "title": "Escolha entre admin action e admin block.",
+        "detail": "Os dois tipos resolvem necessidades diferentes:\n- **Admin action** — abre um **modal** sobre o recurso, geralmente acionado por um botão no menu \"Mais ações\". Bom pra interações pontuais e independentes (ex: \"gerar etiqueta de envio\").\n- **Admin block** — fica **fixo** na página, como uma seção a mais na tela do recurso. Bom pra exibir informação persistente relacionada àquele recurso (ex: \"histórico de sincronização com o marketplace X\").\n\nA escolha certa depende de a interação ser uma ação pontual (action) ou uma informação/controle que o merchant quer ver sempre que abre aquela página (block).",
+        "advanced": "Admin actions têm limite de tamanho de payload e de complexidade de UI — não tente renderizar telas muito grandes ou com muitos componentes aninhados dentro do modal; se a interação for complexa demais, considere linkar pra uma página completa do seu app em vez de forçar tudo dentro do modal."
+      },
+      {
+        "title": "Gere a extension e associe-a a um recurso via `target`.",
+        "detail": "O CLI gera a estrutura básica, mas é o `target` declarado no `shopify.extension.toml` que decide em qual página e tipo de recurso a extension vai efetivamente aparecer — o nome segue um padrão previsível (`admin.<recurso>.<tipo>.render`).",
+        "code": "shopify app generate extension\n# escolha \"Admin action\" ou \"Admin block\"\n\n# no shopify.extension.toml gerado:\n[[extensions.targeting]]\ntarget = \"admin.product-details.action.render\"",
+        "advanced": "O target errado falha silenciosamente — a extension simplesmente não aparece na página esperada, sem erro explícito no console ou no terminal. Confira sempre a grafia exata do target na [documentação de targets de admin](https://shopify.dev/docs/api/app-home/admin-extension-targets) antes de assumir que algo mais complexo está quebrado."
+      },
+      {
+        "title": "Leia o contexto de dados que a extension recebe (`data.selected`).",
+        "detail": "Quando o merchant aciona a extension numa página de recurso, ela recebe automaticamente informação sobre **qual** recurso está sendo visualizado — geralmente através de um objeto como `data.selected`, contendo o ID (e às vezes outros campos básicos) do recurso atual. É esse ID que você usa pra buscar mais dados via GraphQL dentro da própria extension, se precisar.",
+        "code": "import { useApi } from '@shopify/ui-extensions-react/admin';\n\nfunction Component() {\n  const { data } = useApi();\n  const productId = data.selected[0].id;\n  // use productId numa query GraphQL pra buscar mais detalhes\n}"
+      },
+      {
+        "title": "Entenda que o formato do contexto muda entre tipos de recurso.",
+        "detail": "O formato exato de `data.selected` (e outros campos de contexto disponíveis) varia dependendo se a extension está numa página de produto, de pedido, ou de cliente — cada tipo de recurso expõe um contexto ligeiramente diferente. Se você planeja reaproveitar a mesma lógica de extension em mais de um tipo de página, teste explicitamente em cada um, sem assumir que o formato é idêntico.",
+        "advanced": "Extensions genéricas (pensadas pra funcionar em múltiplos tipos de recurso) devem tratar a leitura do contexto de forma defensiva — verificando a presença de cada campo antes de usá-lo, já que o shape exato pode variar."
+      },
+      {
+        "title": "Abra a página do recurso na dev store e acione a extension.",
+        "detail": "Com `shopify app dev` rodando, abra um produto na dev store, procure a extension no menu \"Mais ações\" (pra actions) ou role a página até o bloco correspondente (pra blocks), e dispare/observe o comportamento.",
+        "advanced": "Teste em mais de um recurso de teste (produtos diferentes, com dados diferentes) se a action for genérica — o contexto (`data.selected`) muda de conteúdo entre eles, mesmo que a estrutura geral seja parecida."
+      },
+      {
+        "title": "Projeto — construa um admin block que exibe metadados customizados de um produto.",
+        "detail": "Vamos criar um admin block que aparece na página de produto e exibe o valor de um metafield (retomando o tópico de Metafields da trilha) — um padrão bastante comum de app que enriquece a página nativa com dado próprio."
+      },
+      {
+        "title": "Projeto — passo 1: gere o admin block com o target de página de produto.",
+        "detail": "Rode o gerador escolhendo admin block, e confirme o target no toml gerado.",
+        "code": "shopify app generate extension\n# escolha \"Admin block\"\n# target esperado: admin.product-details.block.render"
+      },
+      {
+        "title": "Projeto — passo 2: leia o ID do produto do contexto da extension.",
+        "detail": "Use `useApi` (ou o hook equivalente do template gerado) pra capturar o ID do produto atual.",
+        "code": "const { data } = useApi();\nconst productId = data.selected[0].id;"
+      },
+      {
+        "title": "Projeto — passo 3: busque o metafield desse produto via GraphQL, direto da extension.",
+        "detail": "Rode uma query buscando o metafield `custom.material` (criado no tópico de Metafields) usando o ID capturado.",
+        "code": "const response = await fetch(\"shopify:admin/api/graphql.json\", {\n  method: \"POST\",\n  body: JSON.stringify({\n    query: `query($id: ID!) {\n      product(id: $id) { metafield(namespace: \"custom\", key: \"material\") { value } }\n    }`,\n    variables: { id: productId }\n  })\n});"
+      },
+      {
+        "title": "Projeto — passo 4: renderize o valor no bloco e teste em dois produtos diferentes.",
+        "detail": "Exiba o valor retornado no bloco, e abra dois produtos diferentes na dev store — um com o metafield preenchido e outro sem — confirmando que o bloco trata corretamente o caso de valor ausente.",
+        "advanced": "Trate explicitamente o caso de `metafield` vir `null` (produto sem esse metafield preenchido) — exibir uma mensagem clara (\"Nenhum material cadastrado\") é melhor UX do que deixar o bloco quebrar ou aparecer vazio sem explicação."
+      }
+    ]
+  },
+  "categoryId": "surfaces",
+  "categoryLabel": "Surfaces"
+}

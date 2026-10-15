@@ -1,0 +1,63 @@
+{
+  "id": "dev-dashboard",
+  "title": "Dev Dashboard",
+  "desc": "Crie e gerencie apps, lojas e acesso de colaboradores em um só lugar.",
+  "plan": {
+    "objetivo": "Entender o Dev Dashboard como a fonte da verdade de um app — credenciais, colaboradores e escopos — e saber gerenciar tudo isso com segurança.",
+    "prereq": "Set up your development environment",
+    "tempo": "1h30",
+    "doc": "https://shopify.dev/docs/apps/build/dev-dashboard",
+    "steps": [
+      {
+        "title": "Uma ideia importante antes de continuar: seu app não \"mora\" no seu computador.",
+        "detail": "É fácil achar, no início, que o app vive no seu projeto local — mas na verdade ele existe como **entidade registrada na Shopify** através do Dev Dashboard: nome, `client_id`/`client_secret`, Application URL e histórico de versões deployadas ficam armazenados lá. O `shopify.app.toml` no seu projeto local só **referencia** esse registro. Se você apagar a pasta do projeto inteira, o app continua existindo no Dashboard, esperando alguém reconectar um código local a ele.",
+        "code": "shopify app config link\n# reconecta uma pasta local (nova ou recriada)\n# a um app já registrado no Dashboard",
+        "advanced": "Isso significa que dois desenvolvedores diferentes, em máquinas diferentes, podem se conectar ao **mesmo app registrado** (o mesmo `client_id`) rodando `shopify app config link` — não é preciso recriar o app do zero pra colaborar."
+      },
+      {
+        "title": "Abra o Dashboard e passeie pela página do seu app.",
+        "detail": "Localize o app criado no tópico \"Scaffold an app\". Você vai ver seções para: informações básicas (nome, URLs), credenciais (client ID/secret), escopos de API, versões deployadas e colaboradores — cada uma correspondendo a um aspecto que também aparece, resumido, no `shopify app info` do CLI que você já usou antes."
+      },
+      {
+        "title": "Por que existe mais de um `client_id` pro mesmo app?",
+        "detail": "Um app pode (e geralmente deve) ter mais de um registro no Dashboard: um pra desenvolvimento/testes, outro pra produção. Cada um tem seu próprio `client_id`/`client_secret` — isso evita que um bug ou experimento local em desenvolvimento afete escopos, instalações ou dados de uma instalação real de um merchant.",
+        "advanced": "Não reaproveite o `client_id` de produção durante o desenvolvimento — além do risco de afetar merchants reais por engano, credenciais de produção normalmente têm mais visibilidade/acesso e devem ser tratadas com mais cuidado (menos gente com acesso, rotação mais frequente)."
+      },
+      {
+        "title": "Convide um colaborador de teste — e escolha o menor acesso que funciona.",
+        "detail": "Colaboradores podem ter diferentes níveis de acesso ao app registrado:\n- **Leitura** — vê configuração e métricas, não edita nada.\n- **Edição de código/extensions** — pode alterar o app e criar novas versões.\n- **Administração total** — inclui gerenciar outros colaboradores e credenciais sensíveis (client secret).\n\nEscolha sempre o menor nível necessário pra quem está entrando no projeto — é bem mais fácil elevar o acesso de alguém depois do que reverter um dano causado por permissão excessiva."
+      },
+      {
+        "title": "Vá até `shopify.app.toml` e audite os escopos declarados.",
+        "detail": "Escopos de API (ex: `read_products`, `write_orders`) determinam exatamente o que seu app pode ler ou escrever na loja. Declare no bloco `[access_scopes]` apenas o que o app **de fato usa** — pedir escopo a mais é uma das causas mais comuns de merchants desconfiarem na hora de instalar, e também de rejeição em revisões de compliance (você vai ver isso com mais detalhe no tópico de Compliance).",
+        "code": "[access_scopes]\nscopes = \"read_products,write_orders\"",
+        "advanced": "Escopos concedidos ficam presos até o merchant reinstalar o app — reduzir escopos no código exige nova versão do app **e** reinstalação explícita pelo merchant; não é retroativo automaticamente pra quem já instalou com os escopos antigos."
+      },
+      {
+        "title": "Projeto — audite as configurações do seu app no Dashboard, de ponta a ponta.",
+        "detail": "Vamos revisar sistematicamente cada seção do Dashboard pro app criado anteriormente na trilha, como faria antes de considerar um app \"pronto pra mostrar a alguém\"."
+      },
+      {
+        "title": "Projeto — passo 1: confira se o `client_id` do Dashboard bate com o local.",
+        "detail": "Rode `shopify app info` localmente e compare o `client_id` mostrado com o que aparece na página do app no Dashboard — devem ser idênticos.",
+        "code": "shopify app info"
+      },
+      {
+        "title": "Projeto — passo 2: liste os escopos declarados e justifique cada um.",
+        "detail": "Abra `shopify.app.toml`, liste os escopos em `[access_scopes]`, e para cada um escreva uma frase justificando por que o app precisa dele. Se não conseguir justificar algum, é candidato a remoção.",
+        "code": "cat shopify.app.toml | grep -A1 access_scopes"
+      },
+      {
+        "title": "Projeto — passo 3: convide um segundo colaborador (pode ser uma segunda conta sua, se estiver sozinho) com acesso de leitura.",
+        "detail": "Pratique o fluxo de convite com o nível de permissão mais restrito disponível, e confirme no Dashboard que o convite aparece como pendente/aceito."
+      },
+      {
+        "title": "Projeto — passo 4: documente o processo de setup num README do projeto.",
+        "detail": "Escreva, no README do repositório, os passos que alguém novo precisaria seguir pra conseguir acesso ao app no Dashboard e rodar o projeto localmente — isso vira a documentação de onboarding real do projeto.",
+        "advanced": "Inclua explicitamente qual nível de acesso pedir no convite pra cada tipo de colaborador (ex: \"designers pedem leitura, desenvolvedores pedem edição\") — economiza uma rodada de perguntas toda vez que alguém novo entra."
+      }
+    ]
+  },
+  "categoryId": "build",
+  "categoryLabel": "Build"
+}

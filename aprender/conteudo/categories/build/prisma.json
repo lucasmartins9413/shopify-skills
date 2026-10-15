@@ -1,0 +1,86 @@
+{
+  "id": "prisma",
+  "title": "Banco de dados com Prisma",
+  "desc": "Entenda o Prisma que vem no template do app Shopify: sessões, modelos próprios, migrations e como trocar SQLite por Postgres.",
+  "plan": {
+    "objetivo": "Usar o Prisma dentro de um app Shopify: entender o que o template já guarda no banco, criar seus próprios modelos ligados à loja, rodar migrations e preparar a troca de SQLite pra Postgres em produção.",
+    "prereq": "Build an app",
+    "tempo": "4h",
+    "doc": "https://www.prisma.io/docs/orm/prisma-schema/overview",
+    "steps": [
+      {
+        "title": "Entenda por que o app precisa de um banco de dados.",
+        "detail": "Um app Shopify é um servidor seu, fora da Shopify. A Shopify não guarda o estado do **seu** app: os tokens de acesso de cada loja que instalou, configurações que o lojista escolheu na tela do app, histórico de execuções, filas de trabalho. Tudo isso precisa de um banco.\n\nO template gerado por `shopify app init` já vem com **Prisma** (um ORM: você descreve as tabelas num arquivo e ganha um client tipado pra consultá-las) configurado com **SQLite**, um arquivo local ótimo pra desenvolver.",
+        "advanced": "Nem todo dado deve ir pro seu banco. Dado que já é da loja (produto, pedido, cliente) fica na Shopify e você lê por GraphQL. Dado de configuração do app pode ir em **metafields** (tópico Metafields). Banco próprio é pra o que é realmente seu: sessões, logs, cache, filas."
+      },
+      {
+        "title": "Localize os três arquivos do Prisma no template.",
+        "detail": "Abra a pasta do app e ache:\n\n- `prisma/schema.prisma` — a definição de datasource, generator e modelos.\n- `prisma/migrations/` — o histórico de mudanças de schema, uma pasta por migration.\n- `app/db.server.ts` — exporta a instância única do `PrismaClient` usada pelo resto do app.",
+        "code": "// app/db.server.ts (template)\nimport { PrismaClient } from \"@prisma/client\";\n\nconst prisma = new PrismaClient();\nexport default prisma;",
+        "advanced": "Em desenvolvimento, o hot reload recria módulos e cada recriação abriria uma nova conexão. Por isso o template guarda o client numa variável global fora de produção — se você mexer nesse arquivo, mantenha esse padrão."
+      },
+      {
+        "title": "Leia o modelo Session que o template já criou.",
+        "detail": "O `schema.prisma` vem com o modelo `Session`. É ele que guarda, por loja, o token de acesso e os dados do usuário que instalou. O pacote `@shopify/shopify-app-session-storage-prisma` lê e escreve nessa tabela — você não chama esse modelo diretamente no dia a dia.",
+        "code": "datasource db {\n  provider = \"sqlite\"\n  url      = \"file:dev.sqlite\"\n}\n\nmodel Session {\n  id          String    @id\n  shop        String\n  state       String\n  isOnline    Boolean   @default(false)\n  scope       String?\n  expires     DateTime?\n  accessToken String\n  userId      BigInt?\n}",
+        "advanced": "Essa tabela contém **tokens de acesso reais** de lojas. Trate como segredo: não logue linhas dela, não exponha em rotas e, em produção, considere criptografia em repouso no provedor do banco."
+      },
+      {
+        "title": "Crie seu primeiro modelo: configurações por loja.",
+        "detail": "Acrescente um modelo próprio ao `schema.prisma`. A regra de ouro de app multi-loja: **toda tabela sua precisa de uma coluna `shop`** (o domínio `minha-loja.myshopify.com`), porque o mesmo banco atende todas as lojas que instalaram o app.",
+        "code": "model ShopSettings {\n  id            String   @id @default(cuid())\n  shop          String   @unique\n  bannerText    String   @default(\"\")\n  freeShipAbove Int?\n  createdAt     DateTime @default(now())\n  updatedAt     DateTime @updatedAt\n}",
+        "advanced": "Use `shop` como string do domínio (o mesmo valor de `session.shop`) em vez de inventar um id de loja: é a chave que você tem em mãos em toda requisição autenticada e em todo webhook."
+      },
+      {
+        "title": "Gere a migration e o client.",
+        "detail": "Depois de editar o schema, rode a migration em desenvolvimento. Ela cria uma pasta nova em `prisma/migrations` com o SQL, aplica no banco local e regenera o client tipado.",
+        "code": "npx prisma migrate dev --name add-shop-settings\n\n# só regenerar o client, sem migrar:\nnpx prisma generate\n\n# abrir uma interface visual pra ver/editar as linhas:\nnpx prisma studio",
+        "advanced": "Commite a pasta `prisma/migrations`. Ela é o histórico que o servidor de produção reaplica. Editar uma migration já aplicada em outro ambiente quebra o histórico — crie uma migration nova em vez disso."
+      },
+      {
+        "title": "Leia e grave dados usando o session.shop.",
+        "detail": "Numa rota do app, autentique, pegue o `shop` da sessão e use-o em **todas** as consultas. Isso é o que impede a loja A de ver dados da loja B — o isolamento entre lojas é responsabilidade sua, o banco não faz isso sozinho.",
+        "code": "import prisma from \"../db.server\";\nimport { authenticate } from \"../shopify.server\";\n\nexport const loader = async ({ request }) => {\n  const { session } = await authenticate.admin(request);\n  const settings = await prisma.shopSettings.findUnique({\n    where: { shop: session.shop },\n  });\n  return { settings };\n};\n\nexport const action = async ({ request }) => {\n  const { session } = await authenticate.admin(request);\n  const form = await request.formData();\n  const bannerText = String(form.get(\"bannerText\"));\n  await prisma.shopSettings.upsert({\n    where: { shop: session.shop },\n    update: { bannerText },\n    create: { shop: session.shop, bannerText },\n  });\n  return { ok: true };\n};",
+        "advanced": "Nunca aceite o `shop` vindo do corpo da requisição ou da URL pra decidir de quem são os dados. Sempre use o que vem de `authenticate.admin` — esse valor foi validado."
+      },
+      {
+        "title": "Relacione tabelas e crie índices.",
+        "detail": "Modelos se ligam por relações e consultas quase sempre filtram por `shop` primeiro, então ele precisa estar nos índices. Exemplo: regras de desconto próprias de cada loja, uma por produto.",
+        "code": "model DiscountRule {\n  id        String   @id @default(cuid())\n  shop      String\n  productId String   // GID da Shopify guardado como texto\n  percent   Int\n  active    Boolean  @default(true)\n  createdAt DateTime @default(now())\n\n  @@unique([shop, productId])\n  @@index([shop, active])\n}",
+        "advanced": "Guarde IDs da Shopify como **String** no formato GID (`gid://shopify/Product/123`), não como Int: são o que a GraphQL devolve e aceita, e evita conversões."
+      },
+      {
+        "title": "Limpe os dados quando o app for desinstalado.",
+        "detail": "Quando o lojista desinstala, a Shopify dispara o webhook `app/uninstalled`. O template já apaga as sessões da loja nesse webhook — acrescente a limpeza dos **seus** modelos ali também. Sem isso você guarda dado de quem já saiu (e ainda precisa cumprir os webhooks de privacidade, tópico Compliance).",
+        "code": "// app/routes/webhooks.app.uninstalled.tsx\nexport const action = async ({ request }) => {\n  const { shop, session } = await authenticate.webhook(request);\n\n  if (session) {\n    await prisma.session.deleteMany({ where: { shop } });\n  }\n  await prisma.shopSettings.deleteMany({ where: { shop } });\n  await prisma.discountRule.deleteMany({ where: { shop } });\n\n  return new Response();\n};",
+        "advanced": "O webhook pode chegar mais de uma vez ou depois de a sessão já ter sido apagada (por isso o `if (session)`). Faça a limpeza **idempotente**: rodar duas vezes dá o mesmo resultado, e `deleteMany` já é assim."
+      },
+      {
+        "title": "Troque SQLite por Postgres para produção.",
+        "detail": "SQLite é um arquivo no disco do servidor: some quando o container é recriado e não aguenta várias instâncias. Em produção use um banco gerenciado (Postgres em Neon, Supabase, Railway, RDS…). A troca é: mudar o `provider`, ler a URL de uma variável de ambiente e recriar as migrations.",
+        "code": "datasource db {\n  provider = \"postgresql\"\n  url      = env(\"DATABASE_URL\")\n}\n\n# .env\nDATABASE_URL=\"postgresql://usuario:senha@host:5432/meuapp\"\n\n# no servidor de produção:\nnpx prisma generate && npx prisma migrate deploy",
+        "advanced": "As migrations geradas com SQLite têm SQL específico dele e **não valem** pra Postgres. Ao trocar de provider, apague a pasta `prisma/migrations` e gere uma migration inicial nova apontando pro Postgres de desenvolvimento. Em produção use sempre `migrate deploy`, nunca `migrate dev` (ele pode pedir pra resetar o banco)."
+      },
+      {
+        "title": "Projeto — guarde uma configuração por loja de ponta a ponta.",
+        "detail": "Vai juntar tudo: modelo, migration, tela e limpeza no uninstall.",
+        "advanced": "Se você já fez o projeto do app de desconto de aniversário, esta é a mesma peça que guardaria a regra configurada por cada lojista."
+      },
+      {
+        "title": "Projeto — passo 1: adicione o modelo e rode a migration.",
+        "detail": "Adicione `ShopSettings` ao `schema.prisma` e rode a migration. Abra o Prisma Studio e confirme que a tabela existe, vazia.",
+        "code": "npx prisma migrate dev --name add-shop-settings\nnpx prisma studio"
+      },
+      {
+        "title": "Projeto — passo 2: crie o formulário que salva a configuração.",
+        "detail": "Numa rota do admin (ex.: `app/routes/app.settings.tsx`), use o `loader` e a `action` do passo de leitura/gravação e um formulário com um campo de texto. Salve, recarregue e confirme que o valor persiste e aparece no Prisma Studio com o `shop` da sua dev store."
+      },
+      {
+        "title": "Projeto — passo 3: teste o isolamento e o uninstall.",
+        "detail": "Instale o app numa **segunda** dev store, salve outro valor e confirme que cada loja enxerga só o seu. Depois desinstale o app de uma delas e verifique no Prisma Studio que as linhas dessa loja sumiram e as da outra continuam."
+      }
+    ]
+  },
+  "categoryId": "build",
+  "categoryLabel": "Build"
+}

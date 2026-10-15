@@ -1,0 +1,62 @@
+{
+  "id": "app-store-launch",
+  "title": "Testar e publicar na App Store",
+  "desc": "Valide o app com testes automatizados e manuais, monte o listing e passe pela revisão da Shopify até a publicação.",
+  "plan": {
+    "objetivo": "Sair de um app que só roda na sua dev store pra um app testado, com listing pronto e aprovado na revisão da Shopify App Store.",
+    "prereq": "Dev Dashboard",
+    "tempo": "3h",
+    "doc": "https://shopify.dev/docs/apps/launch",
+    "steps": [
+      {
+        "title": "Antes de qualquer automação, teste à mão — e em mais de uma loja.",
+        "detail": "Teste o app em pelo menos duas dev stores com planos diferentes (ex: Basic e Advanced) — algumas APIs e limites variam por plano, e um recurso que funciona numa loja pode falhar silenciosamente em outra. Reinstale o app do zero numa dev store nova pra garantir que o fluxo de OAuth e a tela de permissões pedidas fazem sentido pra quem nunca viu o app.",
+        "advanced": "Lojas de desenvolvimento não têm todas as mesmas restrições de uma loja real — teste também numa dev store marcada como \"Loja de teste transacional\" se o app mexe em checkout ou pagamentos, pra simular limites mais próximos de produção."
+      },
+      {
+        "title": "Comece cobrindo a lógica de negócio com testes unitários.",
+        "detail": "Funções puras (cálculo de desconto, formatação de preço, regras de validação) são as mais baratas de cobrir e as que mais quebram silenciosamente durante refatorações. Comece por elas antes de partir pra testes de UI.",
+        "code": "test(\"calcula o total do carrinho corretamente\", () => {\n  expect(calculateTotal([10, 20, 30])).toBe(60);\n});"
+      },
+      {
+        "title": "Escolha 2 ou 3 jornadas críticas e cubra de ponta a ponta.",
+        "detail": "Pense nas jornadas que, se quebrarem, tiram o app do ar pro merchant (ex: instalar o app, criar um recurso principal, ver esse recurso refletido no admin) e escreva um teste e2e pra cada uma. Não tente cobrir tudo em e2e — são testes caros de manter; deixe a cobertura ampla para os testes unitários.",
+        "code": "// Cypress — jornada crítica: instalar e ver o app carregar\ncy.visit(\"/install\");\ncy.get(\"[data-testid=install-btn]\").click();\ncy.url().should(\"include\", \"/app\");\ncy.contains(\"h1\", \"Bem-vindo\").should(\"be.visible\");",
+        "advanced": "Rode a suíte e2e contra uma dev store dedicada a CI, nunca contra a loja que você usa pra desenvolver manualmente — testes automatizados que criam/apagam dados podem colidir com o que você está inspecionando na hora."
+      },
+      {
+        "title": "Confira o custo de query e o tratamento de erro antes do lançamento.",
+        "detail": "Adicione um error handler global no backend e confirme que erros da Admin API (incluindo respostas de `userErrors` em mutations) chegam de forma legível ao usuário, em vez de travar a tela. Fique de olho no custo de query da GraphQL Admin API — queries muito profundas ou com muitas conexões aninhadas podem esbarrar no limite de custo antes mesmo de um volume alto de uso.",
+        "code": "const data = await response.json();\nif (data.errors) {\n  console.error(\"GraphQL cost:\", data.extensions?.cost);\n  throw new Error(data.errors[0].message);\n}",
+        "advanced": "O header `X-Shopify-Shop-Api-Call-Limit` (REST) e o campo `extensions.cost` (GraphQL) nas respostas da API mostram quanto do limite de taxa já foi consumido — logar esses valores durante o desenvolvimento ajuda a pegar problema de limite antes da revisão."
+      },
+      {
+        "title": "Monte o listing pensando no merchant, não em você.",
+        "detail": "Escreva uma descrição curta focada no problema que o app resolve (não na lista de features), prepare screenshots que mostrem o app já em uso dentro do admin (não telas vazias) e decida o modelo de cobrança — gratuito, trial + assinatura, ou cobrança única. Apps com trial claro e cancelamento fácil reduzem a fricção de instalação."
+      },
+      {
+        "title": "Envie para revisão só depois de bater o checklist oficial.",
+        "detail": "Revise o checklist de requisitos da Shopify (segurança, performance, uso correto de webhooks de GDPR, política de dados) antes de clicar em enviar — a maioria das rejeições na primeira submissão é por item de checklist não atendido, não por decisão subjetiva do revisor."
+      },
+      {
+        "title": "Se vier feedback, trate como um code review — não como uma nota.",
+        "detail": "Corrija o que for apontado, explique por escrito qualquer decisão que pareça um desvio mas seja intencional, e reenvie. Apps que respondem rápido e de forma objetiva costumam passar por menos rodadas de revisão."
+      },
+      {
+        "title": "Projeto — prepare o app atual pra uma submissão simulada.",
+        "detail": "Vamos aplicar o checklist acima no app que você vem construindo na trilha, sem de fato submeter, só pra praticar o processo."
+      },
+      {
+        "title": "Projeto — passo 1: rode a suíte de testes local e confirme que passa.",
+        "detail": "Garanta que os testes automatizados (unitários e, se já tiver, e2e) rodam limpos antes de considerar qualquer coisa \"pronta\".",
+        "code": "npm test"
+      },
+      {
+        "title": "Projeto — passo 2: escreva a descrição do listing em 3 frases.",
+        "detail": "Frase 1: o problema que o app resolve. Frase 2: como ele resolve. Frase 3: o que o merchant ganha (tempo, vendas, menos erro manual). Evite jargão técnico — quem lê o listing é o merchant, não outro dev."
+      }
+    ]
+  },
+  "categoryId": "build",
+  "categoryLabel": "Build"
+}

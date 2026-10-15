@@ -1,0 +1,73 @@
+{
+  "id": "theme-create",
+  "title": "Build a new theme",
+  "desc": "Crie e visualize um tema inicial em minutos, usando dados reais da loja.",
+  "plan": {
+    "objetivo": "Entender o que é um tema Shopify, criar um do zero com o Shopify CLI e ter certeza de que sabe exatamente o que cada comando fez.",
+    "prereq": "Nenhum",
+    "tempo": "2h",
+    "doc": "https://shopify.dev/docs/storefronts/themes/getting-started/create",
+    "steps": [
+      {
+        "title": "Entenda o que é um tema Shopify (e o que ele não é).",
+        "detail": "Um **tema** é o conjunto completo de arquivos que controla a aparência e o comportamento do storefront de uma loja: os arquivos Liquid que geram o HTML, o CSS/JS de apresentação, as imagens padrão e os arquivos JSON que descrevem configurações e templates. Ele fica hospedado dentro da própria loja Shopify (não é um servidor separado) e é servido pela infraestrutura da Shopify sempre que alguém acessa a storefront.\n\nUm ponto que confunde quem vem de outras plataformas: tema **não é** onde fica a lógica de negócio da loja (preços, estoque, pagamentos, impostos) — isso vive no core da Shopify e é só *exposto* pro tema via objects do Liquid. O tema é uma camada de apresentação e interação, parecida com o \"view\" de um MVC, só que sem acesso direto a banco de dados ou backend.\n\n### Onde o tema vive dentro da loja\n\nCada loja tem uma **biblioteca de temas** (Theme Library), visível em Loja Online → Temas no admin. Nela, um tema pode estar em três estados:\n- **publicado**: é o único tema que os clientes reais veem (só existe um por vez);\n- **rascunho/não publicado**: existe na biblioteca, pode ser editado e testado, mas ninguém de fora vê;\n- **de desenvolvimento**: um tema temporário, geralmente criado pelo Shopify CLI, ligado à sua sessão local.\n\nA biblioteca tem um limite de quantos temas cabem nela ao mesmo tempo — dá pra checar o número atual na [documentação de limites de temas](https://shopify.dev/docs/storefronts/themes/store/requirements). Na prática, isso significa: não deixe rascunhos antigos acumulando pra sempre, exclua o que não usa mais.",
+        "advanced": "Times que trabalham em vários temas ao mesmo tempo (ex: uma agência atendendo vários clientes, ou um time testando variações de layout) esbarram no limite da biblioteca com frequência — vale automatizar a limpeza de temas de teste antigos via `shopify theme list` + `shopify theme delete`."
+      },
+      {
+        "title": "Instale o Shopify CLI e confirme a versão.",
+        "detail": "O Shopify CLI é uma ferramenta de linha de comando em Node.js que centraliza o fluxo de desenvolvimento de temas, apps e mais. Pra temas, ele resolve três problemas que antes exigiam ferramentas separadas: subir/baixar arquivos da loja, servir um preview local com hot reload, e rodar o linter (Theme Check).\n\nInstale globalmente via npm e confirme que a versão instalada é recente — o CLI recebe atualizações frequentes acompanhando mudanças na plataforma.",
+        "code": "npm install -g @shopify/cli\nshopify version",
+        "advanced": "Em ambientes de CI/CD, fixe a versão exata do CLI e do Node (via `package.json`/`.nvmrc`) — um update automático do CLI no meio de um pipeline pode introduzir um comportamento novo sem aviso."
+      },
+      {
+        "title": "Escolha o ponto de partida: Skeleton (padrão) ou clonar um tema de referência.",
+        "detail": "`shopify theme init` sem argumentos clona o tema **Skeleton** — um tema propositalmente mínimo, só com a estrutura de pastas e o essencial pra loja navegar (layout, alguns templates, poucas sections). Ele existe pra você construir do zero sem lixo pra remover.\n\nSe seu objetivo agora é *aprender lendo código real* (e não construir do absoluto zero), clone o **Dawn** — o tema de referência oficial da Shopify, atualizado continuamente e usado como base de boa parte dos temas da Theme Store. Ele mostra padrões reais de schema, acessibilidade e performance.",
+        "code": "# tema mínimo, pra construir do zero\nshopify theme init meu-tema\n\n# clona o Dawn, tema de referência oficial\nshopify theme init meu-tema --clone-url https://github.com/Shopify/dawn.git",
+        "advanced": "Ler o código do Dawn é uma das formas mais rápidas de aprender convenções reais de Liquid — mas não copie e cole seções inteiras sem entender: o Dawn tem decisões de arquitetura pensadas pra escala (milhares de lojas), que podem ser complexidade desnecessária pro seu caso."
+      },
+      {
+        "title": "Explore a árvore de arquivos que o CLI gerou.",
+        "detail": "Depois do `theme init`, entre na pasta e liste o conteúdo. Você vai ver sempre as mesmas oito pastas/arquivos de primeiro nível — essa estrutura é fixa e reconhecida pela Shopify (não é convenção, é contrato):",
+        "code": "cd meu-tema\nls -la\n\n# assets/      -> CSS, JS, imagens, fonts\n# blocks/      -> theme blocks reutilizáveis entre sections\n# config/      -> settings_schema.json e settings_data.json\n# layout/      -> theme.liquid (e outros layouts)\n# locales/     -> arquivos de tradução (*.json)\n# sections/    -> módulos de conteúdo (e section groups)\n# snippets/    -> pedaços de Liquid reutilizáveis\n# templates/   -> um arquivo por tipo de página (JSON)",
+        "advanced": "O próximo tópico da trilha (Key concepts / Architecture) disseca cada uma dessas pastas em detalhe — aqui o objetivo é só reconhecer a forma antes de entender o conteúdo."
+      },
+      {
+        "title": "Entenda a diferença entre \"tema de desenvolvimento\" e um tema normal.",
+        "detail": "Quando você roda `shopify theme dev`, o CLI não usa nenhum tema já existente na biblioteca — ele cria um **tema de desenvolvimento** efêmero, vinculado à sua sessão local. Esse tema:\n- não aparece pra clientes reais em hipótese alguma;\n- só é visível através do link de preview autenticado que o próprio comando imprime no terminal;\n- é removido automaticamente quando você encerra a sessão (ou depois de um tempo de inatividade).\n\nIsso é diferente de um tema \"rascunho\" comum, que você cria explicitamente com `theme push` e que fica salvo na biblioteca até você apagá-lo manualmente.",
+        "advanced": "Se você fechar o terminal no meio de uma sessão `theme dev` sem querer, o tema de desenvolvimento pode ficar \"órfão\" por um tempo na loja — rode `shopify theme list` pra confirmar que não sobrou nada pendurado."
+      },
+      {
+        "title": "Projeto — parte 1: conecte o CLI à sua loja de desenvolvimento.",
+        "detail": "A partir daqui, os passos formam um projeto único: colocar um tema Skeleton rodando do zero numa dev store, do primeiro comando até o primeiro deploy de teste.\n\nSe você ainda não tem uma dev store, crie uma pelo Partner Dashboard antes de continuar (dev stores são gratuitas e feitas exatamente pra isso). Depois, autentique o CLI contra ela.",
+        "code": "shopify theme dev --store=sua-loja-dev.myshopify.com",
+        "advanced": "Na primeira execução, o comando abre o navegador pra você logar com sua conta de Partner — depois disso a sessão fica salva localmente e você não precisa logar de novo toda vez."
+      },
+      {
+        "title": "Projeto — parte 2: gere o tema com `theme init` dentro da pasta certa.",
+        "detail": "Se ainda não criou o projeto no passo anterior, gere agora. Dê um nome descritivo à pasta — isso vai virar o nome do diretório do seu projeto local (não o nome do tema na Shopify, que é definido depois, no push).",
+        "code": "shopify theme init meu-primeiro-tema\ncd meu-primeiro-tema",
+        "advanced": "Inicialize um repositório git logo em seguida (`git init`) — mesmo pra um projeto de estudo, ter histórico de commits ajuda a entender o que cada mudança de Liquid realmente alterou no HTML final."
+      },
+      {
+        "title": "Projeto — parte 3: suba o preview local e confirme o hot reload.",
+        "detail": "Com o tema já inicializado, suba o servidor de desenvolvimento. O terminal vai imprimir uma URL de preview — abra-a no navegador e deixe a aba aberta.",
+        "code": "shopify theme dev --store=sua-loja-dev.myshopify.com",
+        "advanced": "O hot reload do `theme dev` recarrega só o necessário: mudanças em Liquid/JSON costumam recarregar a página inteira, enquanto mudanças em CSS aplicam sem reload — repare na diferença enquanto testa."
+      },
+      {
+        "title": "Projeto — parte 4: faça uma alteração visível e observe o reload.",
+        "detail": "Abra `layout/theme.liquid`, ache a tag `<title>` no `<head>`, e edite o texto ao redor. Salve o arquivo e volte pro navegador — a mudança deve aparecer sozinha, sem você precisar recarregar a página manualmente.",
+        "code": "<title>\n  {{ page_title }}{% if current_tags %} &ndash; tagged \"{{ current_tags | join: ', ' }}\"{% endif %}{% if current_page != 1 %} &ndash; Página {{ current_page }}{% endif %}{% if page_title contains 'Meu Primeiro Tema' %}{% else %} &ndash; Meu Primeiro Tema{% endif %}\n</title>",
+        "advanced": "Se nada acontecer no navegador, confira o terminal: erros de sintaxe Liquid aparecem ali antes de qualquer coisa quebrar visualmente no preview."
+      },
+      {
+        "title": "Projeto — parte 5: suba um tema não publicado pra biblioteca e confira no admin.",
+        "detail": "Depois de validar localmente, envie uma versão real pra loja — como um tema **não publicado**, sem nenhum risco de afetar clientes. Depois, confirme no admin (Loja Online → Temas) que ele aparece na biblioteca, com o nome do diretório do projeto.",
+        "code": "shopify theme push --unpublished --store=sua-loja-dev.myshopify.com",
+        "advanced": "`theme push` sem `--unpublished` pergunta interativamente se você quer sobrescrever um tema existente ou criar um novo — em scripts/CI, sempre passe a flag explicitamente pra evitar prompts travando o pipeline."
+      }
+    ]
+  },
+  "categoryId": "themes",
+  "categoryLabel": "Temas (Storefronts)"
+}

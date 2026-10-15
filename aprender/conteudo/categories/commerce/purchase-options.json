@@ -1,0 +1,71 @@
+{
+  "id": "purchase-options",
+  "title": "Purchase options",
+  "desc": "Adicione assinaturas, pré-vendas e opções de compra antes de pagar.",
+  "plan": {
+    "objetivo": "Entender o modelo de selling plans para assinaturas e pré-vendas, criar um grupo de planos via API, e reconhecer os limites do que purchase options resolve sozinho.",
+    "prereq": "Shopify Functions",
+    "tempo": "4h",
+    "doc": "https://shopify.dev/docs/apps/build/purchase-options",
+    "steps": [
+      {
+        "title": "Entenda o problema: nem toda compra é \"pagar uma vez e pronto\".",
+        "detail": "O modelo padrão de e-commerce assume uma compra única, pagamento à vista. Mas muitos negócios precisam de variações: **assinaturas** (o cliente recebe o mesmo produto periodicamente, sendo cobrado a cada ciclo), **pré-vendas** (o cliente paga agora por um produto que só será enviado numa data futura, geralmente com desconto), ou outras condições de compra alternativas. **Purchase options** é o mecanismo da Shopify pra modelar esse tipo de variação sem reinventar o fluxo de checkout inteiro.",
+        "advanced": "Purchase options resolve a parte de **definir e oferecer** a opção no momento da compra — o gerenciamento contínuo de assinaturas depois disso (pausar, cancelar, trocar produto) normalmente é responsabilidade de um app de gestão de assinaturas separado, como visto mais adiante neste tópico."
+      },
+      {
+        "title": "Entenda o modelo: `SellingPlan` dentro de um `SellingPlanGroup`.",
+        "detail": "Um **selling plan** define as regras de uma opção de compra específica — por exemplo, `deliveryPolicy` a cada 30 dias pra uma assinatura, ou um desconto de pré-venda com uma data de entrega estimada. Todo selling plan vive dentro de um **SellingPlanGroup**, que é o que fica de fato associado a um ou mais produtos — pense no grupo como \"o conjunto de opções de compra oferecidas\" e no plano individual como \"uma opção específica dentro desse conjunto\" (ex: um grupo \"Assinatura\" com planos \"mensal\" e \"trimestral\" dentro dele).",
+        "advanced": "Selling plans mudam o preço efetivo mostrado no checkout — sempre teste também o cálculo de impostos e frete com o desconto de assinatura já aplicado, não só o preço base do produto, já que esses cálculos secundários podem ter bugs sutis quando combinados com um preço não-padrão."
+      },
+      {
+        "title": "Crie um selling plan group via API para um produto de teste.",
+        "detail": "Use `sellingPlanGroupCreate`, vinculando o grupo a um ou mais produtos através do parâmetro `resources`.",
+        "code": "mutation {\n  sellingPlanGroupCreate(\n    input: {name: \"Assinatura mensal\"},\n    resources: {productIds: [\"gid://shopify/Product/1\"]}\n  ) { sellingPlanGroup { id } }\n}"
+      },
+      {
+        "title": "Adicione planos específicos (mensal, trimestral) com regras de recorrência.",
+        "detail": "Dentro do grupo, cada `SellingPlan` declara sua própria política de entrega/cobrança — por exemplo, a cada 1 mês ou a cada 3 meses, com ou sem desconto associado a cada frequência.",
+        "code": "// dentro da mutation, o campo sellingPlansToCreate declara cada plano:\nsellingPlansToCreate: [\n  { name: \"Mensal\", billingPolicy: { recurring: { interval: MONTH, intervalCount: 1 } } },\n  { name: \"Trimestral\", billingPolicy: { recurring: { interval: MONTH, intervalCount: 3 } } }\n]"
+      },
+      {
+        "title": "Entenda que um produto pode ter múltiplos grupos, e o merchant escolhe o que fica visível.",
+        "detail": "Um mesmo produto pode ter múltiplos selling plan groups associados (por exemplo, um grupo de assinatura e outro de pré-venda, separados) — o merchant decide, no editor de produto ou de tema, quais desses grupos ficam visíveis pro comprador final, e em qual formato de seleção."
+      },
+      {
+        "title": "Complete uma compra de teste usando a opção de assinatura.",
+        "detail": "No checkout de teste, confirme que a opção de assinatura aparece **ao lado** da compra única (não a substituindo) — o padrão esperado é o comprador escolher explicitamente entre as duas, nunca ser forçado pra uma delas sem opção."
+      },
+      {
+        "title": "Reconheça o limite: purchase options não gerencia o ciclo de vida da assinatura sozinho.",
+        "detail": "Depois que a primeira cobrança de uma assinatura acontece, alguém precisa gerenciar as cobranças recorrentes seguintes, permitir que o cliente pause, cancele ou troque o produto assinado — isso normalmente exige um **app de gestão de contratos/assinaturas** separado (contract management app), construído sobre a Subscriptions API, além do selling plan em si, que só resolve a **oferta inicial** da recorrência.",
+        "advanced": "Cancelamento e pausa de assinatura normalmente exigem esse app de gestão adicional — não assuma que criar o selling plan group sozinho já entrega uma experiência completa de assinatura de ponta a ponta."
+      },
+      {
+        "title": "Projeto — ofereça uma opção de pré-venda com desconto para um produto de lançamento.",
+        "detail": "Vamos modelar um cenário diferente de assinatura: uma pré-venda com 15% de desconto, pra um produto que só será enviado numa data futura."
+      },
+      {
+        "title": "Projeto — passo 1: crie o selling plan group de pré-venda.",
+        "detail": "Rode `sellingPlanGroupCreate` associado ao produto de teste, com um plano único de pré-venda.",
+        "code": "mutation {\n  sellingPlanGroupCreate(\n    input: { name: \"Pré-venda\" },\n    resources: { productIds: [\"gid://shopify/Product/<id>\"] }\n  ) { sellingPlanGroup { id } }\n}"
+      },
+      {
+        "title": "Projeto — passo 2: configure o desconto de 15% e a data de entrega estimada.",
+        "detail": "Declare o desconto fixo dentro do plano e a política de entrega apontando pra uma data futura (fulfillment adiado).",
+        "code": "pricingPolicies: [{\n  fixed: { adjustmentType: PERCENTAGE, adjustmentValue: { percentage: 15 } }\n}],\ndeliveryPolicy: { fixed: { fulfillmentExactTime: \"2025-06-01T00:00:00Z\" } }"
+      },
+      {
+        "title": "Projeto — passo 3: complete uma compra de teste escolhendo a pré-venda.",
+        "detail": "No checkout de teste, escolha explicitamente a opção de pré-venda e confirme que o preço com desconto foi aplicado corretamente."
+      },
+      {
+        "title": "Projeto — passo 4: confirme que o pedido resultante indica a data de entrega futura.",
+        "detail": "No admin, abra o pedido gerado e confirme que ele carrega a informação de fulfillment adiado — importante pra que o time de operações da loja não tente despachar o produto antes da data combinada.",
+        "advanced": "Trate esse tipo de pedido de forma diferenciada em qualquer automação de fulfillment que você construir depois (ver o tópico \"Orders and fulfillment\") — despachar uma pré-venda antes da data prometida quebra a expectativa combinada com o cliente."
+      }
+    ]
+  },
+  "categoryId": "commerce",
+  "categoryLabel": "Commerce"
+}

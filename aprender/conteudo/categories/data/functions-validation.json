@@ -1,0 +1,80 @@
+{
+  "id": "functions-validation",
+  "title": "Functions: validação de carrinho e checkout",
+  "desc": "Bloqueie o checkout com mensagens de erro próprias: pedido mínimo, limite por cliente, CEP não atendido, campos obrigatórios.",
+  "plan": {
+    "objetivo": "Escrever uma Function de validação que impede o comprador de avançar quando uma regra de negócio é violada, com a mensagem certa no lugar certo da tela.",
+    "prereq": "Shopify Functions",
+    "tempo": "3h",
+    "doc": "https://shopify.dev/docs/api/functions/latest/cart-and-checkout-validation",
+    "steps": [
+      {
+        "title": "Entenda o que a validação resolve.",
+        "detail": "Regras como **pedido mínimo**, **quantidade máxima por cliente**, **produto que não pode ser enviado pra certo CEP** não podem viver só no tema: quem burla o HTML ainda chega ao checkout. A Function de validação roda **no servidor da Shopify, dentro do fluxo de compra**, e devolve erros que **impedem** o comprador de avançar.",
+        "advanced": "É a resposta pra qualquer aviso \"só visual\" que você tenha feito num tema (como o pedido mínimo do projeto do tema B2B)."
+      },
+      {
+        "title": "Conheça o target e o que a Function recebe.",
+        "detail": "O target é `cart.validations.generate.run`. A input query pode pedir o carrinho inteiro (linhas, custos, endereços, identidade do comprador, descontos, atributos, campos localizados e metafields), o `buyerJourney.step` (em que momento da compra estamos), a loja e a localização.\n\nOs valores possíveis de `buyerJourney.step` são `CART_INTERACTION`, `CHECKOUT_INTERACTION` e `CHECKOUT_COMPLETION`.",
+        "advanced": "Existe uma versão antiga chamada apenas \"Cart Checkout Validation\" que **não é mais suportada** nas versões recentes da API. Ao seguir tutoriais antigos, confirme que o target é `cart.validations.generate.run`."
+      },
+      {
+        "title": "Registre a Function no shopify.extension.toml.",
+        "detail": "Depois de gerar a extensão (`shopify app generate extension`), o `toml` liga o target à input query e à função exportada.",
+        "code": "[[extensions]]\nname = \"Pedido mínimo B2B\"\nhandle = \"pedido-minimo-b2b\"\ntype = \"function\"\n\n  [[extensions.targeting]]\n  target = \"cart.validations.generate.run\"\n  input_query = \"src/cart_validations_generate_run.graphql\"\n  export = \"cart-validations-generate-run\"",
+        "advanced": "Nomes de arquivo e de export (kebab-case) seguem o que o **template gerado** cria — confira o seu `shopify.extension.toml` em vez de copiar às cegas."
+      },
+      {
+        "title": "Escreva a input query.",
+        "detail": "Peça só o que a regra precisa: subtotal, se o comprador é B2B (`purchasingCompany`), o passo da jornada e o valor configurado em metafield (pra o lojista mudar o mínimo sem novo deploy).",
+        "code": "query CartValidationsGenerateRunInput {\n  buyerJourney {\n    step\n  }\n  cart {\n    cost {\n      subtotalAmount {\n        amount\n      }\n    }\n    buyerIdentity {\n      purchasingCompany {\n        company {\n          id\n        }\n      }\n    }\n    lines {\n      quantity\n      merchandise {\n        __typename\n        ... on ProductVariant {\n          sku\n          product {\n            title\n          }\n        }\n      }\n    }\n  }\n  validation {\n    metafield(namespace: \"$app:config\", key: \"min_order\") {\n      value\n    }\n  }\n}"
+      },
+      {
+        "title": "Devolva erros com validationAdd.",
+        "detail": "A saída é sempre uma lista de **operações**. Pra bloquear, devolva uma operação `validationAdd` com um array `errors`; cada erro tem `message` (texto que o comprador vê) e `target` (onde a mensagem aparece). **Lista vazia de erros = compra liberada.**",
+        "code": "// src/cart_validations_generate_run.js\nexport function cartValidationsGenerateRun(input) {\n  const errors = [];\n\n  // No carrinho (CART_INTERACTION) só avisamos no checkout, pra não travar a navegação.\n  if (input.buyerJourney.step === \"CART_INTERACTION\") {\n    return { operations: [{ validationAdd: { errors } }] };\n  }\n\n  const isB2B = Boolean(input.cart.buyerIdentity?.purchasingCompany);\n  const min = Number(input.validation?.metafield?.value ?? 0);\n  const subtotal = Number(input.cart.cost.subtotalAmount.amount);\n\n  if (isB2B && min > 0 && subtotal < min) {\n    const falta = (min - subtotal).toFixed(2);\n    errors.push({\n      message: `Pedido mínimo de R$ ${min.toFixed(2)}. Faltam R$ ${falta}.`,\n      target: \"$.cart\",\n    });\n  }\n\n  return { operations: [{ validationAdd: { errors } }] };\n}",
+        "advanced": "Repare que a função **sempre** retorna uma operação — com `errors: []` quando está tudo certo. É o mesmo princípio do tópico Functions: a Function sempre devolve algo."
+      },
+      {
+        "title": "Escolha o target do erro.",
+        "detail": "O `target` é um caminho tipo JSON Pointer. `$.cart` mostra o erro na página atual do checkout; também é possível prender o erro a campos específicos — e-mail, telefone, campos de endereço (`address1`, `city`, `zip`…), `poNumber` ou campos localizados.",
+        "code": "// erro preso a um campo específico do checkout (ex.: CEP, telefone)\nerrors.push({\n  message: \"Não entregamos nesse CEP.\",\n  target: \"$.cart.deliveryGroups[0].deliveryAddress.zip\",\n});",
+        "advanced": "Erro preso a um campo é bem melhor de UX: o cursor vai pro campo errado e a mensagem aparece colada nele."
+      },
+      {
+        "title": "Use o passo da jornada para não travar a navegação.",
+        "detail": "Bloquear no `CART_INTERACTION` pode atrapalhar quem só está montando o carrinho. Um padrão comum é validar de verdade a partir do checkout (`CHECKOUT_INTERACTION` / `CHECKOUT_COMPLETION`) e deixar o carrinho livre, como no exemplo do passo anterior.",
+        "advanced": "Se a regra depende do endereço (CEP, país), ela só tem dados suficientes no checkout — no carrinho o endereço ainda não existe."
+      },
+      {
+        "title": "Guarde a configuração num metafield.",
+        "detail": "Em vez de fixar `300` no código, leia o valor de um metafield (`validation.metafield`) e grave-o via Admin API ou por uma tela de configuração do app. Assim o lojista ajusta o pedido mínimo sem você publicar nada.",
+        "code": "# grava a configuração da Function (Admin API)\nmutation SetConfig($id: ID!, $value: String!) {\n  metafieldsSet(metafields: [{\n    ownerId: $id,\n    namespace: \"$app:config\",\n    key: \"min_order\",\n    type: \"number_decimal\",\n    value: $value\n  }]) {\n    metafields { id }\n    userErrors { field message }\n  }\n}"
+      },
+      {
+        "title": "Conheça as limitações.",
+        "detail": "- Até **25** Functions de validação por loja.\n- Funciona em Cart, Checkout, B2B, Draft Orders, Storefront e checkout acelerado; **não** é suportada em Create Order API, Order Edit, POS, Pre-order e assinaturas.\n- O target de *fetch* (chamar um servidor externo) é restrito a lojas Enterprise com app customizado e solicitação de network access.",
+        "advanced": "Se a regra precisa de UI no checkout (ex.: pedir um documento), validação por Function combina com **checkout UI extension**; a Function garante a regra, a UI facilita corrigir."
+      },
+      {
+        "title": "Projeto — pedido mínimo B2B imposto no servidor.",
+        "detail": "Vai gerar a Function, configurar o mínimo por metafield e testar com comprador B2B e de varejo."
+      },
+      {
+        "title": "Projeto — passo 1: gere a extensão e escreva a query.",
+        "detail": "Rode `shopify app generate extension` e escolha validação de carrinho/checkout. Cole a input query e o `toml` dos passos anteriores."
+      },
+      {
+        "title": "Projeto — passo 2: implemente a regra e rode localmente.",
+        "detail": "Escreva a função com o código do passo 5 e teste com um input de exemplo (subtotal 180, mínimo 300, comprador B2B) usando `shopify app function run`. A saída deve trazer o erro \"Faltam R$ 120.00\".",
+        "code": "{\n  \"buyerJourney\": { \"step\": \"CHECKOUT_INTERACTION\" },\n  \"cart\": {\n    \"cost\": { \"subtotalAmount\": { \"amount\": \"180.00\" } },\n    \"buyerIdentity\": { \"purchasingCompany\": { \"company\": { \"id\": \"gid://shopify/Company/1\" } } },\n    \"lines\": []\n  },\n  \"validation\": { \"metafield\": { \"value\": \"300\" } }\n}\n\n{\n  \"operations\": [\n    {\n      \"validationAdd\": {\n        \"errors\": [\n          { \"message\": \"Pedido mínimo de R$ 300.00. Faltam R$ 120.00.\", \"target\": \"$.cart\" }\n        ]\n      }\n    }\n  ]\n}"
+      },
+      {
+        "title": "Projeto — passo 3: publique e teste como comprador.",
+        "detail": "Faça o `deploy`, ative a validação em Configurações > Checkout, defina o metafield com 300 e teste 3 casos: comprador B2B abaixo do mínimo (bloqueia), B2B acima (passa), cliente de varejo abaixo (passa — a regra só vale pra B2B)."
+      }
+    ]
+  },
+  "categoryId": "data",
+  "categoryLabel": "Data and logic"
+}

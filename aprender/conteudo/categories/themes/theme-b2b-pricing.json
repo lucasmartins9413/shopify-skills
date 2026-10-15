@@ -1,0 +1,70 @@
+{
+  "id": "theme-b2b-pricing",
+  "title": "Preços B2B, quantidades e pedido rápido",
+  "desc": "Exiba preço de catálogo, regras de quantidade e volume pricing no tema, e entenda o pedido rápido do Trade e do Horizon.",
+  "plan": {
+    "objetivo": "Fazer o tema respeitar o que o lojista configura no admin pro atacado: preço do catálogo da localização, mínimos/máximos/múltiplos de quantidade e faixas de preço por volume.",
+    "prereq": "Tema para clientes B2B",
+    "tempo": "4h",
+    "doc": "https://help.shopify.com/en/manual/b2b/store-customization/quantity-pricing",
+    "steps": [
+      {
+        "title": "Entenda catálogo, regras de quantidade e volume pricing.",
+        "detail": "No admin o lojista configura, por **catálogo**:\n\n- **Preço** específico (ou desconto percentual) dos produtos daquele catálogo.\n- **Regras de quantidade** — vender em certos múltiplos, com mínimo e/ou máximo por compra (ex.: caixas de 12, mínimo 24).\n- **Volume pricing** — faixas de preço: quanto mais o comprador leva, menor o preço unitário.\n\nRegras de quantidade e volume pricing podem ser usados juntos ou separados. O trabalho do tema é **mostrar isso ao comprador e impedir que ele monte um carrinho inválido**.",
+        "advanced": "Os temas gratuitos da Shopify suportam regras de quantidade B2B a partir da versão 8.0.0 (ou mais recente). Num tema próprio, você precisa implementar você mesmo — este tópico mostra como."
+      },
+      {
+        "title": "O preço já vem do catálogo: confira antes de mexer.",
+        "detail": "Quando o comprador B2B está logado numa localização com catálogo, os objetos de preço do Liquid (`product.price`, `variant.price`…) **já refletem o preço do catálogo** daquela localização. Você não precisa calcular nada: só garanta que o tema imprime esses valores (e não um preço fixo em cache ou vindo de um metafield).",
+        "code": "{% if customer.b2b? %}\n  <span class=\"price\">{{ variant.price | money }}</span>\n  {% if variant.compare_at_price > variant.price %}\n    <s>{{ variant.compare_at_price | money }}</s>\n  {% endif %}\n{% endif %}",
+        "advanced": "Teste sempre **logado como o contato B2B**, não como staff no admin. A pré-visualização do admin mostra preço de varejo e engana quem não percebe."
+      },
+      {
+        "title": "Leia as regras de quantidade no Liquid.",
+        "detail": "A Shopify permite ler, por variante, a regra de quantidade configurada (mínimo, máximo e incremento) direto no Liquid. Use isso pra preencher o campo de quantidade da página de produto.",
+        "code": "{%- assign rule = variant.quantity_rule -%}\n\n<input\n  type=\"number\"\n  name=\"quantity\"\n  value=\"{{ rule.min }}\"\n  min=\"{{ rule.min }}\"\n  {% if rule.max %}max=\"{{ rule.max }}\"{% endif %}\n  step=\"{{ rule.increment }}\"\n>\n\n<p>Mínimo {{ rule.min }} · vende em múltiplos de {{ rule.increment }}</p>",
+        "advanced": "Confirme os nomes exatos das propriedades (`min`, `max`, `increment`) na referência do objeto `variant` da sua versão — foi a parte que **não consegui validar diretamente na doc** ao montar este tópico. Sem regra configurada, o padrão é mínimo 1 e incremento 1."
+      },
+      {
+        "title": "Considere o que já está no carrinho.",
+        "detail": "A regra vale pro **total da variante no carrinho**, não só pro que o comprador está adicionando agora. Se já há 12 unidades e o incremento é 12, adicionar 5 quebra a regra. Ao renderizar o carrinho, use a mesma regra por linha pra definir `min`, `max` e `step` dos campos de quantidade.",
+        "advanced": "Não confie só em validação no navegador: a Shopify valida no carrinho e no checkout, e devolve erro se a regra for violada. A validação do tema serve pra **evitar a frustração**, não pra garantir a regra."
+      },
+      {
+        "title": "Mostre as faixas de volume pricing.",
+        "detail": "Quando existe volume pricing, exiba a tabela de faixas na página de produto — é o que convence o comprador a levar mais. A variante expõe as faixas (`quantity_price_breaks`), cada uma com a quantidade mínima e o preço unitário daquela faixa.",
+        "code": "{% if variant.quantity_price_breaks.size > 0 %}\n  <table>\n    <tr><th>Quantidade</th><th>Preço unitário</th></tr>\n    {% for break in variant.quantity_price_breaks %}\n      <tr>\n        <td>{{ break.minimum_quantity }}+</td>\n        <td>{{ break.price | money }}</td>\n      </tr>\n    {% endfor %}\n  </table>\n{% endif %}",
+        "advanced": "Também valide os nomes das propriedades na referência oficial. O ponto de arquitetura é firme: os dados de faixa vêm da **variante**, então a tabela deve ser refeita quando o comprador troca de variante (é comum esquecer isso em temas com seletor via JavaScript)."
+      },
+      {
+        "title": "Atualize preço e faixas quando a variante ou a quantidade mudar.",
+        "detail": "Numa página que troca de variante sem recarregar, o preço unitário e a faixa ativa dependem da variante **e** da quantidade digitada. A forma robusta é usar a **Section Rendering API**: peça de volta só o HTML da section de preço pro servidor, que já aplica catálogo, regra e faixa corretos, em vez de recalcular no JavaScript.",
+        "code": "// busca só o bloco de preço já renderizado pelo servidor\nconst url = `${location.pathname}?variant=${variantId}&section_id=${sectionId}`;\nconst html = await (await fetch(url)).text();\nconst doc = new DOMParser().parseFromString(html, \"text/html\");\ndocument.querySelector(\"#price\").replaceWith(doc.querySelector(\"#price\"));",
+        "advanced": "Recalcular preço de volume no JavaScript cliente duplica a regra de negócio e quase sempre diverge do checkout (arredondamento, moeda, catálogo). Deixe o servidor renderizar."
+      },
+      {
+        "title": "Pedido rápido (quick order list).",
+        "detail": "Compradores B2B recorrentes não querem navegar produto a produto: querem uma **lista de pedido rápido** — uma tabela de variantes com campo de quantidade e um único \"adicionar tudo\". Os temas **Trade** e **Horizon** já trazem isso pronto, com suporte a regras de quantidade e volume pricing. Estude a implementação deles antes de escrever a sua.",
+        "advanced": "Uma lista de pedido rápido bem feita reaproveita o mesmo componente de quantidade da página de produto (mesma regra: min, max, step) — extraia num snippet ou theme block compartilhado."
+      },
+      {
+        "title": "Projeto — página de produto B2B com quantidade e faixas.",
+        "detail": "Vai juntar tudo: preço do catálogo, quantidade respeitando a regra e tabela de volume."
+      },
+      {
+        "title": "Projeto — passo 1: configure o cenário no admin.",
+        "detail": "Na dev store com B2B, crie um catálogo com preço 15% abaixo pra uma company, uma regra de quantidade (mínimo 6, múltiplos de 6) e duas faixas de volume (12+ e 24+) num produto de teste."
+      },
+      {
+        "title": "Projeto — passo 2: implemente o campo de quantidade e a tabela.",
+        "detail": "No template de produto, use os trechos dos passos anteriores: campo com `min`/`step` da regra e tabela de faixas. Logado como o contato B2B, confirme que o campo abre em 6 e só aceita múltiplos de 6."
+      },
+      {
+        "title": "Projeto — passo 3: teste carrinho e checkout.",
+        "detail": "Adicione 12 e depois 24 unidades e finalize até o checkout como o contato B2B. Confirme que o preço unitário muda em cada faixa e que a tela mostra o mesmo valor que o checkout. Tente forçar 7 unidades (editando o campo no navegador) e observe a Shopify bloqueando."
+      }
+    ]
+  },
+  "categoryId": "themes",
+  "categoryLabel": "Temas (Storefronts)"
+}

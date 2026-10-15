@@ -1,0 +1,35 @@
+{
+  "id": "flags-checagens-automaticas",
+  "title": "Case Flags: checagens automáticas do Partner Dashboard",
+  "desc": "App Bridge, session tokens e theme app extensions: o que cada checagem pede e o que fez cada uma falhar no Flags.",
+  "plan": {
+    "objetivo": "Deixar verdes as checagens automáticas que o Partner Dashboard roda antes de liberar o envio para revisão.",
+    "prereq": "App deployado com a extensão de tema e aberto pelo menos uma vez no admin de uma loja.",
+    "tempo": "1h (mais as esperas de 2h)",
+    "doc": "https://shopify.dev/docs/apps/launch/app-requirements-checklist",
+    "steps": [
+      {
+        "title": "Entenda o ciclo: as checagens rodam a cada 2 horas.",
+        "detail": "Não adianta corrigir e atualizar a página. O fluxo é: corrigir → `railway up` e/ou `shopify app deploy` → abrir o app numa loja → esperar a próxima rodada. Planeje o dia contando com essas esperas."
+      },
+      {
+        "title": "Erro: \"Using the latest App Bridge script\" e \"Using session tokens\" falhando.",
+        "detail": "**Causa:** o `root.jsx` carregava um **segundo** `<script src=\"app-bridge.js\">`, sem `data-api-key`. O `AppProvider` já injeta o script correto, com a chave. A cópia sem chave impedia a Shopify de identificar o app.\n\n**Correção:** remover o script do `root.jsx` e deixar só o `AppProvider`. As duas checagens ficaram verdes na rodada seguinte.",
+        "code": "// app/root.jsx ANTES (errado): segundo App Bridge, sem data-api-key\n<head>\n  ...\n  {!isPublicPage && (\n    <script src=\"https://cdn.shopify.com/shopifycloud/app-bridge.js\"></script>\n  )}\n  <Meta />\n  <Links />\n</head>\n\n// app/root.jsx DEPOIS: nenhum script do App Bridge aqui.\n// O AppProvider (app/routes/app.jsx) injeta o script com data-api-key.\n<head>\n  <meta charSet=\"utf-8\" />\n  <meta name=\"viewport\" content=\"width=device-width,initial-scale=1\" />\n  <Meta />\n  <Links />\n</head>\n\n// app/routes/app.jsx: o único lugar que carrega o App Bridge\nimport { AppProvider } from \"@shopify/shopify-app-remix/react\";\nimport { NavMenu } from \"@shopify/app-bridge-react\";\n// o mesmo CSS da loja: o preview do admin fica idêntico ao storefront\nimport badgeStyles from \"../../extensions/flags/assets/flags.css?url\";\n\nexport const links = () => [\n  { rel: \"stylesheet\", href: polarisStyles },\n  { rel: \"stylesheet\", href: badgeStyles },\n  { rel: \"stylesheet\", href: adminStyles },\n];\n\nexport const loader = async ({ request }) => {\n  await authenticate.admin(request);\n  return json({ apiKey: process.env.SHOPIFY_API_KEY || \"\" });\n};\n\nexport default function App() {\n  const { apiKey } = useLoaderData();\n  return (\n    <AppProvider isEmbeddedApp apiKey={apiKey}>\n      <NavMenu>\n        <Link to=\"/app\" rel=\"home\">Início</Link>\n        <Link to=\"/app/flags\">Flags</Link>\n        <Link to=\"/app/billing\">Planos</Link>\n      </NavMenu>\n      <Outlet />\n    </AppProvider>\n  );\n}"
+      },
+      {
+        "title": "Erro: \"Use theme app extensions\" falhando com o embed ativo.",
+        "detail": "**Sintoma:** a checagem continuava vermelha mesmo com o embed ligado no tema da loja de teste. Os logs da Railway mostravam requisições do App Proxy vindo da loja, ou seja, a extensão estava funcionando.\n\n**O que foi feito:** a partir de uma dica de fórum, o `shopify.extension.toml` foi migrado para o formato com `[[extensions]]` e `handle`, mantendo o `uid`, e saiu uma versão nova do app. Depois disso o app foi enviado e aprovado.\n\n**Plano B, se não resolver:** abrir chamado no suporte de parceiros da Shopify.",
+        "advanced": "Não ficou comprovado qual fator destravou a checagem (o toml novo, mais uma rodada de 2h ou mais uso do embed). Para o próximo app: já começar com o toml no formato atual e com o embed ativo em pelo menos uma loja antes de olhar as checagens.",
+        "code": "# ANTES: formato antigo, sem [[extensions]] e sem handle\nname = \"flags-extension\"\ntype = \"theme\"\nuid = \"67fd2ad7-...\"\n\n# extensions/flags/shopify.extension.toml\napi_version = \"2026-10\"\n\n[[extensions]]\nname = \"flags-extension\"\nhandle = \"flags-extension\"\ntype = \"theme\"\nuid = \"67fd2ad7-...\"   # o mesmo uid de antes da migração"
+      },
+      {
+        "title": "Confira a versão ativa e os logs a cada deploy.",
+        "detail": "Cada `shopify app deploy` gera uma versão (no Flags, a submissão saiu na `flags-product-badges-14` e as correções da revisão na 15). Confira se a versão ativa inclui a extensão e acompanhe os logs do servidor enquanto testa.",
+        "code": "# 1. servidor (Railway). O start aplica as migrations.\nnpx -y @railway/cli up --ci\n\n# 2. config do app + extensões (gera uma versão nova do app)\nnpx shopify app deploy --allow-updates --message \"Encontra cards no Horizon\"\n\n# 3. conferir\nnpx shopify app versions list\nnpx -y @railway/cli logs --deployment"
+      }
+    ]
+  },
+  "categoryId": "cases",
+  "categoryLabel": "Cases reais"
+}

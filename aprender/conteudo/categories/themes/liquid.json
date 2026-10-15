@@ -1,0 +1,76 @@
+{
+  "id": "liquid",
+  "title": "Liquid",
+  "desc": "Carregue conteúdo dinâmico da loja com a linguagem de templates da Shopify.",
+  "plan": {
+    "objetivo": "Dominar os três pilares da sintaxe Liquid — objects, tags e filters — com exemplos reais, e entender os limites propositais da linguagem.",
+    "prereq": "Key concepts (Architecture)",
+    "tempo": "4h",
+    "doc": "https://shopify.dev/docs/api/liquid",
+    "steps": [
+      {
+        "title": "Entenda por que Liquid existe (e o que ela propositalmente não faz).",
+        "detail": "Liquid é a linguagem de templates open-source criada pela Shopify, hoje usada em todo o ecossistema (temas, e-mails, Shopify Functions em alguns contextos). Ela roda **no servidor**, antes do HTML chegar ao navegador — o cliente nunca vê uma chave `{{ }}` crua, só o resultado já processado.\n\nA decisão de design mais importante de Liquid é ser **deliberadamente limitada**: sem acesso a banco de dados, sem chamadas de rede arbitrárias, sem definição de funções livres. Isso existe por segurança (milhões de temas rodando no mesmo servidor multi-tenant) e por performance (o motor consegue otimizar agressivamente sabendo que o código não faz nada imprevisível). Você só acessa exatamente os *objects* que a Shopify decide expor — nunca \"todo o banco de dados da loja\".",
+        "advanced": "Esse sandboxing é também por que Liquid não tem loops infinitos possíveis (todo `{% for %}` tem um limite de iterações) nem recursão arbitrária em snippets — a linguagem previne, por construção, boa parte dos jeitos de travar um servidor compartilhado."
+      },
+      {
+        "title": "Objects — imprima dados da loja com chaves duplas.",
+        "detail": "Um **object** representa uma \"coisa\" da loja: um produto, uma coleção, o carrinho, a loja inteira. Você imprime o valor de uma propriedade de um object com chaves duplas `{{ }}`.\n\nObjects têm propriedades aninhadas, acessadas com ponto — exatamente como um objeto em JavaScript. A lista completa de objects disponíveis (e suas propriedades) está documentada na [referência de objects do Liquid](https://shopify.dev/docs/api/liquid/objects); ela é a fonte da verdade — não existe forma de \"adivinhar\" uma propriedade que não esteja lá.",
+        "code": "{{ product.title }}\n{{ product.price }}\n{{ product.featured_image.alt }}\n{{ shop.name }}\n{{ cart.item_count }}",
+        "advanced": "Nem todo object está disponível em toda página — `product` só existe em contexto de página de produto (ou dentro de um loop `{% for product in collection.products %}`). Usar um object fora do contexto certo não gera erro, só imprime vazio silenciosamente — um dos bugs mais comuns e mais difíceis de notar em Liquid."
+      },
+      {
+        "title": "Filters — transforme valores encadeando com o pipe `|`.",
+        "detail": "Um **filter** transforma o valor à esquerda do `|` e retorna um novo valor. Existem filters pra formatação (`money`, `date`), texto (`upcase`, `truncate`), arrays (`sort`, `where`, `map`), matemática (`plus`, `times`, `round`) e muito mais — a [lista completa está aqui](https://shopify.dev/docs/api/liquid/filters).\n\nFilters são encadeáveis: o resultado de um vira a entrada do próximo, lidos da esquerda pra direita, como uma pipeline.",
+        "code": "{{ product.price | money }}\n{{ product.title | upcase }}\n{{ product.title | truncate: 20 }}\n{{ 'hello world' | capitalize }}\n{{ collection.products | where: 'available' | size }}",
+        "advanced": "Ordem importa e erros de ordem não geram exceção, só um resultado estranho. `{{ product.price | plus: 100 | money }}` (soma centavos, depois formata) é bem diferente de `{{ product.price | money | plus: 100 }}` (formata como string \"R$ 10,00\", depois tenta somar 100 numa string — resultado sem sentido)."
+      },
+      {
+        "title": "Tags — controle fluxo com `{% %}`.",
+        "detail": "**Tags** não imprimem nada por si só — elas controlam lógica: condicionais, loops, atribuição de variáveis, inclusão de outros arquivos. A sintaxe usa chaves com porcentagem `{% %}`, sem produzir saída visível (a menos que o conteúdo dentro do bloco produza).\n\nAs mais usadas no dia a dia de tema são `if`/`elsif`/`else`, `for`, `assign`, `capture`, `case`/`when`, `render` e `comment`.",
+        "code": "{% if product.available %}\n  Em estoque\n{% else %}\n  Esgotado\n{% endif %}\n\n{% for variant in product.variants %}\n  {{ variant.title }} — {{ variant.price | money }}\n{% endfor %}\n\n{% assign preco_com_desconto = product.price | times: 0.9 %}",
+        "advanced": "Prefira o bloco `{% liquid %}` quando tiver várias tags de lógica seguidas — ele permite escrever uma tag por linha, sem repetir `{% %}` em cada uma, reduzindo bastante o ruído visual em trechos com muito `if`/`assign` encadeado."
+      },
+      {
+        "title": "Combine tudo: um exemplo real de preço com desconto e formatação condicional.",
+        "detail": "Um padrão extremamente comum em páginas de produto: mostrar o preço \"de\" riscado quando existe `compare_at_price`, calcular o percentual de desconto, e formatar tudo com `money`. Esse exemplo junta objects, filters e tags num único trecho representativo do que você vai escrever o tempo todo em temas reais.",
+        "code": "{% liquid\n  assign compare_at = product.selected_or_first_available_variant.compare_at_price\n  assign price = product.selected_or_first_available_variant.price\n  if compare_at > price\n    assign discount_pct = compare_at | minus: price | times: 100 | divided_by: compare_at\n  endif\n%}\n\n{% if compare_at > price %}\n  <s>{{ compare_at | money }}</s>\n  <span class=\"price--sale\">{{ price | money }}</span>\n  <span class=\"badge\">-{{ discount_pct }}%</span>\n{% else %}\n  <span>{{ price | money }}</span>\n{% endif %}",
+        "advanced": "`divided_by` entre dois inteiros em Liquid faz divisão inteira (trunca a casa decimal) — pra percentuais mais precisos, multiplique por 100 antes de dividir (como no exemplo) em vez de depois, ou use `| round` explicitamente no resultado final se a diferença importar pro seu caso."
+      },
+      {
+        "title": "Entenda whitespace control — o `-` que \"limpa\" espaços em branco.",
+        "detail": "Toda tag/object gera, por padrão, uma quebra de linha invisível no HTML final, o que pode acumular espaços em branco indesejados (visíveis em `<pre>`, ou afetando `white-space: pre` em CSS). Adicionar um hífen colado nas chaves (`{%- -%}` ou `{{- -}}`) remove o whitespace ao redor daquele ponto.",
+        "code": "{%- if product.available -%}\n  Em estoque\n{%- endif -%}",
+        "advanced": "Não exagere no whitespace control por hábito — ele deixa o código mais difícil de ler. Reserve pra pontos onde o espaço em branco extra causa um bug visual real e comprovado, não como limpeza estética preventiva em todo arquivo."
+      },
+      {
+        "title": "Projeto — construa um card de produto do zero, só com Liquid puro.",
+        "detail": "Vamos montar, passo a passo, um snippet de card de produto reutilizável — o tipo de componente que aparece dezenas de vezes numa página de coleção. Cada parte introduz um pedaço novo do que foi visto acima.",
+        "advanced": "Esse snippet vira a base do tópico de Snippets logo em seguida na trilha — vale manter esse arquivo, você vai reaproveitá-lo."
+      },
+      {
+        "title": "Projeto — passo 1: crie o arquivo e imprima o básico (imagem, título, preço).",
+        "detail": "Crie `snippets/product-card.liquid` dentro do seu tema local e escreva a versão mais simples possível, só com objects.",
+        "code": "<div class=\"product-card\">\n  <img src=\"{{ product.featured_image | image_url: width: 400 }}\" alt=\"{{ product.featured_image.alt | escape }}\">\n  <h3>{{ product.title }}</h3>\n  <p>{{ product.price | money }}</p>\n</div>"
+      },
+      {
+        "title": "Projeto — passo 2: adicione a lógica de preço promocional.",
+        "detail": "Reaproveite o padrão do exemplo de desconto visto acima, adaptado pro contexto desse card.",
+        "code": "{% liquid\n  assign variant = product.selected_or_first_available_variant\n  assign on_sale = false\n  if variant.compare_at_price > variant.price\n    assign on_sale = true\n  endif\n%}\n\n<div class=\"product-card\">\n  <img src=\"{{ product.featured_image | image_url: width: 400 }}\" alt=\"{{ product.featured_image.alt | escape }}\">\n  <h3>{{ product.title }}</h3>\n  {% if on_sale %}\n    <s>{{ variant.compare_at_price | money }}</s>\n    <span>{{ variant.price | money }}</span>\n  {% else %}\n    <span>{{ variant.price | money }}</span>\n  {% endif %}\n</div>"
+      },
+      {
+        "title": "Projeto — passo 3: trate o caso de produto esgotado.",
+        "detail": "Adicione uma condição pra mostrar um selo \"Esgotado\" quando `product.available` for falso, sobrepondo a lógica de preço.",
+        "code": "{% if product.available == false %}\n  <span class=\"badge badge--sold-out\">Esgotado</span>\n{% endif %}"
+      },
+      {
+        "title": "Projeto — passo 4: use `{% render %}` num loop de coleção pra ver o snippet em ação.",
+        "detail": "Num template ou section de teste, itere sobre `collection.products` chamando seu snippet pra cada um. Isso antecipa o próximo tópico da trilha (Snippets), mas já mostra o card funcionando com dados reais.",
+        "code": "{% for product in collection.products limit: 8 %}\n  {% render 'product-card', product: product %}\n{% endfor %}",
+        "advanced": "Repare que dentro do snippet você usa `product` (o parâmetro recebido), não `collection.products[i]` — isso só funciona porque você passou explicitamente `product: product` na chamada do render."
+      }
+    ]
+  },
+  "categoryId": "themes",
+  "categoryLabel": "Temas (Storefronts)"
+}

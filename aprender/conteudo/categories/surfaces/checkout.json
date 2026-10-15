@@ -1,0 +1,69 @@
+{
+  "id": "checkout",
+  "title": "Checkout",
+  "desc": "Personalize a experiência de checkout com UI extensions e lógica de backend.",
+  "plan": {
+    "objetivo": "Entender por que o checkout é um ambiente restrito por design, construir uma checkout UI extension com componentes nativos, e testar de ponta a ponta com um pagamento simulado.",
+    "prereq": "App Home",
+    "tempo": "5h",
+    "doc": "https://shopify.dev/docs/apps/build/checkout",
+    "steps": [
+      {
+        "title": "Entenda por que o checkout é a superfície mais restrita de toda a plataforma.",
+        "detail": "O checkout é onde o comprador insere dados sensíveis (endereço, e principalmente informações de pagamento) e onde a Shopify tem responsabilidade direta sobre conformidade PCI (segurança de dados de cartão) e sobre a taxa de conversão de milhões de lojas. Por isso, diferente de outras superfícies de extension, checkout UI extensions rodam dentro de um **iframe sandboxed**: sem acesso a `document` ou `window` do restante da página, sem poder executar JavaScript arbitrário livre, e usando só um conjunto controlado de componentes de UI fornecidos pela própria Shopify.\n\nEsse modelo restritivo é deliberado: garante que nenhuma extension de terceiro consiga capturar dados de cartão, injetar scripts maliciosos ou degradar a performance do checkout de forma imprevisível.",
+        "advanced": "Algumas customizações mais profundas do checkout (como esconder completamente certos campos padrão, ou reorganizar seções inteiras) só funcionam em lojas **Shopify Plus** — confirme o plano da loja alvo antes de prometer um nível de customização que pode não estar disponível."
+      },
+      {
+        "title": "Gere uma checkout UI extension e escolha o `target` (ponto de extensão).",
+        "detail": "O checkout tem vários pontos de extensão possíveis (`target`), cada um representando uma localização específica no fluxo — antes do pagamento, depois da entrega, no resumo do pedido, etc. Escolha o ponto que faz sentido semântico pro que você quer mostrar.",
+        "code": "shopify app generate extension\n# escolha \"Checkout UI extension\"\n\n# no shopify.extension.toml:\ntarget = \"purchase.checkout.block.render\""
+      },
+      {
+        "title": "Monte a interface só com componentes nativos de checkout.",
+        "detail": "Componentes de checkout (banners, campos de texto, imagens, botões) são restritos por segurança e vêm de uma biblioteca própria — não é possível inserir HTML/CSS arbitrário como em outras extensions. Isso garante consistência visual com o resto do checkout e evita que uma extension quebre o layout ou a acessibilidade da experiência de compra.",
+        "code": "import { render, Banner, BlockStack, Text } from '@shopify/ui-extensions-react/checkout';\n\nfunction Extension() {\n  return (\n    <BlockStack>\n      <Banner title=\"Frete grátis\" status=\"success\">\n        <Text>Seu pedido já se qualifica para frete grátis!</Text>\n      </Banner>\n    </BlockStack>\n  );\n}\n\nexport default render('purchase.checkout.block.render', () => <Extension />);"
+      },
+      {
+        "title": "Leia dados do carrinho/pedido através das APIs de checkout.",
+        "detail": "Extensions de checkout têm acesso a hooks/APIs próprias pra ler informações do pedido atual em andamento — como o subtotal, os itens do carrinho, ou o endereço de entrega — sem precisar (nem poder) acessar o DOM diretamente.",
+        "code": "import { useSubtotalAmount } from '@shopify/ui-extensions-react/checkout';\n\nfunction Extension() {\n  const subtotal = useSubtotalAmount();\n  const qualifica = Number(subtotal.amount) >= 200;\n  // ...\n}"
+      },
+      {
+        "title": "Entenda que nem todo dado de carrinho é visível na extension — e por quê.",
+        "detail": "Por design de privacidade e segurança, uma checkout UI extension não tem acesso a **tudo** que existe no pedido — dados de pagamento (número de cartão, CVV) nunca são expostos a extensions de terceiros, mesmo que a extension esteja tecnicamente rodando \"dentro\" da mesma página. Se sua lógica de negócio depende de um dado que a extension não expõe diretamente, considere resolver isso do lado do servidor via webhook/Function, em vez de tentar contorná-lo no frontend.",
+        "advanced": "Esse isolamento de dados sensíveis é o motivo pelo qual customizações de **lógica de negócio** do checkout (descontos, validação, opções de frete) são feitas via Shopify Functions rodando no servidor da Shopify, não via checkout UI extensions — as duas peças (UI e Function) se complementam, cada uma resolvendo uma parte diferente do problema."
+      },
+      {
+        "title": "Publique numa dev store e valide num carrinho de teste.",
+        "detail": "Finalize uma compra de teste numa dev store e confirme que o componente aparece na etapa certa do checkout, com os dados corretos sendo exibidos conforme o carrinho muda.",
+        "advanced": "Teste em modo de pagamento de teste (**Bogus Gateway**) pra não precisar de cartão real durante o desenvolvimento — ele simula autorização e captura sem processar nenhum pagamento de verdade."
+      },
+      {
+        "title": "Projeto — construa um banner de frete grátis condicional no checkout.",
+        "detail": "Vamos consolidar os conceitos vistos: uma extension que lê o subtotal em tempo real e mostra uma mensagem diferente dependendo se o carrinho já atingiu o valor mínimo pra frete grátis."
+      },
+      {
+        "title": "Projeto — passo 1: gere a extension no ponto de extensão do resumo do pedido.",
+        "detail": "Escolha um target relacionado ao resumo/totais do pedido pra que o banner apareça num lugar visualmente relevante.",
+        "code": "shopify app generate extension\n# Checkout UI extension"
+      },
+      {
+        "title": "Projeto — passo 2: implemente a lógica condicional com base no subtotal.",
+        "detail": "Use `useSubtotalAmount` pra ler o valor atual e decidir qual mensagem mostrar — uma incentivando a compra (\"faltam R$X pro frete grátis\") ou confirmando que já qualifica.",
+        "code": "const subtotal = Number(useSubtotalAmount().amount);\nconst minimo = 200;\nconst faltam = minimo - subtotal;\n\nreturn faltam > 0\n  ? <Banner status=\"info\">Faltam R$ {faltam.toFixed(2)} para frete grátis</Banner>\n  : <Banner status=\"success\">Você ganhou frete grátis!</Banner>;"
+      },
+      {
+        "title": "Projeto — passo 3: teste com um carrinho abaixo e outro acima do mínimo.",
+        "detail": "Monte um carrinho de teste abaixo de R$200 e confirme a mensagem de incentivo; depois adicione itens até ultrapassar o valor e confirme que a mensagem muda pra confirmação, em tempo real, sem precisar recarregar a página.",
+        "code": "shopify app dev --store=sua-loja-dev.myshopify.com"
+      },
+      {
+        "title": "Projeto — passo 4: finalize a compra de teste com o Bogus Gateway.",
+        "detail": "Complete o checkout até o fim usando o gateway de teste, confirmando que a extension não interfere no fluxo normal de finalização da compra.",
+        "advanced": "Se a extension causar qualquer travamento ou atraso perceptível no checkout durante o teste, revise o código em busca de chamadas de rede síncronas ou cálculos pesados — o checkout é uma superfície onde performance percebida afeta diretamente a taxa de conversão da loja."
+      }
+    ]
+  },
+  "categoryId": "surfaces",
+  "categoryLabel": "Surfaces"
+}

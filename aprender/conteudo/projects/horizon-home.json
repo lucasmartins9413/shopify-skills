@@ -1,0 +1,186 @@
+{
+  "id": "horizon-home",
+  "kind": "theme",
+  "title": "Home Horizon: seções componíveis",
+  "subtitle": "Construa a home de um tema estilo Horizon usando section groups e blocks aninhados — hero, coleção em destaque, depoimentos via metaobjects e footer, tudo editável pelo merchant sem tocar em código.",
+  "stages": [
+    {
+      "id": "horizon-home-1",
+      "title": "1. Criar o tema a partir do Horizon",
+      "goal": "Ter o tema Horizon rodando localmente, como base de todo o resto do projeto.",
+      "build": "Horizon é o tema de referência mais recente da Shopify — sucessor do Dawn, com um sistema de blocks muito mais profundo: **blocks podem conter outros blocks**, não só sections contendo blocks. É exatamente esse recurso que este projeto inteiro vai explorar. Clone o Horizon como ponto de partida em vez do Skeleton, pra já começar com a arquitetura de blocks aninhados pronta pra estender.",
+      "code": [
+        {
+          "label": "Clonar o Horizon e subir o preview",
+          "code": "shopify theme init meu-tema-horizon --clone-url https://github.com/Shopify/horizon.git\ncd meu-tema-horizon\nshopify theme dev --store=sua-loja-dev.myshopify.com"
+        }
+      ],
+      "expected": "O preview local sobe com o design padrão do Horizon, e você consegue navegar pela home de exemplo antes de mudar qualquer coisa.",
+      "related": [
+        "theme-create",
+        "theme-cli",
+        "theme-architecture"
+      ]
+    },
+    {
+      "id": "horizon-home-2",
+      "title": "2. Mapear os section groups existentes",
+      "goal": "Entender a estrutura de header, footer e (se existir) aside antes de adicionar qualquer coisa nova.",
+      "build": "Liste os arquivos `sections/*.json` e identifique quais são section groups (chamados a partir do layout via `{% sections %}`) versus sections normais usadas dentro de templates. Anote os nomes exatos — você vai reaproveitar o footer group daqui a pouco.",
+      "code": [
+        {
+          "label": "Listar section groups",
+          "code": "ls sections/*.json"
+        }
+      ],
+      "expected": "Você consegue apontar exatamente qual arquivo é o header-group e qual é o footer-group, e confirma no `layout/theme.liquid` onde cada um é chamado.",
+      "related": [
+        "theme-section-groups",
+        "theme-layouts"
+      ]
+    },
+    {
+      "id": "horizon-home-3",
+      "title": "3. Criar o theme block \"selo de confiança\"",
+      "goal": "Um block simples — ícone + texto — que servirá de \"filho\" de um block maior no próximo passo.",
+      "build": "Comece pela peça menor: um block independente, com seu próprio schema, sem se preocupar ainda em aninhar nada. Isso mantém o passo seguinte (aninhamento) focado só no que é novo.",
+      "code": [
+        {
+          "label": "blocks/trust-badge.liquid",
+          "code": "<div class=\"trust-badge\">\n  {% if block.settings.icon %}\n    <img src=\"{{ block.settings.icon | image_url: width: 32 }}\" alt=\"\">\n  {% endif %}\n  <span>{{ block.settings.text }}</span>\n</div>\n\n{% schema %}\n{\n  \"name\": \"Selo de confiança\",\n  \"settings\": [\n    { \"type\": \"image_picker\", \"id\": \"icon\", \"label\": \"Ícone\" },\n    { \"type\": \"text\", \"id\": \"text\", \"label\": \"Texto\", \"default\": \"Frete grátis\" }\n  ]\n}\n{% endschema %}"
+        }
+      ],
+      "expected": "O block \"Selo de confiança\" existe como arquivo, mas ainda não aparece em lugar nenhum do editor — isso é esperado, ele só vira visível quando referenciado por uma section ou outro block.",
+      "related": [
+        "theme-blocks",
+        "liquid"
+      ]
+    },
+    {
+      "id": "horizon-home-4",
+      "title": "4. Criar o block \"faixa de confiança\" que aninha vários selos",
+      "goal": "Demonstrar blocks dentro de blocks — o recurso mais característico do Horizon em relação ao Dawn.",
+      "build": "Esse block não renderiza um selo específico — ele é um **container**: declara, no próprio schema, que aceita instâncias de `trust-badge` como filhos, e itera sobre elas no Liquid. É essa capacidade de um block aceitar outros blocks (não só uma section aceitar blocks) que faz o Horizon ser mais componível que temas anteriores.",
+      "code": [
+        {
+          "label": "blocks/trust-bar.liquid",
+          "code": "<div class=\"trust-bar\">\n  {% for child in block.blocks %}\n    {% content_for 'block', id: child.id, type: child.type %}\n  {% endfor %}\n</div>\n\n{% schema %}\n{\n  \"name\": \"Faixa de confiança\",\n  \"blocks\": [{ \"type\": \"trust-badge\" }],\n  \"presets\": [{\n    \"name\": \"Faixa de confiança\",\n    \"blocks\": [{ \"type\": \"trust-badge\" }, { \"type\": \"trust-badge\" }, { \"type\": \"trust-badge\" }]\n  }]\n}\n{% endschema %}"
+        }
+      ],
+      "expected": "No editor de temas, dentro do bloco \"Faixa de confiança\", o botão \"Adicionar bloco\" oferece \"Selo de confiança\" — e você consegue adicionar, remover e reordenar vários selos independentes dentro do container.",
+      "related": [
+        "theme-blocks",
+        "theme-architecture"
+      ]
+    },
+    {
+      "id": "horizon-home-5",
+      "title": "5. Section de hero com blocks de CTA reordenáveis",
+      "goal": "Um banner de destaque no topo da home, com título, subtítulo e botão como blocks independentes.",
+      "build": "Em vez de hardcodar título/subtítulo/botão como settings fixos da section, modele cada um como um tipo de block — assim o merchant decide a ordem (subtítulo antes do título, por exemplo) e pode até omitir algum, sem você precisar prever cada combinação no schema.",
+      "code": [
+        {
+          "label": "sections/hero-banner.liquid",
+          "code": "<div class=\"hero-banner\" style=\"background-image: url({{ section.settings.bg_image | image_url: width: 1600 }});\">\n  {% for block in section.blocks %}\n    {% content_for 'block', id: block.id, type: block.type %}\n  {% endfor %}\n</div>\n\n{% schema %}\n{\n  \"name\": \"Hero\",\n  \"settings\": [{ \"type\": \"image_picker\", \"id\": \"bg_image\", \"label\": \"Imagem de fundo\" }],\n  \"blocks\": [\n    { \"type\": \"heading\" },\n    { \"type\": \"text\" },\n    { \"type\": \"button\" }\n  ],\n  \"presets\": [{ \"name\": \"Hero\" }]\n}\n{% endschema %}"
+        }
+      ],
+      "expected": "O hero aparece no topo da home, com título/subtítulo/botão reordenáveis independentemente pelo editor — arrastar o botão pra cima do título, por exemplo, funciona sem editar código.",
+      "related": [
+        "theme-sections",
+        "theme-blocks"
+      ]
+    },
+    {
+      "id": "horizon-home-6",
+      "title": "6. Section de coleção em destaque",
+      "goal": "Renderizar produtos reais de uma coleção escolhida pelo merchant, com quantidade configurável.",
+      "build": "Diferente dos blocks dos passos anteriores (conteúdo estático configurado no editor), essa section puxa dado dinâmico direto da loja — a coleção e o número de produtos exibidos são settings, mas os produtos em si vêm do catálogo real.",
+      "code": [
+        {
+          "label": "sections/featured-collection.liquid",
+          "code": "<div class=\"featured-collection\">\n  <h2>{{ section.settings.heading }}</h2>\n  <div class=\"product-grid\">\n    {% for product in section.settings.collection.products limit: section.settings.product_limit %}\n      {% render 'product-card', product: product %}\n    {% endfor %}\n  </div>\n</div>\n\n{% schema %}\n{\n  \"name\": \"Coleção em destaque\",\n  \"settings\": [\n    { \"type\": \"text\", \"id\": \"heading\", \"label\": \"Título\", \"default\": \"Mais vendidos\" },\n    { \"type\": \"collection\", \"id\": \"collection\", \"label\": \"Coleção\" },\n    { \"type\": \"range\", \"id\": \"product_limit\", \"label\": \"Quantidade\", \"min\": 2, \"max\": 12, \"step\": 1, \"default\": 8 }\n  ],\n  \"presets\": [{ \"name\": \"Coleção em destaque\" }]\n}\n{% endschema %}"
+        }
+      ],
+      "expected": "Escolhendo uma coleção real no editor, a grade exibe os produtos dela — trocar a coleção ou o limite reflete no preview imediatamente.",
+      "related": [
+        "theme-sections",
+        "liquid",
+        "merchandising"
+      ]
+    },
+    {
+      "id": "horizon-home-7",
+      "title": "7. Section de depoimentos consumindo metaobjects",
+      "goal": "Listar depoimentos de clientes cadastrados como metaobjects, sem hardcodar nenhum texto no tema.",
+      "build": "Se você já criou o metaobject `depoimento` no tópico de Metaobjects da trilha, reaproveite-o aqui — senão, crie a definição rapidamente pela Admin API antes deste passo. O ponto central é: o merchant (ou o app) cadastra depoimentos via metaobject, e a section só itera sobre o que existe, sem você tocar em código a cada novo depoimento.",
+      "code": [
+        {
+          "label": "sections/testimonials.liquid",
+          "code": "<div class=\"testimonials\">\n  {% for depoimento in shop.metaobjects.depoimento.values %}\n    <blockquote>\n      <p>{{ depoimento.texto.value }}</p>\n      <cite>{{ depoimento.nome.value }}</cite>\n    </blockquote>\n  {% endfor %}\n</div>\n\n{% schema %}\n{ \"name\": \"Depoimentos\", \"presets\": [{ \"name\": \"Depoimentos\" }] }\n{% endschema %}"
+        }
+      ],
+      "expected": "Cadastrando um novo depoimento via metaobject (Admin API ou editor de conteúdo), ele aparece automaticamente na home no próximo carregamento — sem deploy de tema.",
+      "related": [
+        "metaobjects",
+        "theme-sections",
+        "liquid"
+      ]
+    },
+    {
+      "id": "horizon-home-8",
+      "title": "8. Reaproveitar a faixa de confiança no footer",
+      "goal": "Adicionar o mesmo block \"Faixa de confiança\" (criado no passo 4) dentro do footer-group, sem duplicar nenhum código.",
+      "build": "Esse passo prova, na prática, o valor de theme blocks reutilizáveis: o mesmo arquivo `blocks/trust-bar.liquid` (com seus `trust-badge` filhos) passa a existir em dois contextos completamente diferentes do tema — a home e o footer — com conteúdo configurado de forma independente em cada um.",
+      "code": [
+        {
+          "label": "Editar sections/footer-group.json",
+          "code": "{\n  \"sections\": {\n    \"trust-bar-footer\": { \"type\": \"trust-bar\" },\n    \"main-footer\": { \"type\": \"footer\" }\n  },\n  \"order\": [\"trust-bar-footer\", \"main-footer\"]\n}"
+        }
+      ],
+      "expected": "A faixa de selos aparece tanto na home quanto no footer, com configurações de texto/ícone independentes entre as duas instâncias — confirmando que são instâncias separadas do mesmo block reutilizável.",
+      "related": [
+        "theme-section-groups",
+        "theme-blocks"
+      ]
+    },
+    {
+      "id": "horizon-home-9",
+      "title": "9. Internacionalizar os textos fixos da home",
+      "goal": "Extrair labels fixos (não vindos de settings) pra locale, preparando a home pra lojas multi-idioma.",
+      "build": "Textos como um \"Ver mais\" fixo dentro de uma section, ou uma mensagem de estado vazio (\"Nenhum depoimento ainda\"), devem vir de locale — não do schema, já que não são conteúdo editável pelo merchant, são texto de interface do tema.",
+      "code": [
+        {
+          "label": "locales/pt-BR.json",
+          "code": "{ \"home\": { \"view_more\": \"Ver mais\", \"no_testimonials\": \"Ainda não há depoimentos.\" } }"
+        },
+        {
+          "label": "Uso na section",
+          "code": "{{ 'home.view_more' | t }}"
+        }
+      ],
+      "expected": "Trocando o idioma da loja, esses textos fixos mudam junto — sem precisar editar nenhuma section.",
+      "related": [
+        "theme-locales",
+        "liquid"
+      ]
+    },
+    {
+      "id": "horizon-home-10",
+      "title": "10. Checklist de Theme Check e performance antes de publicar",
+      "goal": "Confirmar que a home montada está tecnicamente pronta antes de considerar o projeto concluído.",
+      "build": "Rode o linter e uma auditoria de performance com a home completa (hero, coleção, depoimentos, footer) — é o cenário mais pesado do tema, então é onde problemas de performance ou acessibilidade tendem a aparecer primeiro.",
+      "code": [
+        {
+          "label": "Theme Check e Lighthouse",
+          "code": "shopify theme check\nnpx lighthouse https://sua-loja-dev.myshopify.com --view"
+        }
+      ],
+      "expected": "Zero erros no Theme Check, imagens do hero e da coleção carregando com lazy loading fora da dobra, e contraste mínimo de 4.5:1 no texto sobre a imagem do hero.",
+      "related": [
+        "theme-check",
+        "performance",
+        "accessibility"
+      ]
+    }
+  ]
+}

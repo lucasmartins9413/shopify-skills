@@ -1,0 +1,67 @@
+{
+  "id": "theme-section-groups",
+  "title": "Section groups",
+  "desc": "Permita que merchants adicionem, removam e reordenem sections em áreas como header e footer.",
+  "plan": {
+    "objetivo": "Entender a anatomia de um section group, criar um do zero e saber proteger sections que não podem ser removidas pelo merchant.",
+    "prereq": "Sections",
+    "tempo": "2h",
+    "doc": "https://shopify.dev/docs/storefronts/themes/architecture/section-groups",
+    "steps": [
+      {
+        "title": "Entenda o que um section group resolve.",
+        "detail": "Antes do Online Store 2.0, header e footer eram HTML fixo escrito direto em `theme.liquid` — pra mudar a ordem de um elemento do menu, era preciso editar código. Um **section group** resolve isso: é um arquivo JSON em `sections/*.json` (mesma pasta das sections comuns, mas com extensão `.json`) que define uma área do layout como uma lista de sections, editável visualmente.\n\nA estrutura de um section group é parecida com a de um template: um objeto `sections` (mapa de id → configuração) e um array `order` (a sequência visual). A diferença é que ele não é \"a página inteira\", é só **uma área** dela — tipicamente header ou footer, mas nada impede outros usos em temas mais recentes.",
+        "code": "// sections/header-group.json\n{\n  \"type\": \"header\",\n  \"name\": \"Header\",\n  \"sections\": {\n    \"announcement-bar\": { \"type\": \"announcement-bar\" },\n    \"main-header\": { \"type\": \"header\" }\n  },\n  \"order\": [\"announcement-bar\", \"main-header\"]\n}",
+        "advanced": "Repare na chave `\"type\": \"header\"` no nível raiz do JSON — ela identifica pra Shopify que tipo de área esse group representa, e influencia onde ele pode ser referenciado. Confira sempre a versão mais atual dessa estrutura no tema de referência (Dawn), já que esse contrato evolui com o tempo."
+      },
+      {
+        "title": "Chame o section group a partir do layout.",
+        "detail": "Um section group não é chamado de dentro de um template — ele é referenciado direto do **layout**, com a tag `{% sections %}` (não confundir com `{% section %}`, no singular, usada dentro de templates).",
+        "code": "<body>\n  {% sections 'header-group' %}\n  {{ content_for_layout }}\n  {% sections 'footer-group' %}\n</body>",
+        "advanced": "O nome passado pra `{% sections %}` é o nome do arquivo sem a extensão `.json` — um erro de digitação aqui não gera exceção visível, a área simplesmente fica vazia, sem nenhuma mensagem de erro no preview."
+      },
+      {
+        "title": "Adicione uma nova section a um group existente.",
+        "detail": "Assim como em templates, adicionar uma section a um group exige tocar em **dois lugares do mesmo JSON**: o objeto `sections` (a configuração) e o array `order` (a posição visual). Esquecer o segundo é o erro mais comum aqui — a section fica \"declarada\" mas nunca aparece.",
+        "code": "{\n  \"sections\": {\n    \"announcement-bar\": { \"type\": \"announcement-bar\" },\n    \"main-header\": { \"type\": \"header\" },\n    \"promo-banner\": { \"type\": \"promo-banner\" }\n  },\n  \"order\": [\"announcement-bar\", \"main-header\", \"promo-banner\"]\n}",
+        "advanced": "Um erro de sintaxe JSON em um section group (uma vírgula sobrando, uma chave sem fechar) derruba a **área inteira** — se for o header-group, a loja inteira fica sem header em todas as páginas até o erro ser corrigido. Sempre valide o JSON antes de fazer push."
+      },
+      {
+        "title": "Reordene pelo theme editor e confirme a persistência no JSON.",
+        "detail": "No editor de temas, o merchant arrasta as sections do header/footer pra nova posição visualmente. Por trás dessa interação, a Shopify está reescrevendo o array `order` do JSON correspondente (guardado em `settings_data.json`, não no arquivo do tema em si — mais sobre isso no tópico de Config).",
+        "advanced": "Mudanças feitas pelo merchant no editor (incluindo reordenação de section groups) não aparecem automaticamente no seu código local — elas ficam em `settings_data.json` daquela loja específica. Rode `theme pull` se precisar trazer essas mudanças pro seu ambiente de desenvolvimento."
+      },
+      {
+        "title": "Proteja sections que não podem ser removidas.",
+        "detail": "Por padrão, o merchant pode remover qualquer section de um group pelo editor, incluindo uma que seja essencial pro funcionamento do header (como o ícone do carrinho, ou o menu principal). Marque isso explicitamente no schema da section com a propriedade booleana correspondente, pra impedir remoção acidental.",
+        "code": "{% schema %}\n{\n  \"name\": \"Header principal\",\n  \"settings\": [],\n  \"disabled_on\": {\n    \"groups\": [\"*\"]\n  }\n}\n{% endschema %}"
+      },
+      {
+        "title": "Projeto — construa um header-group com uma barra de avisos removível.",
+        "detail": "Vamos montar um header-group do zero com duas sections: uma barra de avisos (announcement bar) opcional, que o merchant pode remover livremente, e o header principal, protegido contra remoção."
+      },
+      {
+        "title": "Projeto — passo 1: crie a section da barra de avisos.",
+        "detail": "Crie `sections/announcement-bar.liquid` com um texto configurável simples.",
+        "code": "<div class=\"announcement-bar\">\n  <p>{{ section.settings.text }}</p>\n</div>\n\n{% schema %}\n{\n  \"name\": \"Barra de avisos\",\n  \"settings\": [\n    { \"type\": \"text\", \"id\": \"text\", \"label\": \"Texto\", \"default\": \"Frete grátis acima de R$200\" }\n  ]\n}\n{% endschema %}"
+      },
+      {
+        "title": "Projeto — passo 2: crie o section group referenciando as duas sections.",
+        "detail": "Crie (ou edite, se seu tema já tem um) `sections/header-group.json` incluindo a barra de avisos antes do header principal.",
+        "code": "{\n  \"type\": \"header\",\n  \"name\": \"Header\",\n  \"sections\": {\n    \"announcement-bar\": { \"type\": \"announcement-bar\" },\n    \"main-header\": { \"type\": \"header\" }\n  },\n  \"order\": [\"announcement-bar\", \"main-header\"]\n}"
+      },
+      {
+        "title": "Projeto — passo 3: ligue o group ao layout.",
+        "detail": "Confirme que `layout/theme.liquid` chama esse group logo no início do `<body>`.",
+        "code": "{% sections 'header-group' %}"
+      },
+      {
+        "title": "Projeto — passo 4: teste a remoção pelo editor e confirme o comportamento esperado.",
+        "detail": "Suba o preview, abra o editor de temas e tente remover cada uma das duas sections do header. A barra de avisos deve poder ser removida livremente; o header principal (se você aplicou a proteção do passo 5 da teoria) não.",
+        "code": "shopify theme dev --store=sua-loja-dev.myshopify.com"
+      }
+    ]
+  },
+  "categoryId": "themes",
+  "categoryLabel": "Temas (Storefronts)"
+}

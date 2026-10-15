@@ -1,0 +1,72 @@
+{
+  "id": "orders",
+  "title": "Orders and fulfillment",
+  "desc": "Gerencie pedidos, fulfillments, devoluções e fluxos de envio.",
+  "plan": {
+    "objetivo": "Entender o modelo de fulfillment orders (incluindo divisão entre locations), criar um fulfillment e processar uma devolução parcial com reembolso real.",
+    "prereq": "Webhooks",
+    "tempo": "4h",
+    "doc": "https://shopify.dev/docs/apps/build/orders-fulfillment",
+    "steps": [
+      {
+        "title": "Entenda a diferença entre `Order` e `FulfillmentOrder`.",
+        "detail": "Um `Order` representa a transação comercial completa — o que foi comprado, por quanto, por quem. Mas o **envio físico** desses itens é modelado separadamente, através de um ou mais `FulfillmentOrder` — isso porque um único pedido pode precisar ser despachado de **múltiplos locations** diferentes (um item sai do centro de distribuição principal, outro de uma loja física com estoque), cada parte com seu próprio ciclo de vida de envio.\n\nEssa separação entre \"o que foi vendido\" (Order) e \"como está sendo despachado\" (FulfillmentOrder) é o que permite ao sistema lidar com fulfillment parcial de forma nativa — sem essa camada, o modelo teria que forçar \"tudo enviado de uma vez, de um lugar só\".",
+        "advanced": "Fulfillment orders podem estar divididas entre **múltiplos locations** (estoque em mais de um armazém) — sua lógica de automação precisa lidar com fulfillment **parcial** como caso normal, não como exceção rara a ser tratada depois."
+      },
+      {
+        "title": "Crie um pedido de teste na dev store.",
+        "detail": "Um pedido de teste pode ser criado pelo checkout normal (com um cartão de teste — o **Bogus Gateway**) ou via `draftOrderCreate` seguido de `draftOrderComplete`, o mesmo padrão já visto no tópico B2B da trilha.",
+        "code": "mutation {\n  draftOrderCreate(input: {\n    lineItems: [{ variantId: \"gid://shopify/ProductVariant/1\", quantity: 1 }]\n  }) {\n    draftOrder { id }\n    userErrors { field message }\n  }\n}"
+      },
+      {
+        "title": "Consulte os fulfillment orders gerados para o pedido.",
+        "detail": "Depois de um pedido criado, consulte quais `FulfillmentOrder`s foram gerados automaticamente — mesmo um pedido simples, de uma location só, gera um fulfillment order correspondente.",
+        "code": "query {\n  order(id: \"gid://shopify/Order/1\") {\n    fulfillmentOrders(first: 5) {\n      nodes { id status assignedLocation { name } }\n    }\n  }\n}"
+      },
+      {
+        "title": "Crie um fulfillment via Admin API.",
+        "detail": "`fulfillmentCreate` registra o envio de itens específicos de um fulfillment order, com número de rastreio opcional. Ao registrar o fulfillment, o status do pedido no admin muda pra refletir que aquele grupo de itens foi despachado.",
+        "code": "mutation {\n  fulfillmentCreate(fulfillment: {\n    lineItemsByFulfillmentOrder: [{\n      fulfillmentOrderId: \"gid://shopify/FulfillmentOrder/1\"\n    }],\n    trackingInfo: { number: \"BR123456789\", company: \"Correios\" }\n  }) { fulfillment { id status } userErrors { field message } }\n}"
+      },
+      {
+        "title": "Registre uma devolução parcial e emita o reembolso correspondente.",
+        "detail": "Use `refundCreate` com uma lista parcial de `refundLineItems` pra devolver só parte do valor. É essencial incluir o bloco `transactions` — sem ele, `refundCreate` só ajusta o **registro** do pedido (marca como parcialmente reembolsado nos dados), sem de fato devolver dinheiro pro cliente através do gateway de pagamento.",
+        "code": "mutation {\n  refundCreate(input: {\n    orderId: \"gid://shopify/Order/1\",\n    refundLineItems: [{ lineItemId: \"gid://shopify/LineItem/1\", quantity: 1 }],\n    transactions: [{\n      orderId: \"gid://shopify/Order/1\",\n      gateway: \"bogus\",\n      kind: REFUND,\n      amount: \"49.90\"\n    }]\n  }) { refund { id } userErrors { field message } }\n}",
+        "advanced": "`refundCreate` sem `transactions` só ajusta o registro do pedido, sem devolver dinheiro de fato — inclua sempre as transactions correspondentes pra reembolso real via gateway, mesmo em ambiente de teste, senão o comportamento observado não vai bater com produção."
+      },
+      {
+        "title": "Confirme o status do pedido mudando pra \"parcialmente reembolsado\".",
+        "detail": "Depois do reembolso, consulte o pedido novamente e confirme que o status financeiro refletiu a mudança — importante pra validar que a operação teve o efeito esperado, não só que a mutation retornou sem erro.",
+        "code": "query {\n  order(id: \"gid://shopify/Order/1\") {\n    displayFinancialStatus\n  }\n}"
+      },
+      {
+        "title": "Reconheça a complexidade extra de pedidos B2B e multi-location.",
+        "detail": "Pedidos B2B (vistos no tópico correspondente da trilha) e pedidos com múltiplas locations têm workflows de fulfillment mais complexos — vários fulfillment orders, possivelmente com locations e prazos diferentes cada um. Teste esses cenários **separadamente** do fluxo simples de uma location só, já que a lógica que funciona pra um pedido simples pode não cobrir corretamente o caso multi-location."
+      },
+      {
+        "title": "Projeto — implemente um fluxo completo de fulfillment com rastreio e devolução parcial.",
+        "detail": "Vamos percorrer o ciclo de vida completo de um pedido: criação, fulfillment com rastreio, e uma devolução parcial de um dos itens."
+      },
+      {
+        "title": "Projeto — passo 1: crie um pedido de teste com dois itens diferentes.",
+        "detail": "Use `draftOrderCreate` com duas linhas de item distintas, e complete o draft order pra gerar o pedido real.",
+        "code": "mutation {\n  draftOrderCreate(input: {\n    lineItems: [\n      { variantId: \"gid://shopify/ProductVariant/1\", quantity: 1 },\n      { variantId: \"gid://shopify/ProductVariant/2\", quantity: 2 }\n    ]\n  }) { draftOrder { id } }\n}"
+      },
+      {
+        "title": "Projeto — passo 2: registre o fulfillment de todos os itens com rastreio.",
+        "detail": "Consulte o fulfillment order gerado e registre o envio completo, incluindo um número de rastreio fictício."
+      },
+      {
+        "title": "Projeto — passo 3: registre uma devolução de apenas um dos dois itens.",
+        "detail": "Rode `refundCreate` devolvendo só a linha de item de quantidade 1, mantendo a de quantidade 2 intacta — com as `transactions` correspondentes pro reembolso real via Bogus Gateway."
+      },
+      {
+        "title": "Projeto — passo 4: confirme o estado final do pedido com uma query completa.",
+        "detail": "Escreva uma query trazendo `displayFinancialStatus`, `displayFulfillmentStatus` e os itens restantes, confirmando que o pedido reflete corretamente um estado misto: parcialmente reembolsado, mas totalmente despachado.",
+        "code": "query {\n  order(id: \"gid://shopify/Order/1\") {\n    displayFinancialStatus\n    displayFulfillmentStatus\n  }\n}"
+      }
+    ]
+  },
+  "categoryId": "commerce",
+  "categoryLabel": "Commerce"
+}

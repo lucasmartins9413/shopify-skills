@@ -1,0 +1,71 @@
+{
+  "id": "theme-schema",
+  "title": "Schema",
+  "desc": "Entenda o {% schema %} como um único contrato JSON estático que sections, blocks e configurações globais compartilham.",
+  "plan": {
+    "objetivo": "Enxergar o schema como um sistema único (não três recursos soltos), dominar as chaves menos óbvias — tag, class, limit, default, locales — e entender exatamente quando um erro de schema falha silenciosamente vs. quando derruba o build.",
+    "prereq": "Config",
+    "tempo": "2h",
+    "doc": "https://shopify.dev/docs/storefronts/themes/architecture/sections/section-schema",
+    "steps": [
+      {
+        "title": "Veja o schema como um sistema único, não três recursos separados.",
+        "detail": "Você já usou `{% schema %}` três vezes, em contextos que pareciam recursos diferentes: no tópico de Sections (schema de uma section), no de Blocks (schema de um theme block) e no de Config (`settings_schema.json`, o schema do tema inteiro). É o mesmo mecanismo nos três: um **bloco JSON estático, avaliado antes de qualquer render**, que declara a forma de algo editável — e é isso que a Shopify usa pra desenhar o painel do editor de temas automaticamente, sem você escrever nenhuma UI.\n\nA diferença entre os três é só o **escopo** de quem consome cada um:\n\n- **Section** — vive no fim de `sections/*.liquid`; só ela pode declarar `enabled_on`/`disabled_on`, `tag`, `class`, `limit`.\n- **Theme block** — vive no fim de `blocks/*.liquid`; só ele pode declarar blocks aninhados dentro de outro block.\n- **Tema inteiro** — vive em `config/settings_schema.json`; só ele pode declarar o objeto reservado `theme_info`.\n\n`settings`, `blocks` (o array que declara quais tipos são aceitos) e `presets` aparecem tanto em section quanto em block — é o mesmo formato de objeto nos dois lugares.",
+        "advanced": "Pensar nisso como \"um sistema, três escopos\" evita um erro comum de quem está aprendendo: tentar colocar `enabled_on` no schema de um theme block (não existe ali — é um conceito de *onde uma section pode ser adicionada num template*, e um block não é adicionado a um template, é adicionado a uma section)."
+      },
+      {
+        "title": "Controle o HTML gerado ao redor da section com tag, class e limit.",
+        "detail": "Por padrão, toda section é envolvida num `<div>` com um `id` único e a classe `shopify-section`. Três chaves do schema ajustam esse wrapper sem você precisar mexer no HTML interno da section:\n\n- **`tag`** — troca o `<div>` por `article`, `aside`, `div`, `footer`, `header` ou `section`. Útil pra semântica HTML correta (uma section de depoimentos como `<aside>`, por exemplo).\n- **`class`** — adiciona uma classe extra **além** de `shopify-section` (não substitui).\n- **`limit`** — trava em 1 ou 2 quantas instâncias dessa section podem existir ao mesmo tempo num template ou section group. Sem essa chave, não há limite.",
+        "code": "{% schema %}\n{\n  \"name\": \"Barra de avisos\",\n  \"tag\": \"aside\",\n  \"class\": \"announcement\",\n  \"limit\": 1\n}\n{% endschema %}",
+        "advanced": "`limit` é por template/group, não pela loja inteira — a mesma section com `\"limit\": 1` pode existir uma vez na home E uma vez, separadamente, numa página de produto. O limite é \"no máximo 1 aqui\", não \"no máximo 1 na loja\"."
+      },
+      {
+        "title": "Pré-configure a section pra renderização estática com default.",
+        "detail": "`presets` (já visto em Sections) define o que aparece quando o **merchant** clica em \"Adicionar section\" no editor. `default` resolve um problema diferente: quando **você**, no código, inclui uma section direto num template sem passar por `settings_data.json` — ela precisa de algum valor inicial pra não renderizar vazia antes de qualquer configuração existir. `default` tem exatamente o mesmo formato de `presets` (settings + blocks), só que é aplicado nesse cenário de renderização estática em vez do fluxo do editor.",
+        "code": "{% schema %}\n{\n  \"name\": \"Banner promocional\",\n  \"settings\": [\n    { \"type\": \"text\", \"id\": \"heading\", \"label\": \"Título\" }\n  ],\n  \"default\": {\n    \"settings\": { \"heading\": \"Promoção especial\" }\n  }\n}\n{% endschema %}"
+      },
+      {
+        "title": "Dê strings de tradução exclusivas dessa section com locales.",
+        "detail": "O tópico de Locales cobre os arquivos globais em `locales/*.json`. Mas uma section também pode carregar seu **próprio** conjunto de traduções, direto no schema, via a chave `locales` — útil quando o texto é interface do tema (um `aria-label` de botão \"Próximo slide\", por exemplo) amarrado só àquela section, sem precisar tocar nos arquivos globais.\n\nA chave de tradução gerada segue o padrão `sections.[nome-do-arquivo].[sua-chave]` — o `[nome-do-arquivo]` vem do nome do arquivo `.liquid` (sem extensão), não do `\"name\"` de exibição do schema.",
+        "code": "{% schema %}\n{\n  \"name\": \"Slideshow\",\n  \"locales\": {\n    \"pt-BR\": { \"next_slide\": \"Próximo slide\" },\n    \"en\": { \"next_slide\": \"Next slide\" }\n  }\n}\n{% endschema %}\n\n<!-- uso, no HTML da mesma section (sections/slideshow.liquid) -->\n<button aria-label=\"{{ 'sections.slideshow.next_slide' | t }}\">›</button>",
+        "advanced": "Renomear o arquivo `sections/slideshow.liquid` pra `sections/hero-slideshow.liquid` muda a chave pra `sections.hero-slideshow.next_slide` — todo `| t` que referenciava a chave antiga passa a não achar tradução nenhuma, silenciosamente. Renomear arquivo de section com `locales` no schema exige atualizar as chamadas `| t` junto."
+      },
+      {
+        "title": "Entenda por que o schema nunca reage a Liquid.",
+        "detail": "O `{% schema %}` é avaliado **antes** de qualquer render acontecer, num momento em que a Shopify só precisa saber a *forma* do que é editável pra desenhar o painel do editor — não há carrinho, não há produto, não há cliente logado nesse momento ainda. Por isso o conteúdo do schema é sempre JSON literal: `{{ product.title }}`, `{% if %}` ou qualquer outra tag/objeto Liquid dentro dele simplesmente não funciona, porque o schema não passa pelo mesmo pipeline de render do resto do arquivo.\n\nO que *pode* variar dinamicamente é sempre o HTML fora do schema, lendo `section.settings.*`/`block.settings.*` — a **estrutura** do formulário é fixa, os **valores** preenchidos nele é que são dinâmicos.",
+        "advanced": "Theme Check sinaliza a maioria das tentativas de usar Liquid dentro do schema, mas o sintoma no preview, sem o linter, costuma ser mais confuso: nem sempre um erro claro, às vezes só o valor literal `{{ product.title }}` aparecendo como texto no painel do editor."
+      },
+      {
+        "title": "Distinga erro de schema \"barulhento\" de erro \"silencioso\".",
+        "detail": "Juntando o que já apareceu espalhado nos tópicos anteriores, dá pra generalizar uma regra: **erros estruturais** no JSON do schema (vírgula sobrando, chave sem fechar, um `range` sem `min`/`max`/`step`) tendem a ser pegos pelo `shopify theme check` antes de chegar em produção — mas o efeito no preview, sem rodar o linter, é a section simplesmente sumir do editor sem mensagem nenhuma. Já **erros semânticos** (um setting renomeado deixando um valor órfão em `settings_data.json`, uma chave de `locales` que ninguém mais referencia) não quebram nada visível e o Theme Check não pega — só apuram com o tempo.\n\nA prática recomendada: rodar `theme check` depois de qualquer edição de schema é o que transforma um erro estrutural de \"silencioso e confuso\" em \"apontado com arquivo e linha\".",
+        "code": "shopify theme check"
+      },
+      {
+        "title": "Projeto — construa uma section que exercita tag, class, limit, default e locales juntos.",
+        "detail": "Vamos criar uma section de \"Citação de cliente\" (`customer-quote`) que usa as cinco chaves menos óbvias vistas neste tópico numa peça só, e depois provocar de propósito um erro de JSON pra ver o comportamento \"silencioso\" na prática."
+      },
+      {
+        "title": "Projeto — passo 1: crie o arquivo com tag semântica, classe extra e limite de uma instância.",
+        "detail": "Crie `sections/customer-quote.liquid` como um `<aside>` (semanticamente correto pra uma citação), com uma classe própria e travado em no máximo 1 por template.",
+        "code": "<blockquote>\n  <p>{{ section.settings.quote }}</p>\n  <cite>{{ section.settings.author }}</cite>\n</blockquote>\n\n{% schema %}\n{\n  \"name\": \"Citação de cliente\",\n  \"tag\": \"aside\",\n  \"class\": \"customer-quote\",\n  \"limit\": 1,\n  \"settings\": [\n    { \"type\": \"textarea\", \"id\": \"quote\", \"label\": \"Citação\" },\n    { \"type\": \"text\", \"id\": \"author\", \"label\": \"Autor\" }\n  ],\n  \"presets\": [{ \"name\": \"Citação de cliente\" }]\n}\n{% endschema %}"
+      },
+      {
+        "title": "Projeto — passo 2: adicione default pra ela nunca renderizar vazia.",
+        "detail": "Configure valores padrão pra quando a section for incluída estaticamente (sem passar pelo editor), garantindo que nunca apareça um `<blockquote>` em branco.",
+        "code": "\"default\": {\n  \"settings\": {\n    \"quote\": \"Simplesmente a melhor loja que já comprei.\",\n    \"author\": \"Cliente satisfeito\"\n  }\n}"
+      },
+      {
+        "title": "Projeto — passo 3: adicione um aria-label traduzido via locales.",
+        "detail": "Acrescente um ícone de \"aspas\" decorativo com `aria-label` vindo de uma chave de tradução escopada só a essa section.",
+        "code": "\"locales\": {\n  \"pt-BR\": { \"decorative_icon\": \"Ícone de citação\" },\n  \"en\": { \"decorative_icon\": \"Quote icon\" }\n}"
+      },
+      {
+        "title": "Projeto — passo 4: quebre o JSON de propósito e observe o Theme Check pegar o erro.",
+        "detail": "Remova uma vírgula do `{% schema %}` (por exemplo, entre `\"limit\": 1` e `\"settings\"`) e rode o preview — a section some do editor sem mensagem nenhuma, exatamente o comportamento \"silencioso\" discutido na teoria. Em seguida rode o linter, que aponta arquivo e linha do problema; corrija e confirme a section voltando a aparecer.",
+        "code": "shopify theme dev --store=sua-loja-dev.myshopify.com\nshopify theme check"
+      }
+    ]
+  },
+  "categoryId": "themes",
+  "categoryLabel": "Temas (Storefronts)"
+}

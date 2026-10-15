@@ -1,0 +1,63 @@
+{
+  "id": "payments",
+  "title": "Payments",
+  "desc": "Construa gateways de pagamento, pagamentos alternativos e extensões resgatáveis.",
+  "plan": {
+    "objetivo": "Entender os dois modelos de payments app (offsite e custom), o fluxo de autorização/captura, e o tratamento de disputas — antes de estimar o esforço real de construir um gateway.",
+    "prereq": "Authentication",
+    "tempo": "5h",
+    "doc": "https://shopify.dev/docs/apps/build/payments",
+    "steps": [
+      {
+        "title": "Entenda por que payments é a categoria de app com maior barreira de entrada.",
+        "detail": "Diferente de quase todo outro tipo de app coberto na trilha, um payments app lida diretamente com dinheiro e dados de pagamento — isso significa requisitos de segurança, conformidade (PCI DSS) e revisão muito mais rigorosos que um app comum. Antes de embarcar nessa categoria, vale entender bem o modelo e o esforço envolvido, não só a viabilidade técnica."
+      },
+      {
+        "title": "Escolha entre os dois modelos: offsite e custom.",
+        "detail": "Payments apps têm dois modelos fundamentalmente diferentes:\n- **offsite** — o checkout redireciona o comprador pro site do próprio gateway pra inserir os dados de pagamento e concluir, depois retorna pra Shopify. Mais simples de implementar, porque você nunca lida diretamente com dados de cartão dentro do seu código.\n- **custom** — a UI de pagamento (número do cartão, validade, CVV) fica **embutida diretamente no checkout** da Shopify, via extension, dando uma experiência mais fluida pro comprador (sem sair da página), mas exigindo que seu app cumpra requisitos de segurança muito mais rigorosos.",
+        "advanced": "Payments apps offsite são bem mais simples de aprovar; o modelo custom exige revisão de segurança mais rigorosa da Shopify (relacionada a PCI compliance do fluxo de captura de dados de cartão) — considere começar pelo modelo offsite a menos que a experiência embutida seja um requisito essencial do seu produto."
+      },
+      {
+        "title": "Estude um exemplo oficial de payments app.",
+        "detail": "Os repositórios de exemplo da Shopify (`shopify/payments-app-examples` no GitHub) mostram o fluxo completo de ponta a ponta: **autorização** (confirmar que o pagamento é válido e reservar o valor) → **captura** (efetivamente cobrar) → webhook de confirmação de volta pro pedido na Shopify."
+      },
+      {
+        "title": "Entenda a diferença entre captura imediata e captura atrasada.",
+        "detail": "Um pagamento pode ser capturado (cobrado de fato) de duas formas:\n- **captura imediata** — autoriza e já cobra o valor no mesmo momento, o padrão mais simples de implementar.\n- **captura atrasada** — autoriza (reserva o valor, sem cobrar ainda) e só cobra de fato **no momento do fulfillment** — útil pra negócios que só querem cobrar quando o produto de fato é despachado, evitando cobrar por algo que pode não ser enviado.\n\nEssa escolha muda significativamente a implementação: captura atrasada exige um **segundo endpoint**, chamado pela Shopify separadamente no momento certo — não é só \"autorizar e considerar o pagamento concluído\" numa única etapa.",
+        "advanced": "O fluxo de captura atrasada precisa lidar com o caso de a autorização **expirar** antes da captura acontecer (a maioria dos processadores de pagamento tem uma janela limitada entre autorizar e capturar) — trate isso explicitamente, avisando o merchant se um fulfillment demorar além dessa janela."
+      },
+      {
+        "title": "Mapeie qual parte do fluxo seu caso realmente precisa primeiro.",
+        "detail": "Antes de implementar, anote se o seu caso de uso precisa de captura imediata ou atrasada — isso muda qual endpoint da payments app você precisa implementar primeiro, e evita construir a complexidade de captura atrasada quando o negócio na verdade só precisa do modelo mais simples."
+      },
+      {
+        "title": "Planeje o fluxo de disputas e chargebacks desde o início.",
+        "detail": "Disputas e chargebacks (quando o comprador contesta a cobrança junto ao emissor do cartão) têm webhooks próprios (`disputes/create`, `disputes/update`) — planeje esse fluxo **antes** de ir pra produção, não depois do primeiro caso real de chargeback acontecer. Um payments app sem esse fluxo tratado deixa o merchant sem visibilidade de disputas em andamento, um problema sério de confiança na integração.",
+        "advanced": "Disputas geralmente têm prazos apertados de resposta definidos pela bandeira do cartão/processador — um app que não notifica o merchant rapidamente sobre uma disputa nova pode fazer o merchant perder o prazo de contestação, resultando em perda automática do valor disputado."
+      },
+      {
+        "title": "Projeto — mapeie a arquitetura de um payments app offsite simples.",
+        "detail": "Construir um payments app real exige integração com um processador de pagamento de verdade, fora do escopo de um exercício isolado — então este projeto foca em desenhar a arquitetura completa antes de qualquer implementação real, um passo que qualquer payments app sério exige de qualquer forma."
+      },
+      {
+        "title": "Projeto — passo 1: escolha um modelo (offsite) e um processador hipotético.",
+        "detail": "Defina, por escrito, que você está construindo um payments app offsite, integrando com um processador fictício (ou um real que você conhece), com captura imediata."
+      },
+      {
+        "title": "Projeto — passo 2: desenhe o fluxo de autorização no papel.",
+        "detail": "Trace o caminho completo: comprador escolhe seu gateway no checkout → é redirecionado pro processador → paga → é redirecionado de volta → seu backend confirma a autorização com a Shopify."
+      },
+      {
+        "title": "Projeto — passo 3: identifique onde o webhook de confirmação entra no fluxo.",
+        "detail": "Marque explicitamente no diagrama o ponto onde seu backend recebe a confirmação do processador (via webhook do processador, não da Shopify) e onde ele precisa notificar a Shopify de volta que o pagamento foi concluído."
+      },
+      {
+        "title": "Projeto — passo 4: adicione o fluxo de disputa ao diagrama.",
+        "detail": "Complete o diagrama adicionando o caminho paralelo de disputas: de onde vem a notificação de chargeback, e o que seu app precisaria fazer com essa informação (no mínimo, repassar visibilidade clara ao merchant dentro do prazo de resposta).",
+        "advanced": "Esse tipo de mapeamento arquitetural completo, antes de escrever qualquer código de integração real com um processador de pagamento, é exatamente o tipo de exercício que evita retrabalho caro numa categoria de app onde erros têm consequência financeira direta."
+      }
+    ]
+  },
+  "categoryId": "commerce",
+  "categoryLabel": "Commerce"
+}

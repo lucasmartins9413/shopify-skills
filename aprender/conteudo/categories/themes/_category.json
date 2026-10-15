@@ -1,0 +1,30 @@
+{
+  "id": "themes",
+  "label": "Temas (Storefronts)",
+  "intro": "Construa temas nativos da Shopify com Liquid, HTML, CSS, JavaScript e JSON — a base de toda loja online.",
+  "topicCount": 22,
+  "topicIds": [
+    "theme-create",
+    "theme-customize",
+    "theme-architecture",
+    "liquid",
+    "theme-layouts",
+    "theme-templates",
+    "theme-sections",
+    "theme-section-groups",
+    "theme-blocks",
+    "theme-blocks-horizon",
+    "theme-snippets",
+    "theme-config",
+    "theme-schema",
+    "theme-locales",
+    "theme-best-practices",
+    "theme-cli",
+    "theme-github",
+    "theme-check",
+    "theme-os20",
+    "theme-store",
+    "theme-b2b-liquid",
+    "theme-b2b-pricing"
+  ]
+}

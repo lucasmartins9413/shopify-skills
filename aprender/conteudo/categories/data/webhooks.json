@@ -1,0 +1,75 @@
+{
+  "id": "webhooks",
+  "title": "Webhooks",
+  "desc": "Assine eventos da loja e dispare sua própria lógica em tempo real.",
+  "plan": {
+    "objetivo": "Entender o modelo de entrega de webhooks (at-least-once, com reentrega), implementar um endpoint seguro e idempotente, e saber monitorar falhas.",
+    "prereq": "Authentication",
+    "tempo": "3h",
+    "doc": "https://shopify.dev/docs/apps/build/webhooks",
+    "steps": [
+      {
+        "title": "Entenda o problema: como saber que algo mudou na loja sem ficar perguntando o tempo todo?",
+        "detail": "Sem webhooks, a única forma de um app saber que, por exemplo, um pedido novo foi criado seria **polling** — consultar a API repetidamente em intervalos curtos, perguntando \"tem pedido novo?\". Isso desperdiça rate limit, atrasa a reação (só descobre na próxima consulta) e escala mal com muitas lojas instaladas.\n\n**Webhooks** invertem esse modelo: você se inscreve (*subscribe*) num **topic** (tipo de evento, como `orders/create`), e a Shopify passa a **enviar** uma requisição HTTP POST pro seu endpoint assim que aquele evento acontece — sem você precisar perguntar nada.",
+        "advanced": "Existem centenas de topics de webhook cobrindo praticamente todo tipo de mudança na loja — da criação de um pedido até a atualização de um metafield. A lista completa está em [shopify.dev](https://shopify.dev/docs/api/webhooks)."
+      },
+      {
+        "title": "Registre um webhook topic no `shopify.app.toml`.",
+        "detail": "Webhooks **gerenciados pelo app** (a forma recomendada hoje) são declarados direto no arquivo de configuração — a Shopify cuida de criar/atualizar a subscription automaticamente a cada deploy, sem você precisar chamar uma mutation manualmente pra isso.",
+        "code": "[webhooks]\napi_version = \"2025-01\"\n\n[[webhooks.subscriptions]]\ntopics = [\"orders/create\"]\nuri = \"/webhooks/orders/create\"",
+        "advanced": "Webhooks gerenciados pelo app (no toml) são recriados automaticamente a cada deploy — não crie duplicados manualmente via API (`webhookSubscriptionCreate`), isso é reservado pra casos onde a subscription precisa ser dinâmica (criada/removida em runtime, não fixa no código)."
+      },
+      {
+        "title": "Implemente o endpoint que recebe e valida o HMAC do payload.",
+        "detail": "Todo webhook chega com um header `X-Shopify-Hmac-Sha256`, uma assinatura calculada com seu client secret sobre o corpo bruto da requisição. **Sempre valide esse HMAC antes de processar qualquer coisa** — sem essa validação, qualquer pessoa que descubra a URL do seu endpoint pode forjar um payload falso e seu app processaria como se fosse legítimo.",
+        "code": "const valid = verifyHmac(rawBody, header, process.env.SHOPIFY_API_SECRET);\nif (!valid) return new Response(\"Unauthorized\", { status: 401 });",
+        "advanced": "Use comparação de tempo constante (`crypto.timingSafeEqual`) ao validar o HMAC, não `===` — comparação normal de strings vaza informação sobre quantos caracteres bateram através do tempo de execução, permitindo, em teoria, um ataque de timing pra descobrir a assinatura correta byte a byte."
+      },
+      {
+        "title": "Entenda a garantia at-least-once e por que seu handler precisa ser idempotente.",
+        "detail": "A Shopify garante que um webhook será entregue **pelo menos uma vez** — mas não garante exatamente uma vez. Se seu endpoint demorar demais pra responder, cair momentaneamente, ou responder com erro, a Shopify **reentrega** o mesmo evento depois, com backoff, por até 48 horas.\n\nIsso significa que seu handler pode receber o mesmo evento **mais de uma vez**, e precisa ser **idempotente**: processar o mesmo evento duas vezes deve produzir o mesmo resultado que processar uma vez só (por exemplo, checando se aquele ID de evento/pedido já foi processado antes de repetir um efeito colateral como enviar um e-mail ou debitar algo).",
+        "advanced": "Uma estratégia simples de idempotência: guarde os IDs de evento já processados (numa tabela ou cache com expiração) e, ao receber um evento repetido, apenas responda 200 sem reprocessar a lógica de negócio."
+      },
+      {
+        "title": "Responda rápido e processe pesado de forma assíncrona.",
+        "detail": "A Shopify espera uma resposta em poucos segundos — se seu endpoint demorar demais processando lógica pesada antes de responder, a Shopify pode interpretar como timeout e reentregar o mesmo evento, aumentando o risco de processamento duplicado. O padrão recomendado: validar o HMAC, responder `200` imediatamente, e só então processar a lógica pesada de forma assíncrona (fila, job em background).",
+        "code": "app.post(\"/webhooks/orders/create\", async (req, res) => {\n  if (!verifyHmac(req)) return res.sendStatus(401);\n  res.sendStatus(200); // responde rápido\n  await queue.add(\"process-order\", req.body); // processa depois\n});"
+      },
+      {
+        "title": "Dispare o evento na dev store e confirme o processamento de ponta a ponta.",
+        "detail": "Crie um pedido de teste na dev store (via checkout de teste ou `draftOrderCreate` + `draftOrderComplete`) e confira, nos logs do seu app, se o endpoint recebeu, validou o HMAC e processou o payload corretamente."
+      },
+      {
+        "title": "Monitore falhas persistentes de entrega.",
+        "detail": "Depois de várias tentativas sem sucesso (o endpoint respondendo erro ou timeout repetidamente), a Shopify para de reentregar aquele evento específico. Monitore a taxa de erro do seu próprio endpoint continuamente — não assuma que \"o webhook sempre chega\" só porque a garantia é at-least-once; ela vale só enquanto seu endpoint estiver saudável o suficiente pra reagir dentro da janela de retry.",
+        "advanced": "Configure alertas (ex: no seu provedor de logs/observabilidade) pra taxa de erro 4xx/5xx do endpoint de webhook especificamente — é um dos sinais mais precoces de que algo quebrou silenciosamente no seu app."
+      },
+      {
+        "title": "Projeto — implemente um endpoint de webhook completo e idempotente.",
+        "detail": "Vamos construir, passo a passo, um handler de `orders/create` que valida HMAC, responde rápido e evita processamento duplicado — o padrão de referência pra qualquer webhook que você for implementar depois."
+      },
+      {
+        "title": "Projeto — passo 1: declare o topic no `shopify.app.toml`.",
+        "detail": "Adicione a subscription de `orders/create` apontando pro endpoint que você vai criar.",
+        "code": "[[webhooks.subscriptions]]\ntopics = [\"orders/create\"]\nuri = \"/webhooks/orders-create\""
+      },
+      {
+        "title": "Projeto — passo 2: implemente a validação de HMAC no endpoint.",
+        "detail": "Crie a rota correspondente e adicione a validação usando o corpo bruto da requisição (não o JSON já parseado — o HMAC é calculado sobre os bytes originais).",
+        "code": "export async function action({ request }) {\n  const rawBody = await request.text();\n  const hmac = request.headers.get(\"X-Shopify-Hmac-Sha256\");\n  if (!verifyHmac(rawBody, hmac)) {\n    return new Response(\"Unauthorized\", { status: 401 });\n  }\n  // ...\n}"
+      },
+      {
+        "title": "Projeto — passo 3: adicione checagem de idempotência antes de processar.",
+        "detail": "Extraia um identificador único do payload (ex: o ID do pedido) e confirme, antes de rodar qualquer lógica de negócio, se aquele ID já foi processado — usando sua própria tabela de eventos processados ou equivalente.",
+        "code": "const order = JSON.parse(rawBody);\nconst alreadyProcessed = await db.processedEvents.findUnique({ where: { orderId: order.id } });\nif (alreadyProcessed) return new Response(null, { status: 200 });"
+      },
+      {
+        "title": "Projeto — passo 4: dispare um pedido de teste e confirme nos logs.",
+        "detail": "Complete uma compra de teste na dev store e confirme, pelos logs do seu app, que o evento chegou, o HMAC foi validado e o pedido foi marcado como processado.",
+        "advanced": "Tente disparar o mesmo payload manualmente uma segunda vez (reenviando a mesma requisição salva) e confirme que seu endpoint responde 200 sem reprocessar a lógica de negócio — esse é o teste real de que a idempotência funciona."
+      }
+    ]
+  },
+  "categoryId": "data",
+  "categoryLabel": "Data and logic"
+}

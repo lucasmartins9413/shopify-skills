@@ -1,0 +1,67 @@
+{
+  "id": "shopifyql",
+  "title": "ShopifyQL",
+  "desc": "Consulte dados da loja com uma linguagem parecida com SQL feita para comércio.",
+  "plan": {
+    "objetivo": "Escrever queries ShopifyQL entendendo sua sintaxe orientada a métricas de comércio, e saber quando ela é mais adequada que GraphQL puro.",
+    "prereq": "GraphQL",
+    "tempo": "1h30",
+    "doc": "https://shopify.dev/docs/apps/build/shopifyql",
+    "steps": [
+      {
+        "title": "Entenda o problema: responder perguntas de negócio exigiria muito código GraphQL.",
+        "detail": "Uma pergunta como \"quais foram minhas vendas por produto no último mês\" parece simples, mas resolver isso só com a Admin GraphQL API exigiria: paginar por todos os pedidos do período, iterar sobre cada linha de item, agrupar manualmente por produto e somar valores — dezenas de linhas de código pra uma pergunta de negócio conceitualmente simples.\n\n**ShopifyQL** é uma linguagem de consulta parecida com SQL, mas desenhada especificamente pra métricas de comércio — ela já entende conceitos como \"vendas\", \"pedidos\" e \"produtos\" como tabelas de alto nível, com agregações e agrupamentos nativos, sem você precisar escrever a lógica de JOIN e soma manualmente.",
+        "advanced": "ShopifyQL não substitui GraphQL — ela é complementar, focada especificamente em relatórios e análises agregadas. Pra gravar dados ou buscar um recurso específico por ID, GraphQL continua sendo o caminho certo."
+      },
+      {
+        "title": "Abra o painel de Analytics/ShopifyQL Notebooks no admin.",
+        "detail": "Fica em Analytics → Reports → Notebooks (ou Analytics → ShopifyQL) no admin da loja — é uma interface interativa, parecida com um notebook Jupyter, onde você escreve queries e vê o resultado renderizado como tabela ou gráfico na hora.",
+        "advanced": "Notebooks ShopifyQL não são versionados por padrão — exporte queries importantes pra um repositório (como comentários ou um arquivo `.md` de referência) se forem reaproveitáveis, em vez de depender só do notebook salvo no admin."
+      },
+      {
+        "title": "Entenda a estrutura básica de uma query: `FROM`, `SHOW`, `BY`, `SINCE`/`UNTIL`.",
+        "detail": "A sintaxe lembra SQL mas é orientada a métricas de comércio:\n- **`FROM`** escolhe a tabela de dados (`sales`, `orders`, `products`, entre outras)\n- **`SHOW`** escolhe a métrica que você quer ver (`total_sales`, `order_count`, etc.)\n- **`BY`** agrupa o resultado por uma dimensão (produto, dia, canal de venda)\n- **`SINCE`/`UNTIL`** define o intervalo de tempo da consulta\n\nSem precisar escrever nenhum JOIN manual entre pedidos, produtos e variantes — o modelo de dados por trás já resolve essas relações.",
+        "code": "FROM sales SHOW total_sales BY product_title SINCE -30d"
+      },
+      {
+        "title": "Escreva uma query com múltiplas dimensões e um filtro.",
+        "detail": "Queries mais elaboradas combinam `BY` com múltiplas dimensões e uma cláusula `WHERE` pra filtrar os dados antes de agregar — por exemplo, vendas por produto e por dia, filtrando só um canal de venda específico.",
+        "code": "FROM sales\nSHOW total_sales, order_count\nBY product_title, day\nWHERE sales_channel = 'Online Store'\nSINCE -30d"
+      },
+      {
+        "title": "Compare o resultado com uma query GraphQL equivalente.",
+        "detail": "O mesmo dado via GraphQL exigiria paginar pedidos, iterar itens de linha e somar manualmente por produto e dia — o ShopifyQL já agrega isso automaticamente, numa única query declarativa. Isso ilustra bem quando escolher cada ferramenta: GraphQL pra ler/gravar recursos específicos, ShopifyQL pra relatórios e análises agregadas.",
+        "advanced": "O resultado do ShopifyQL usa a moeda **da loja**, não a do market específico do comprador — atenção redobrada em lojas multi-moeda (ver o tópico \"Global markets\"), onde o valor exibido no relatório pode não bater diretamente com o que o comprador pagou na moeda local dele."
+      },
+      {
+        "title": "Entenda os limites de volume e agregação muito ampla.",
+        "detail": "Agregações muito amplas sem agrupamento (ex: `SINCE -2y` sem nenhum `BY`) podem demorar mais pra processar ou truncar resultados dependendo do volume de dados da loja. Sempre que possível, agrupe por pelo menos uma dimensão — além de mais útil pra análise, tende a ser mais eficiente de processar."
+      },
+      {
+        "title": "Projeto — construa um pequeno relatório de vendas por produto e por canal.",
+        "detail": "Vamos escrever, progressivamente, uma query que responde a uma pergunta de negócio real: \"quais produtos venderam mais nos últimos 30 dias, e por qual canal?\""
+      },
+      {
+        "title": "Projeto — passo 1: escreva a query básica de vendas por produto.",
+        "detail": "Comece pela versão mais simples, sem filtro nem segunda dimensão.",
+        "code": "FROM sales SHOW total_sales BY product_title SINCE -30d"
+      },
+      {
+        "title": "Projeto — passo 2: adicione o canal de venda como segunda dimensão.",
+        "detail": "Expanda a query pra agrupar também por canal, permitindo comparar o mesmo produto entre diferentes canais.",
+        "code": "FROM sales SHOW total_sales BY product_title, sales_channel SINCE -30d"
+      },
+      {
+        "title": "Projeto — passo 3: adicione a métrica de quantidade de pedidos, além do valor de vendas.",
+        "detail": "Inclua `order_count` na cláusula `SHOW` pra ver, lado a lado, tanto o valor total quanto a quantidade de pedidos por produto/canal.",
+        "code": "FROM sales SHOW total_sales, order_count BY product_title, sales_channel SINCE -30d"
+      },
+      {
+        "title": "Projeto — passo 4: salve a query como referência e compare com uma alternativa em GraphQL.",
+        "detail": "Guarde a query final como anotação (ou num arquivo de documentação do projeto), e escreva de próprio punho como seria buscar o mesmo dado via GraphQL puro — mesmo sem implementar, o exercício de comparar deixa claro o ganho de produtividade do ShopifyQL pra esse tipo de pergunta."
+      }
+    ]
+  },
+  "categoryId": "data",
+  "categoryLabel": "Data and logic"
+}

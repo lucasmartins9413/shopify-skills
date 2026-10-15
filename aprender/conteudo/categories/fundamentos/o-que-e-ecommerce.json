@@ -1,0 +1,39 @@
+{
+  "id": "o-que-e-ecommerce",
+  "title": "O que é e-commerce",
+  "desc": "Antes de qualquer código: o que muda entre vender numa loja física e vender online, e o vocabulário mínimo pra acompanhar o resto da trilha.",
+  "plan": {
+    "objetivo": "Entender o que é comércio eletrônico, o vocabulário básico usado no dia a dia de uma loja, e onde a Shopify se encaixa nesse mundo — antes de tocar em qualquer código.",
+    "prereq": "Nenhum",
+    "tempo": "20min",
+    "doc": "https://help.shopify.com/en/manual",
+    "steps": [
+      {
+        "title": "Entenda o que muda entre vender numa loja física e vender online.",
+        "detail": "Numa loja física, um vendedor resolve sozinho um monte de coisa: mostra o produto, responde dúvida, processa o pagamento, entrega a sacola. Numa loja online, cada um desses momentos precisa de um equivalente digital que funcione **sem ninguém do outro lado**:\n\n- \"mostrar o produto\" vira fotos, descrição e specs bem escritas;\n- \"responder dúvida\" vira FAQ, chat, avaliações de outros clientes;\n- \"processar pagamento\" vira um checkout que precisa ser rápido e passar confiança;\n- \"entregar a sacola\" vira frete, rastreio e uma política de troca clara.\n\nQuem constrói ferramentas pra esse mundo (temas, apps) está, na prática, construindo os substitutos digitais de cada uma dessas etapas.",
+        "advanced": "O erro mais comum de quem migra um catálogo físico pra loja online é tratar isso como \"digitar os produtos num site\" — sem fotos boas, sem descrição e sem um checkout confiável, a loja tecnicamente existe mas não converte visita em venda."
+      },
+      {
+        "title": "Aprenda os quatro termos que aparecem em toda frase sobre uma loja online.",
+        "detail": "Esses quatro termos vão aparecer o tempo todo no resto da trilha:\n\n- **Merchant** (lojista): a pessoa ou empresa dona da loja — quem usa o admin da Shopify no dia a dia.\n- **Storefront**: a loja como o cliente final vê — as páginas de produto, coleção, carrinho. É o que um **tema** desenha.\n- **Catálogo**: o conjunto de produtos, variantes, preços e estoque da loja.\n- **Checkout**: a sequência de telas em que o cliente informa entrega e pagamento pra fechar a compra.\n\nRepare que \"loja\" sozinho é ambíguo — pode significar o admin (onde o merchant trabalha) ou a storefront (onde o cliente compra). Ao longo da trilha, os dois usos aparecem, então vale se acostumar a distinguir pelo contexto.",
+        "advanced": "Documentação da Shopify costuma dizer apenas \"a loja\" tanto pro admin quanto pra storefront — quando a frase ficar ambígua pra você, pergunte-se: \"isso é uma tela que o merchant usa, ou uma tela que o cliente do merchant usa?\""
+      },
+      {
+        "title": "Conheça os números que um dono de loja acompanha — e por que eles importam pra quem constrói a loja.",
+        "detail": "Você não precisa ser analista de dados, mas vai ouvir esses termos toda hora ao conversar com um merchant ou ler um brief de projeto:\n\n- **GMV** (Gross Merchandise Volume): valor total vendido num período, antes de descontar taxas.\n- **Taxa de conversão**: % de visitas que viram compra. Normalmente baixa (poucos %) — a maioria de quem visita uma loja não compra na hora.\n- **Ticket médio / AOV** (Average Order Value): valor médio de cada pedido.\n- **Abandono de carrinho**: % de gente que adiciona produto ao carrinho mas não finaliza a compra — geralmente a maior perda de vendas de uma loja.\n\nEsses números conectam diretamente com decisões técnicas: um checkout lento ou confuso aumenta abandono; um tema mais rápido tende a melhorar conversão.",
+        "advanced": "Quando alguém pedir pra \"melhorar a conversão\" de uma loja, isso quase nunca é um pedido técnico único — pode ser performance do tema, clareza do checkout, confiança (avaliações, política de troca visível) ou simplesmente tráfego de baixa qualidade chegando na loja. Vale perguntar qual dessas causas a pessoa já descartou antes de sair mexendo em código."
+      },
+      {
+        "title": "Situe o papel da Shopify: ela não é só uma vitrine, é a operação inteira da loja.",
+        "detail": "Uma forma simplificada e antiga de montar uma loja era: site estático + um botão de \"comprar\" que abria um carrinho de terceiro, ligado a um gateway de pagamento separado, com estoque controlado numa planilha à parte. Cada peça vinha de um fornecedor diferente, e conectar tudo era trabalho manual.\n\nA Shopify junta isso num único sistema: catálogo, storefront (via tema), checkout, pagamentos, gestão de pedidos, estoque e ainda um marketplace de apps e temas prontos pra estender qualquer parte disso. Por isso ela costuma ser chamada de **plataforma de comércio** (commerce platform), não só de \"criador de sites\".",
+        "advanced": "Essa arquitetura unificada é também a razão de existirem regras rígidas sobre o que um app ou tema pode e não pode fazer (ex: não recriar o checkout do zero em qualquer plano) — a Shopify protege a parte que ela opera como serviço central pra todo mundo."
+      },
+      {
+        "title": "Veja o mapa do que vem a seguir nesta trilha de fundamentos.",
+        "detail": "Os próximos tópicos desta trilha seguem, nessa ordem, o mesmo caminho que um cliente percorre numa compra — e, junto, os bastidores que o merchant enxerga:\n\n1. Anatomia de uma loja online (as peças que formam a jornada de compra)\n2. Catálogo, produtos e variantes\n3. O que é checkout\n4. Pagamentos e gateways\n5. Pedidos e fulfillment\n6. O que é PDV (venda presencial)\n7. Venda multi-canal e marketplaces\n8. Modelos de negócio: B2C, B2B, D2C\n9. Tema vs. app vs. extensão — as camadas onde você vai programar\n10. O papel do desenvolvedor e do Partner Dashboard\n\nDepois disso, a trilha \"Meu primeiro tema\" já assume que você sabe todo esse vocabulário."
+      }
+    ]
+  },
+  "categoryId": "fundamentos",
+  "categoryLabel": "Fundamentos de Ecommerce"
+}

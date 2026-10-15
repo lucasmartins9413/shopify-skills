@@ -1,0 +1,75 @@
+{
+  "id": "theme-locales",
+  "title": "Locales",
+  "desc": "Traduza textos do tema com arquivos de idioma.",
+  "plan": {
+    "objetivo": "Estruturar corretamente os arquivos de locale, usar o filtro `t` com interpolação e pluralização, e diferenciar tradução de tema de tradução de conteúdo.",
+    "prereq": "Config",
+    "tempo": "2h",
+    "doc": "https://shopify.dev/docs/storefronts/themes/architecture/locales",
+    "steps": [
+      {
+        "title": "Distinga tradução de tema de tradução de conteúdo.",
+        "detail": "Esse é o ponto que mais confunde quem chega nesse tópico: existem **dois sistemas de tradução completamente diferentes** numa loja Shopify.\n\n1. **Strings do tema** (`locales/*.json`) — textos fixos de interface que você, desenvolvedor, escreveu no código: \"Adicionar ao carrinho\", \"Ver mais\", mensagens de erro de formulário. Isso é o assunto deste tópico.\n2. **Conteúdo da loja** (nome de produtos, descrições, nome de coleções) — traduzido pelo merchant através do app **Shopify Translate & Adapt** (ou apps de tradução de terceiros), não por arquivos de locale do tema.\n\nUm erro comum de iniciante é tentar colocar título/descrição de produto dentro de `locales/*.json` — isso nunca funciona, porque esse conteúdo não vem do tema, vem do catálogo da loja.",
+        "advanced": "Mesmo strings de tema \"fixas\" podem precisar ser sobrescritas pelo merchant em casos específicos (ex: mudar \"Adicionar ao carrinho\" pra \"Comprar agora\" só nessa loja) — isso é possível através de traduções de tema no admin (Configurações → Idiomas → editar tema), que sobrescrevem o `locales/*.json` original sem tocar no código."
+      },
+      {
+        "title": "Organize as chaves de forma aninhada e hierárquica.",
+        "detail": "Arquivos de locale usam JSON aninhado — chaves organizadas por contexto (`general`, `products`, `cart`), não uma lista plana. Isso evita colisão de nomes (\"title\" pode significar coisas diferentes em contextos diferentes) e deixa o arquivo navegável conforme cresce.",
+        "code": "// locales/en.default.json\n{\n  \"general\": {\n    \"search\": {\n      \"placeholder\": \"Search our store\"\n    }\n  },\n  \"products\": {\n    \"product\": {\n      \"add_to_cart\": \"Add to cart\",\n      \"sold_out\": \"Sold out\"\n    }\n  }\n}"
+      },
+      {
+        "title": "Referencie uma string com o filtro `t`, usando o caminho completo da chave.",
+        "detail": "O filtro `t` (de \"translate\") busca a chave no arquivo de locale do idioma ativo daquela sessão de navegação, usando notação de ponto pra descer nos níveis aninhados.",
+        "code": "{{ 'products.product.add_to_cart' | t }}\n{{ 'general.search.placeholder' | t }}"
+      },
+      {
+        "title": "Interpole variáveis dentro de uma string traduzida.",
+        "detail": "Strings de locale podem conter placeholders entre chaves simples, preenchidos passando parâmetros extras pro filtro `t` — essencial pra frases que dependem de um valor dinâmico (nome de produto, quantidade, data).",
+        "code": "// locale\n{ \"cart\": { \"item_added\": \"{{ product_title }} foi adicionado ao carrinho\" } }\n\n// Liquid\n{{ 'cart.item_added' | t: product_title: product.title }}"
+      },
+      {
+        "title": "Use pluralização nativa com `count`.",
+        "detail": "Em vez de escrever manualmente a lógica de \"se for 1, singular; senão, plural\" em Liquid, o sistema de locale já resolve isso nativamente: a chave de tradução vira um objeto com variações `one`/`other` (e outras formas, dependendo do idioma), e você passa `count` como parâmetro — a Shopify escolhe a forma certa automaticamente, inclusive respeitando regras de pluralização de idiomas com mais de duas formas (como o português tem menos variações que, por exemplo, o russo, mas o sistema já lida com isso de forma genérica).",
+        "code": "// locale\n{\n  \"cart\": {\n    \"item_count\": {\n      \"one\": \"{{ count }} item\",\n      \"other\": \"{{ count }} itens\"\n    }\n  }\n}\n\n// Liquid\n{{ 'cart.item_count' | t: count: cart.item_count }}",
+        "advanced": "Nunca implemente pluralização manualmente com `{% if count == 1 %}` — além de reinventar algo que já existe, essa abordagem manual quase sempre quebra pra idiomas com regras de plural diferentes do português/inglês quando o tema é traduzido pra mais mercados."
+      },
+      {
+        "title": "Crie a tradução em outro idioma e teste a troca.",
+        "detail": "Crie um arquivo com o código do idioma (`locales/pt-BR.json`), replicando exatamente a mesma estrutura de chaves do arquivo default, só com os valores traduzidos. Adicione o idioma à loja (Configurações → Idiomas, no admin) e troque o seletor de idioma no storefront pra confirmar visualmente.",
+        "advanced": "Arquivos de locale sem toda a árvore de chaves fazem fallback silencioso pro idioma padrão do tema pra as chaves faltantes — teste explicitamente idiomas incompletos antes de publicar, porque o fallback não gera nenhum aviso visível pro desenvolvedor."
+      },
+      {
+        "title": "Rode o Theme Check pra achar chaves não usadas.",
+        "detail": "Chaves de locale declaradas mas nunca referenciadas em nenhum arquivo `.liquid` do tema geram warning no Theme Check — é um sinal confiável de código (ou melhor, texto) morto acumulado, seguro de limpar.",
+        "code": "shopify theme check"
+      },
+      {
+        "title": "Projeto — internacionalize a mensagem de \"adicionado ao carrinho\" do seu tema.",
+        "detail": "Vamos pegar um texto que hoje provavelmente está hardcoded em algum lugar do seu tema de trabalho, movê-lo pro sistema de locale com interpolação e pluralização, e disponibilizar em dois idiomas."
+      },
+      {
+        "title": "Projeto — passo 1: adicione as chaves no arquivo default.",
+        "detail": "Em `locales/en.default.json` (ou `pt-BR.default.json`, se seu tema já for nesse idioma por padrão), adicione a estrutura de mensagem com interpolação de nome do produto e pluralização de contagem.",
+        "code": "{\n  \"cart\": {\n    \"item_added\": \"{{ product_title }} adicionado ao carrinho\",\n    \"item_count\": {\n      \"one\": \"{{ count }} item no carrinho\",\n      \"other\": \"{{ count }} itens no carrinho\"\n    }\n  }\n}"
+      },
+      {
+        "title": "Projeto — passo 2: use as duas chaves no snippet/section responsável pelo carrinho.",
+        "detail": "Substitua qualquer texto hardcoded equivalente pelo uso do filtro `t`, passando os parâmetros corretos.",
+        "code": "<p>{{ 'cart.item_added' | t: product_title: product.title }}</p>\n<p>{{ 'cart.item_count' | t: count: cart.item_count }}</p>"
+      },
+      {
+        "title": "Projeto — passo 3: crie um segundo idioma com essas mesmas chaves.",
+        "detail": "Crie `locales/es.json` (espanhol, por exemplo) com a tradução das mesmas duas chaves, mantendo a estrutura idêntica.",
+        "code": "{\n  \"cart\": {\n    \"item_added\": \"{{ product_title }} añadido al carrito\",\n    \"item_count\": {\n      \"one\": \"{{ count }} artículo en el carrito\",\n      \"other\": \"{{ count }} artículos en el carrito\"\n    }\n  }\n}"
+      },
+      {
+        "title": "Projeto — passo 4: adicione o idioma à loja e valide a troca.",
+        "detail": "No admin, adicione o novo idioma à loja, suba o tema, e alterne o seletor de idioma no storefront pra confirmar que ambas as chaves — a de interpolação e a de pluralização — mudam corretamente.",
+        "code": "shopify theme push --unpublished --store=sua-loja-dev.myshopify.com"
+      }
+    ]
+  },
+  "categoryId": "themes",
+  "categoryLabel": "Temas (Storefronts)"
+}

@@ -1,0 +1,34 @@
+{
+  "id": "papel-do-desenvolvedor-parceiro",
+  "title": "O papel do desenvolvedor e o Partner Dashboard",
+  "desc": "Onde você entra nesse ecossistema: dev store, Partner Dashboard, e as duas vitrines (App Store e Theme Store) que decidem se seu trabalho chega a outros merchants.",
+  "plan": {
+    "objetivo": "Entender onde o desenvolvedor se encaixa no ecossistema Shopify — dev store, Partner Dashboard, App Store e Theme Store — antes de começar a construir de verdade nas próximas trilhas.",
+    "prereq": "Tema vs. app vs. extensão",
+    "tempo": "20min",
+    "doc": "https://www.shopify.com/partners",
+    "steps": [
+      {
+        "title": "Entenda o que é o Partner Dashboard e por que ele é o ponto de partida de quem não tem loja própria.",
+        "detail": "O **Partner Dashboard** é o painel onde um desenvolvedor (ou agência) gerencia tudo que não pertence a uma loja específica: apps criados, temas em desenvolvimento, lojas de clientes conectadas, e as **dev stores**. É gratuito pra se cadastrar como parceiro.\n\nPra quem está começando e ainda não tem uma loja Shopify paga, ele é, na prática, **o único jeito gratuito de conseguir uma dev store** pra testar app e tema — por isso é o primeiro passo antes de escrever qualquer código nesta trilha. Mas vale a precisão: tecnicamente não é a *única* porta de entrada — o próprio Shopify CLI aceita login tanto com **conta de parceiro** quanto com **conta de uma loja já existente que tenha permissão de desenvolvimento** concedida a você. Ou seja, se você já é dono ou colaborador de uma loja paga de verdade, dá pra desenvolver ligado a ela sem nunca abrir uma conta de parceiro separada.",
+        "advanced": "Mesmo quem já tem loja própria costuma abrir uma conta de parceiro de qualquer forma: ela permite criar quantas dev stores quiser sem custo e sem arriscar mexer na loja real enquanto testa — então, na prática, quase todo mundo que programa pra Shopify acaba tendo uma."
+      },
+      {
+        "title": "Entenda o que é uma dev store e por que ela existe.",
+        "detail": "Uma **dev store** é uma loja Shopify completa e funcional, criada gratuitamente através do Partner Dashboard, feita especificamente pra desenvolvimento e teste — nunca pra vender de verdade. Ela tem catálogo, checkout, admin, tudo igual a uma loja real, mas roda isolada, sem custo mensal, e normalmente sem processar pagamento real (usa um modo de pagamento de teste). É nela que qualquer tema ou app novo é testado antes de chegar perto de uma loja de cliente de verdade.",
+        "advanced": "Existem variações de dev store voltadas a cenários específicos (ex: já vem com um catálogo de exemplo pronto, ou já vem configurada pra testar B2B) — vale escolher o tipo de dev store de acordo com o que está sendo testado, em vez de sempre criar a mais genérica."
+      },
+      {
+        "title": "Diferencie as duas vitrines onde o trabalho de um desenvolvedor pode chegar a outros merchants.",
+        "detail": "Depois de pronto, um projeto pode ser distribuído de duas formas:\n\n- **App Store**: vitrine de apps, revisados pela Shopify antes de publicação, que qualquer merchant pode instalar na própria loja.\n- **Theme Store**: vitrine equivalente, só que de temas prontos pra compra ou instalação.\n\nAmbas têm processo de revisão e checklist de qualidade específicos (performance, segurança, acessibilidade, entre outros) — assunto direto das trilhas \"Pronto para a App Store\" e \"Tema pronto para a Theme Store\", mais adiante. Nem todo projeto precisa passar por uma vitrine: um app ou tema pode ser feito sob encomenda pra um único merchant, sem nunca ser publicado publicamente — é uma decisão de modelo de negócio, não uma exigência técnica.",
+        "advanced": "Um app \"customizado\" (feito e instalado só numa loja específica, sem passar pela App Store) segue um fluxo de distribuição diferente de um app público — vale essa distinção clara desde o início de um projeto pra não desenhar um processo de revisão que não vai ser necessário."
+      },
+      {
+        "title": "Você concluiu os fundamentos — veja pra onde ir a partir daqui.",
+        "detail": "Com esse vocabulário e esse mapa mental, o resto da plataforma já faz sentido em contexto, em vez de ser um amontoado de termos soltos. A partir daqui, a trilha recomendada segue pro lado mais visual e de resultado mais rápido primeiro:\n\n1. **Meu primeiro tema** — construir a storefront que você acabou de entender por dentro, usando Liquid.\n2. **Temas Shopify: trilha completa** — aprofundar em cada peça do tema.\n3. **Tema pronto para a Theme Store** — checklist de qualidade.\n\nDepois disso, as trilhas de app (primeiro app, checkout, dados, B2B) constroem em cima do mesmo vocabulário visto aqui, só que do lado do código de servidor."
+      }
+    ]
+  },
+  "categoryId": "fundamentos",
+  "categoryLabel": "Fundamentos de Ecommerce"
+}

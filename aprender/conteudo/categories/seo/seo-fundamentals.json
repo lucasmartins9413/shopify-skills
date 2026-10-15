@@ -1,0 +1,56 @@
+{
+  "id": "seo-fundamentals",
+  "title": "Fundamentos de SEO para e-commerce",
+  "desc": "Entenda os quatro pilares de SEO e quem — tema, app ou merchant — controla cada um numa loja Shopify.",
+  "plan": {
+    "objetivo": "Entender os quatro pilares de SEO (on-page, off-page, técnico, intenção de busca) e mapear exatamente quem controla cada alavanca numa loja Shopify — tema, app ou configuração do merchant.",
+    "prereq": "Nenhum — este é o ponto de partida da trilha de SEO.",
+    "tempo": "2h",
+    "doc": "https://help.shopify.com/en/manual/promoting-marketing/seo/seo-overview",
+    "steps": [
+      {
+        "title": "Entenda o que SEO realmente otimiza: como o Google decide o que mostrar.",
+        "detail": "**SEO (Search Engine Optimization)** é o conjunto de práticas que ajuda mecanismos de busca a entender do que uma página trata, e a confiar o suficiente nela pra mostrá-la bem posicionada nos resultados orgânicos (não pagos). Um motor de busca decide isso combinando dois sinais amplos:\n\n- **Relevância** — o conteúdo da página realmente responde à pergunta que a pessoa fez?\n- **Autoridade e confiança** — outros sinais (links, estrutura técnica, velocidade, segurança) indicam que essa página é uma fonte confiável?\n\nNuma loja Shopify, você não controla o algoritmo do Google — mas controla praticamente todos os sinais que alimentam essas duas perguntas: título e descrição de cada página, velocidade de carregamento, estrutura de dados, hierarquia de conteúdo, e por aí vai. O resto desta trilha é, essencialmente, uma lista de \"sinais que você controla e como controlar cada um corretamente\".",
+        "advanced": "Tráfego orgânico (SEO) é diferente de tráfego pago (ads) e de tráfego de redes sociais — cada canal tem dinâmica própria. SEO tende a ser mais lento pra mostrar resultado (semanas a meses) mas mais barato e mais estável a longo prazo do que depender só de anúncios."
+      },
+      {
+        "title": "Distinga os quatro pilares: on-page, off-page, técnico e intenção de busca.",
+        "detail": "### On-page SEO\nTudo que está **dentro** da própria página: título, meta descrição, hierarquia de headings (`h1`/`h2`/`h3`), URL, texto alternativo de imagens, qualidade e organização do conteúdo, uso natural de palavras-chave.\n\n### Off-page SEO\nSinais que vêm de **fora** da sua loja: links de outros sites apontando pra você (backlinks), menções de marca, avaliações, engajamento em redes sociais. Difícil de controlar diretamente — se constrói com tempo e relevância real.\n\n### SEO técnico\nA infraestrutura que permite o motor de busca **rastrear e indexar** seu site corretamente: velocidade de carregamento, responsividade mobile, sitemap XML, `robots.txt`, certificado SSL, dados estruturados (schema.org). É aqui que a maior parte desta trilha vive, porque é o que depende diretamente de código de tema/app.\n\n### Intenção de busca\nEntender **por que** alguém está pesquisando — informacional (\"como lavar linho\"), navegacional (\"loja X\"), transacional (\"comprar camisa de linho\") ou de investigação comercial (\"melhor camisa de linho 2026\"). O tipo de página que você otimiza (blog vs. produto vs. coleção) deve casar com a intenção que ela pretende capturar.",
+        "advanced": "A maioria dos erros de SEO em lojas novas vem de otimizar on-page/off-page perfeitamente enquanto o SEO técnico está quebrado (site lento, sem sitemap acessível, sem HTTPS) — sinais técnicos ruins colocam um teto baixo em tudo o resto, não importa quão bom seja o conteúdo."
+      },
+      {
+        "title": "Mapeie quem controla cada alavanca numa loja Shopify: tema, app ou merchant.",
+        "detail": "Esse é o ponto que mais gera confusão em SEO no ecossistema Shopify, porque **não existe um único dono** de todos os sinais — a responsabilidade se espalha:\n\n- **Tema (código Liquid)** — título/descrição/canonical de cada tipo de página, dados estruturados, hreflang manual, robots.txt customizado, performance de carregamento, hierarquia de headings do design.\n- **Configuração do merchant (admin)** — título e descrição SEO por produto/coleção/página/artigo, texto alternativo de imagem, handle de URL, redirecionamentos, verificação no Google Search Console.\n- **Apps instalados** — podem adicionar (ou quebrar) dados estruturados, injetar scripts que afetam performance, ou sobrescrever meta tags — inclusive entrando em conflito com o que o tema já faz (você vai ver esse conflito específico no tópico sobre SEO em apps).\n- **Shopify (plataforma)** — sitemap.xml e SSL são gerados automaticamente e não são customizáveis; isso já vem resolvido, mas vale saber que não é algo que você \"implementa\".\n\nAntes de investigar qualquer problema de SEO numa loja real, pergunte primeiro: **essa alavanca específica é do tema, do admin, de um app, ou é fixa da plataforma?** — economiza um bocado de tempo de debug.",
+        "advanced": "Esse espalhamento de responsabilidade é a razão pela qual \"o canonical está habilitado\" não é uma resposta completa em produção — pode haver um app sobrescrevendo o valor, ou um merchant configurando algo conflitante no admin, mesmo com o tema tecnicamente correto."
+      },
+      {
+        "title": "Reconheça as cinco categorias de recurso mais relevantes pra SEO numa loja.",
+        "detail": "Ao longo da trilha, você vai lidar principalmente com estes tipos de página/recurso, cada um com particularidades de SEO próprias: **produto** (título, descrição, imagens, dados estruturados de oferta/preço), **coleção** (risco real de conteúdo duplicado entre filtros/ordenação), **página institucional** (conteúdo estático, geralmente de cauda longa), **blog/artigo** (conteúdo informacional, schema Article), e **home** (âncora de autoridade do domínio, geralmente o link mais forte do site)."
+      },
+      {
+        "title": "Projeto — audite os quatro pilares numa loja de teste, sem mudar nada ainda.",
+        "detail": "Antes de implementar qualquer coisa nos próximos tópicos, pratique só o diagnóstico — separar o que já existe do que falta, sem tocar em código."
+      },
+      {
+        "title": "Projeto — passo 1: abra o código-fonte de uma página de produto da sua dev store e localize o `<title>` e a meta description.",
+        "detail": "Use \"Ver código-fonte\" do navegador (não o DevTools inspecionado, o HTML bruto retornado pelo servidor) numa página de produto, e copie o conteúdo exato das tags `<title>` e `<meta name=\"description\">`."
+      },
+      {
+        "title": "Projeto — passo 2: classifique cada elemento encontrado como tema, admin, app ou plataforma.",
+        "detail": "Pra cada elemento que você encontrar (title, description, canonical, algum script de terceiro no `<head>`), anote de qual das quatro fontes ele provavelmente vem, usando o mapeamento do passo 3 da teoria."
+      },
+      {
+        "title": "Projeto — passo 3: acesse `/sitemap.xml` e `/robots.txt` da dev store.",
+        "detail": "Confirme que os dois existem e carregam sem erro — são gerados automaticamente pela Shopify, então esse é o comportamento esperado mesmo sem nenhuma configuração extra.",
+        "code": "https://sua-loja-dev.myshopify.com/sitemap.xml\nhttps://sua-loja-dev.myshopify.com/robots.txt"
+      },
+      {
+        "title": "Projeto — passo 4: escreva um checklist de uma linha por pilar (on-page, off-page, técnico, intenção).",
+        "detail": "Feche o projeto documentando, numa frase por pilar, o que você observou na dev store — esse checklist inicial vira a referência de comparação conforme os próximos tópicos da trilha forem implementando melhorias concretas.",
+        "advanced": "Guarde esse documento — vários projetos práticos mais adiante na trilha de SEO pedem pra comparar o \"antes\" com o \"depois\" de uma mudança específica."
+      }
+    ]
+  },
+  "categoryId": "seo",
+  "categoryLabel": "SEO"
+}

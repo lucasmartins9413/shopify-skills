@@ -1,0 +1,19 @@
+{
+  "id": "fundamentos",
+  "label": "Fundamentos de Ecommerce",
+  "intro": "Se situe no mundo do comércio eletrônico antes de programar: vocabulário, anatomia de uma loja, checkout, PDV, pedidos e onde o desenvolvedor entra nisso tudo.",
+  "topicCount": 11,
+  "topicIds": [
+    "o-que-e-ecommerce",
+    "anatomia-loja-online",
+    "catalogo-produtos-variantes",
+    "o-que-e-checkout",
+    "pagamentos-e-gateways",
+    "pedidos-e-fulfillment",
+    "o-que-e-pdv",
+    "multi-channel-e-marketplaces",
+    "modelos-de-venda-b2b-b2c",
+    "temas-apps-extensoes",
+    "papel-do-desenvolvedor-parceiro"
+  ]
+}

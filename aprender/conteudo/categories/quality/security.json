@@ -1,0 +1,77 @@
+{
+  "id": "security",
+  "title": "Security",
+  "desc": "Proteja seu app e os dados dos merchants contra vulnerabilidades comuns.",
+  "plan": {
+    "objetivo": "Implementar validação de HMAC resistente a timing attacks, gerenciar segredos com segurança, e adicionar proteções básicas de rate limiting nos próprios endpoints.",
+    "prereq": "Authentication",
+    "tempo": "3h",
+    "doc": "https://shopify.dev/docs/apps/build/security/following-security-best-practices",
+    "steps": [
+      {
+        "title": "Entenda por que apps Shopify são alvo valioso de ataque.",
+        "detail": "Um app embutido, uma vez instalado, tem acesso — via access token — a dados potencialmente sensíveis de uma loja real: informação de clientes, pedidos, às vezes até dados de pagamento indiretamente. Isso torna qualquer app um alvo relevante, mesmo que pequeno ou pouco conhecido — segurança não é uma preocupação exclusiva de apps grandes com muitos usuários."
+      },
+      {
+        "title": "Confirme a validação de HMAC em todos os webhooks recebidos.",
+        "detail": "Sem validar o HMAC (visto em detalhe no tópico de Webhooks), qualquer pessoa que descubra a URL do seu endpoint pode forjar uma chamada, fingindo ser um webhook legítimo da Shopify — sem essa validação, seu app processaria payloads falsos como se fossem reais.",
+        "code": "const valid = verifyHmac(rawBody, header, process.env.SHOPIFY_API_SECRET);"
+      },
+      {
+        "title": "Use comparação de tempo constante ao validar o HMAC.",
+        "detail": "Comparar duas strings com `===` (ou `==`) compara caractere por caractere e **para assim que encontra a primeira diferença** — isso significa que o tempo de execução da comparação varia sutilmente dependendo de quantos caracteres iniciais coincidem. Em teoria, um atacante poderia medir esse tempo repetidamente e descobrir a assinatura correta byte a byte (um **timing attack**). `crypto.timingSafeEqual` sempre compara em tempo constante, independente de quantos caracteres coincidem, eliminando esse vazamento de informação.",
+        "code": "import crypto from 'crypto';\n\nconst valid = crypto.timingSafeEqual(\n  Buffer.from(computedHmac),\n  Buffer.from(receivedHmac)\n);",
+        "advanced": "Timing attacks contra HMAC são difíceis de explorar na prática pela internet (o ruído de latência de rede normalmente disfarça a diferença de tempo), mas usar comparação de tempo constante custa muito pouco e elimina completamente essa classe de risco — não há razão pra não fazer."
+      },
+      {
+        "title": "Nunca guarde segredos em texto puro no repositório.",
+        "detail": "Tokens de acesso, client secret, e qualquer outra credencial devem ficar em variáveis de ambiente (`.env`, nunca commitado — como já visto no tópico \"Set up your development environment\") ou num cofre de segredos dedicado (Vault, AWS Secrets Manager, ou o gerenciador de segredos da própria plataforma de hospedagem), nunca hardcoded diretamente no código-fonte."
+      },
+      {
+        "title": "Tenha um plano de rotação e resposta a vazamento.",
+        "detail": "Rotacione segredos periodicamente (não só quando algo dá errado), e tenha um plano claro de resposta caso um token vaze — isso inclui saber como revogar credenciais rapidamente e como forçar reinstalação do app pelo merchant afetado, minimizando a janela de exposição.",
+        "advanced": "Um plano de resposta a incidente escrito **antes** de precisar dele é infinitamente mais eficaz do que tentar improvisar um sob pressão, no meio de um vazamento real — vale o investimento de tempo mesmo que pareça burocrático num app pequeno."
+      },
+      {
+        "title": "Adicione rate limiting nos seus próprios endpoints públicos.",
+        "detail": "Endpoints expostos publicamente (webhook, callback de OAuth) podem ser alvo de abuso **direto**, independente da autenticação da Shopify — um atacante pode simplesmente bombardear seu endpoint de requisições, tentando sobrecarregar seu servidor ou forçar algum comportamento inesperado. Limite requisições por IP/token nos seus próprios endpoints, além de validar o HMAC.",
+        "code": "import rateLimit from 'express-rate-limit';\n\nconst limiter = rateLimit({ windowMs: 60_000, max: 100 });\napp.use('/webhooks', limiter);"
+      },
+      {
+        "title": "Combine HMAC com checagem de timestamp/nonce em endpoints muito sensíveis.",
+        "detail": "HMAC válido não garante que a requisição é \"nova\" — em tese, um payload legítimo capturado (por exemplo, por alguém com acesso à rede) poderia ser reenviado depois (**replay attack**), e ainda passaria na validação de HMAC normal, já que a assinatura em si continua correta. Pra endpoints muito sensíveis, combine a validação de HMAC com uma checagem de timestamp (rejeitando requisições \"velhas\" demais) ou nonce (um identificador único usado uma única vez).",
+        "advanced": "Esse tipo de proteção extra (timestamp/nonce) normalmente não é necessário pra todo endpoint — reserve pra ações particularmente sensíveis (como as que envolvem movimentação financeira), onde o custo de um replay bem-sucedido seria alto."
+      },
+      {
+        "title": "Rode auditoria de dependências regularmente.",
+        "detail": "Vá além do checklist básico de segurança da Shopify: rode auditoria de vulnerabilidades conhecidas (CVEs) nas suas dependências regularmente — apps embutidos com acesso a dados de loja real são alvo valioso, e uma dependência desatualizada com uma vulnerabilidade pública conhecida é um dos vetores de ataque mais comuns e mais evitáveis.",
+        "code": "npm audit"
+      },
+      {
+        "title": "Projeto — reforce a segurança do endpoint de webhook do seu app.",
+        "detail": "Vamos aplicar timing-safe comparison, rate limiting, e uma auditoria de dependências no app construído ao longo da trilha."
+      },
+      {
+        "title": "Projeto — passo 1: substitua a comparação de HMAC por `crypto.timingSafeEqual`.",
+        "detail": "Revise o handler de webhook implementado no tópico correspondente, e troque qualquer comparação `===`/`==` da assinatura pela versão de tempo constante.",
+        "code": "const valid = crypto.timingSafeEqual(\n  Buffer.from(computedHmac, 'base64'),\n  Buffer.from(receivedHmac, 'base64')\n);"
+      },
+      {
+        "title": "Projeto — passo 2: adicione rate limiting ao endpoint de webhook.",
+        "detail": "Configure um middleware de limite de requisições no endpoint de webhook, com um limite razoável considerando o volume esperado de tráfego legítimo vindo da Shopify."
+      },
+      {
+        "title": "Projeto — passo 3: rode `npm audit` e resolva ao menos uma vulnerabilidade encontrada.",
+        "detail": "Rode a auditoria de dependências e, se encontrar algo corrigível com uma atualização de versão, aplique a correção e confirme que o app continua funcionando normalmente depois.",
+        "code": "npm audit\nnpm audit fix"
+      },
+      {
+        "title": "Projeto — passo 4: confirme que `.env` continua fora do controle de versão.",
+        "detail": "Rode `git status` e confirme que nenhum arquivo de segredo aparece como rastreável — um lembrete simples, mas que vale revisitar periodicamente conforme o projeto cresce e mais pessoas contribuem.",
+        "code": "git status\ncat .gitignore | grep .env"
+      }
+    ]
+  },
+  "categoryId": "quality",
+  "categoryLabel": "Quality"
+}

@@ -1,0 +1,67 @@
+{
+  "id": "sidekick",
+  "title": "Sidekick",
+  "desc": "Use extensões de app para integrar seu app ao Sidekick.",
+  "plan": {
+    "objetivo": "Entender como o Sidekick decide quando chamar uma ação do seu app, e escrever descrições e tratamento de erro pensados pra um agente de IA, não pra um desenvolvedor lendo o código.",
+    "prereq": "Admin",
+    "tempo": "2h30",
+    "doc": "https://shopify.dev/docs/apps/build/sidekick",
+    "steps": [
+      {
+        "title": "Entenda o que é o Sidekick e por que ele é diferente de outras integrações.",
+        "detail": "O **Sidekick** é o assistente de IA nativo do admin da Shopify, com quem o merchant conversa em linguagem natural pra realizar tarefas (\"crie um desconto de 20% pra black friday\", \"quais produtos estão com estoque baixo\"). Integrar seu app ao Sidekick significa expor uma ação dele como algo que o Sidekick pode **decidir chamar** durante uma conversa — de forma parecida com o modelo de *tools* do MCP visto no tópico \"Storefront MCP\", mas especificamente dentro do contexto do admin.\n\nA diferença central de escrever pra um agente de IA (em vez de pra outro desenvolvedor lendo documentação) é que a **qualidade da descrição** da sua ação afeta diretamente se e quando ela é usada — o Sidekick não lê seu código-fonte, só a descrição declarada.",
+        "advanced": "Esse modelo (expor capacidades como ações interpretáveis por um agente) está se tornando cada vez mais comum em toda a indústria — as mesmas habilidades de escrever boas descrições de tools valem tanto pro Sidekick quanto pra qualquer outro sistema de agentes que seu app venha a integrar no futuro."
+      },
+      {
+        "title": "Exponha uma ação do app como extension compatível com o Sidekick.",
+        "detail": "A ação precisa ser exposta como uma **extension**, com uma descrição clara do que ela faz e quando usar — o Sidekick só \"vê\" o que está documentado ali, não tem acesso a nenhum outro contexto sobre seu app além da descrição declarada.",
+        "advanced": "Ações mal descritas fazem o Sidekick chamar a ferramenta errada ou não chamar nenhuma — trate a descrição como parte real da UX do app, não como um comentário interno de código que só você vai ler."
+      },
+      {
+        "title": "Escreva a descrição pensando em especificidade, não em brevidade.",
+        "detail": "O Sidekick decide quando chamar sua ação com base inteiramente na descrição — seja **específico** (\"cria um desconto percentual num produto específico, informando o percentual e o ID do produto\") em vez de vago (\"gerencia descontos\"). Descrições vagas fazem o modelo hesitar entre múltiplas ações parecidas, ou assumir incorretamente que sua ação cobre um caso que ela não cobre.",
+        "code": "// descrição fraca:\n\"Gerencia descontos da loja.\"\n\n// descrição forte:\n\"Cria um desconto percentual fixo aplicado a um produto específico. \\\nUse quando o merchant pedir para 'dar X% de desconto no produto Y'. \\\nRequer o percentual (0-100) e o ID ou nome do produto.\""
+      },
+      {
+        "title": "Garanta que a ação seja idempotente quando possível.",
+        "detail": "O Sidekick pode encadear **múltiplas ações** numa mesma conversa, e em alguns fluxos pode até chamar a mesma ação mais de uma vez (por exemplo, se o merchant reformular o pedido de um jeito que o modelo interpreta como um novo pedido). Garanta que sua action seja idempotente — chamá-la duas vezes com os mesmos parâmetros não deveria criar dois efeitos duplicados quando isso não faz sentido de negócio.",
+        "advanced": "Esse é o mesmo princípio de idempotência já visto no tópico de Webhooks — a diferença é que aqui a \"reentrega\" pode vir de uma decisão do modelo de IA, não de uma falha de rede."
+      },
+      {
+        "title": "Escreva mensagens de erro em linguagem natural, não stack traces técnicos.",
+        "detail": "Erros retornados pela sua action devem ser legíveis em linguagem natural — o merchant vê a resposta formatada pelo Sidekick, não um stack trace ou um código de erro técnico. Uma mensagem como \"não foi possível criar o desconto: o produto informado não foi encontrado\" é útil pro Sidekick reformular e explicar ao merchant; um erro como `Error: null is not an object` não é.",
+        "code": "// erro pouco útil pro Sidekick reformular:\nthrow new Error(\"P_NOT_FOUND\");\n\n// erro que o Sidekick consegue explicar ao merchant:\nreturn { error: \"Produto não encontrado. Verifique o nome ou ID informado.\" };"
+      },
+      {
+        "title": "Peça ao Sidekick, na dev store, para executar a ação.",
+        "detail": "Peça em linguagem natural, na dev store, que o Sidekick execute a tarefa e observe: ele identificou a ação certa? Pediu os parâmetros que faltavam de forma clara? Formatou a resposta de um jeito que faz sentido pro merchant?"
+      },
+      {
+        "title": "Projeto — exponha uma ação de criação de desconto ao Sidekick, com tratamento de erro completo.",
+        "detail": "Vamos construir uma extension de ação simples, testando tanto o caminho de sucesso quanto casos de erro comuns, pra garantir que o Sidekick consiga lidar bem com os dois."
+      },
+      {
+        "title": "Projeto — passo 1: gere a extension de ação compatível com Sidekick.",
+        "detail": "Rode o gerador escolhendo o tipo correspondente a ações do Sidekick.",
+        "code": "shopify app generate extension\n# escolha o tipo de Sidekick action"
+      },
+      {
+        "title": "Projeto — passo 2: escreva uma descrição específica, com exemplos de frase-gatilho.",
+        "detail": "Redija a descrição incluindo pelo menos dois exemplos de como um merchant poderia pedir essa ação em linguagem natural, ajudando o modelo a reconhecer variações do mesmo pedido."
+      },
+      {
+        "title": "Projeto — passo 3: implemente o caminho de sucesso e um erro tratado (produto não encontrado).",
+        "detail": "Implemente a lógica de criação de desconto, retornando uma mensagem clara de erro quando o produto informado não existir, seguindo o padrão de mensagens em linguagem natural visto acima.",
+        "code": "const product = await findProduct(productId);\nif (!product) {\n  return { error: \"Produto não encontrado. Verifique o nome ou ID informado.\" };\n}"
+      },
+      {
+        "title": "Projeto — passo 4: teste os dois caminhos conversando com o Sidekick na dev store.",
+        "detail": "Peça a criação de um desconto num produto real (caminho de sucesso) e depois num produto inexistente (caminho de erro), confirmando que o Sidekick comunica os dois resultados de forma clara e compreensível pro merchant.",
+        "advanced": "Se o Sidekick não chamar sua ação em nenhum dos dois casos, revise primeiro a descrição da extension — na grande maioria das vezes, isso é sinal de descrição vaga ou sem exemplos suficientes, não de um problema técnico na implementação."
+      }
+    ]
+  },
+  "categoryId": "surfaces",
+  "categoryLabel": "Surfaces"
+}

@@ -1,0 +1,63 @@
+{
+  "id": "storefront-mcp",
+  "title": "Storefront MCP",
+  "desc": "Construa agentes de IA que acessam dados da loja através de servidores MCP.",
+  "plan": {
+    "objetivo": "Entender como o Storefront MCP expõe dados públicos da loja como ferramentas pra agentes de IA, configurar um servidor de teste e tratar as respostas do agente com o ceticismo apropriado.",
+    "prereq": "GraphQL",
+    "tempo": "4h",
+    "doc": "https://shopify.dev/docs/apps/build/storefront-mcp",
+    "steps": [
+      {
+        "title": "Entenda o problema: como um agente de IA \"compra\" numa loja de forma segura?",
+        "detail": "Cada vez mais, compradores interagem com lojas através de agentes de IA conversacionais — perguntando por produtos, comparando preços, montando um carrinho por texto em vez de navegação manual. Pra isso funcionar, o agente precisa de uma forma **padronizada e segura** de consultar produtos, coleções e montar um carrinho, sem ter acesso a nada além do que qualquer visitante da loja já poderia ver.\n\nO **Storefront MCP** resolve isso expondo exatamente os mesmos dados da **Storefront API** (a API pública, pensada pra vitrines de loja) como *tools* que um agente de IA pode chamar diretamente numa conversa — sem o agente precisar \"adivinhar\" como fazer uma chamada GraphQL correta, e sem nunca ter acesso a dados administrativos.",
+        "advanced": "O Storefront MCP só expõe o que a Storefront API já expõe publicamente — dados administrativos (custo, estoque interno exato, margem, informação de clientes) não ficam visíveis pro agente em nenhuma circunstância, porque a Storefront API nunca teve acesso a esses dados em primeiro lugar."
+      },
+      {
+        "title": "Entenda o que são \"tools\" num servidor MCP.",
+        "detail": "Um servidor MCP expõe um conjunto de **tools** (ferramentas) — funções com nome, descrição e parâmetros bem definidos, que um modelo de IA pode decidir chamar durante uma conversa. Por exemplo, uma tool `search_products(query, limit)` que busca produtos por termo. O modelo lê a descrição da tool, decide se e quando chamá-la baseado no que o usuário pediu, e usa o resultado retornado pra formular a resposta final.",
+        "advanced": "A qualidade da descrição de cada tool afeta diretamente a taxa de acerto do agente ao decidir quando usá-la — descrições vagas levam o agente a não chamar a tool certa, ou a chamar uma errada, exatamente como visto no tópico \"Sidekick\" mais adiante na trilha."
+      },
+      {
+        "title": "Configure um servidor MCP apontando para sua loja de teste.",
+        "detail": "Um servidor MCP mínimo expõe *tools* que fazem proxy pra Storefront API da loja de teste, usando o **token público** (Storefront API access token) — um token pensado especificamente pra esse tipo de acesso de leitura pública, **nunca** um token de Admin API.",
+        "code": "{\n  \"mcpServers\": {\n    \"minha-loja\": {\n      \"command\": \"npx\",\n      \"args\": [\"-y\", \"@shopify/storefront-mcp\"],\n      \"env\": {\n        \"SHOPIFY_STOREFRONT_TOKEN\": \"seu-token-publico\",\n        \"SHOPIFY_STORE_DOMAIN\": \"sua-loja-dev.myshopify.com\"\n      }\n    }\n  }\n}",
+        "advanced": "Rate limits da Storefront API se aplicam normalmente ao tráfego gerado pelo MCP — um agente de IA pode gerar bem mais chamadas em sequência do que um usuário humano navegando manualmente (por exemplo, buscando produtos várias vezes seguidas pra refinar uma resposta), então monitore o volume durante testes."
+      },
+      {
+        "title": "Conecte um cliente de IA e teste uma consulta sobre produtos.",
+        "detail": "Pergunte ao cliente de IA algo como \"quais produtos vocês têm em promoção\" e observe se ele identifica que precisa consultar a loja, chama a tool certa (provavelmente uma busca de produtos com filtro de desconto/comparação de preço) e formula a resposta com base no resultado real, não numa alucinação.",
+        "advanced": "Um bom teste de sanidade: peça algo que só pode ser respondido consultando dados reais e específicos da sua loja de teste (ex: um produto com nome incomum que você acabou de criar) — se o agente \"souber\" sobre ele, é prova de que a tool está sendo chamada de verdade, não que o modelo está inventando uma resposta plausível."
+      },
+      {
+        "title": "Trate a resposta do agente como não confiável por padrão.",
+        "detail": "Mesmo com dados reais vindos da tool, o agente de IA formula a resposta final em linguagem natural — e modelos de linguagem podem, ocasionalmente, resumir ou interpretar mal um resultado, mesmo tendo o dado correto disponível. Nunca use a resposta do agente como entrada direta pra uma ação que grava dado (como finalizar uma compra) sem uma camada de confirmação explícita do usuário humano antes.",
+        "advanced": "Esse princípio vale ainda mais forte pra agentes que podem **agir** (montar carrinho, aplicar cupom), não só responder perguntas — qualquer ação com efeito colateral real deveria exigir uma confirmação clara antes de ser executada, nunca disparada silenciosamente com base só na interpretação do modelo."
+      },
+      {
+        "title": "Projeto — configure um servidor Storefront MCP de teste e valide uma consulta real.",
+        "detail": "Vamos passar pelo fluxo completo: configurar o servidor apontando pra sua dev store, e confirmar que um agente consegue responder corretamente sobre um produto específico."
+      },
+      {
+        "title": "Projeto — passo 1: gere um token público (Storefront API access token) para sua dev store.",
+        "detail": "No admin da dev store, crie um app privado (ou use a seção de Storefront API do Dashboard) pra gerar um token de acesso público, com escopo de leitura de produtos."
+      },
+      {
+        "title": "Projeto — passo 2: configure o servidor MCP com esse token.",
+        "detail": "Adicione o bloco de configuração no seu cliente de IA, usando o token e o domínio da dev store gerados no passo anterior.",
+        "code": "{\n  \"mcpServers\": {\n    \"minha-loja\": {\n      \"command\": \"npx\",\n      \"args\": [\"-y\", \"@shopify/storefront-mcp\"],\n      \"env\": {\n        \"SHOPIFY_STOREFRONT_TOKEN\": \"...\",\n        \"SHOPIFY_STORE_DOMAIN\": \"sua-loja-dev.myshopify.com\"\n      }\n    }\n  }\n}"
+      },
+      {
+        "title": "Projeto — passo 3: crie um produto com nome único na dev store.",
+        "detail": "Crie um produto de teste com um nome bem específico e incomum (ex: \"Caneca Vortex Zebra 3000\") — isso garante que qualquer menção correta a ele pelo agente só pode vir de uma consulta real, não de conhecimento genérico do modelo."
+      },
+      {
+        "title": "Projeto — passo 4: pergunte ao agente sobre esse produto e confirme a resposta.",
+        "detail": "Pergunte, em linguagem natural, sobre esse produto específico (\"vocês têm a Caneca Vortex Zebra 3000? Qual o preço?\") e confirme que a resposta bate exatamente com o que você cadastrou — validando que a tool foi de fato chamada e retornou dado real.",
+        "advanced": "Se o agente responder de forma genérica ou inventar um preço, revise primeiro a configuração do servidor MCP (token e domínio corretos) antes de assumir que é uma limitação do modelo — na maioria das vezes, o problema está na conexão, não na IA."
+      }
+    ]
+  },
+  "categoryId": "data",
+  "categoryLabel": "Data and logic"
+}

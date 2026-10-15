@@ -1,0 +1,27 @@
+{
+  "id": "data",
+  "label": "Data and logic",
+  "intro": "Leia e grave dados da loja com APIs, reaja a eventos com webhooks e customize o comportamento de backend da Shopify com Functions.",
+  "topicCount": 19,
+  "topicIds": [
+    "auth",
+    "graphql",
+    "graphql-avancado",
+    "graphql-no-app",
+    "bulk-operations",
+    "extensions",
+    "functions",
+    "functions-validation",
+    "functions-cart-transform",
+    "functions-delivery",
+    "functions-payment",
+    "functions-fulfillment",
+    "functions-config-e-limites",
+    "shopifyql",
+    "events",
+    "webhooks",
+    "storefront-mcp",
+    "metafields",
+    "metaobjects"
+  ]
+}

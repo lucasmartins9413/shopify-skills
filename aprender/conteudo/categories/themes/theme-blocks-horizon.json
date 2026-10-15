@@ -1,0 +1,84 @@
+{
+  "id": "theme-blocks-horizon",
+  "title": "Theme blocks aninhados e Horizon",
+  "desc": "A arquitetura de tema mais recente da Shopify: blocks reutilizáveis em /blocks, aninhamento, static blocks e como o tema Horizon é montado.",
+  "plan": {
+    "objetivo": "Entender a geração atual de arquitetura de temas (theme blocks), montar layouts com blocks aninhados e static blocks, e usar o Horizon como referência de como um tema moderno é estruturado.",
+    "prereq": "Theme blocks",
+    "tempo": "5h",
+    "doc": "https://shopify.dev/docs/storefronts/themes/architecture/blocks/theme-blocks",
+    "steps": [
+      {
+        "title": "Entenda as três gerações de arquitetura de tema.",
+        "detail": "A Shopify descreve hoje três gerações:\n\n- **Vintage** — arquitetura original: sections só na home; recebe apenas correções de segurança.\n- **Online Store 2.0** — sections em todas as páginas, templates JSON, app blocks, fontes dinâmicas de dados.\n- **Theme blocks (a mais recente)** — tudo do OS 2.0 **mais** blocks reutilizáveis e aninháveis. A família de temas **Horizon** é construída assim.\n\nNão existe um \"Shopify 3.0\" oficial: o nome de produto do segundo nível continua sendo Online Store 2.0, e a terceira geração é chamada de *theme blocks*.",
+        "advanced": "Um tema com theme blocks continua sendo um tema OS 2.0 válido — a mudança é aditiva. Por isso dá pra adotar blocks aos poucos num tema existente, sem reescrever tudo."
+      },
+      {
+        "title": "Reveja a limitação dos blocks de section.",
+        "detail": "Em temas OS 2.0 clássicos, os blocks são declarados **dentro do schema da section**: só existem naquela section, não podem ser reaproveitados em outra e **não podem ter blocks dentro deles**. Se dois tipos de section precisam do mesmo botão, você duplica o código.\n\nTheme blocks resolvem os três problemas: vivem fora das sections, são reutilizáveis e aceitam filhos."
+      },
+      {
+        "title": "Anatomia de um theme block em /blocks.",
+        "detail": "Cada theme block é um arquivo Liquid na pasta `/blocks` na raiz do tema. Ele tem markup, CSS opcional e um `{% schema %}` com nome, configurações e presets.",
+        "code": "{%- comment -%} blocks/text.liquid {%- endcomment -%}\n<div class=\"text\" {{ block.shopify_attributes }}>\n  {{ block.settings.text }}\n</div>\n\n{% schema %}\n{\n  \"name\": \"Texto\",\n  \"settings\": [\n    { \"type\": \"richtext\", \"id\": \"text\", \"label\": \"Texto\" },\n    { \"type\": \"text_alignment\", \"id\": \"alignment\", \"label\": \"Alinhamento\" }\n  ],\n  \"presets\": [\n    { \"name\": \"Texto\" }\n  ]\n}\n{% endschema %}",
+        "advanced": "O `{{ block.shopify_attributes }}` é o que permite ao theme editor selecionar e destacar o block quando o lojista clica nele. Esqueça e o block renderiza, mas fica \"invisível\" pro editor."
+      },
+      {
+        "title": "Faça uma section aceitar theme blocks.",
+        "detail": "Duas peças: no schema da section, declare que ela aceita `@theme` (blocks do tema) e `@app` (blocks de apps); no markup, use `{% content_for \"blocks\" %}` pra renderizar os blocks que o lojista adicionou, **na ordem salva no template JSON**.",
+        "code": "{%- comment -%} sections/faixa.liquid {%- endcomment -%}\n<section class=\"faixa\">\n  {% content_for \"blocks\" %}\n</section>\n\n{% schema %}\n{\n  \"name\": \"Faixa\",\n  \"blocks\": [\n    { \"type\": \"@theme\" },\n    { \"type\": \"@app\" }\n  ],\n  \"presets\": [{ \"name\": \"Faixa\" }]\n}\n{% endschema %}",
+        "advanced": "Você pode restringir quais blocks a section aceita em vez de usar o `@theme` genérico, listando os tipos permitidos. Isso protege layouts sensíveis de receber block que não faz sentido ali."
+      },
+      {
+        "title": "Aninhe: um block que contém outros blocks.",
+        "detail": "Theme blocks podem aceitar outros blocks como filhos — a mesma declaração `blocks: [{ \"type\": \"@theme\" }]` e o mesmo `content_for \"blocks\"` dentro do block. É isso que permite um block \"Coluna\" com \"Título\", \"Texto\" e \"Botão\" dentro, e uma section \"Grade\" com várias colunas.",
+        "code": "{%- comment -%} blocks/coluna.liquid {%- endcomment -%}\n<div class=\"coluna\" {{ block.shopify_attributes }}>\n  {% content_for \"blocks\" %}\n</div>\n\n{% schema %}\n{\n  \"name\": \"Coluna\",\n  \"blocks\": [{ \"type\": \"@theme\" }, { \"type\": \"@app\" }],\n  \"presets\": [\n    {\n      \"name\": \"Coluna com texto\",\n      \"blocks\": [\n        { \"type\": \"text\", \"settings\": { \"text\": \"<h3>Olá, mundo!</h3>\" } }\n      ]\n    }\n  ]\n}\n{% endschema %}",
+        "advanced": "Repare no `presets.blocks`: o preset já nasce com filhos. É como o Horizon entrega \"componentes prontos\" no seletor do editor — o lojista escolhe \"Coluna com texto\" e recebe a estrutura montada."
+      },
+      {
+        "title": "Use static blocks para posições fixas do layout.",
+        "detail": "Às vezes o tema precisa de um block **sempre presente** num lugar (o botão de um card, o preço de um produto). Isso é um **static block**: em vez de `content_for \"blocks\"`, você chama `content_for \"block\"` com `type` e um `id` único. Parâmetros extras viram variáveis dentro do block.",
+        "code": "{%- comment -%} dentro de uma section ou block {%- endcomment -%}\n{% content_for \"block\", type: \"button\", id: \"cta-principal\", color: \"red\" %}\n\n{%- comment -%} blocks/button.liquid — recebe {{ color }} {%- endcomment -%}\n<a class=\"button button--{{ color }}\" href=\"{{ block.settings.link }}\">\n  {{ block.settings.label }}\n</a>",
+        "advanced": "O lojista pode **ocultar** um static block, mas não excluí-lo — a posição continua sendo do tema. O `id` precisa ser único dentro do arquivo: é com ele que a Shopify guarda as configurações daquele block específico."
+      },
+      {
+        "title": "Conheça as regras e limites dos theme blocks.",
+        "detail": "- Um tema pode ter no máximo **300 theme blocks** (conta todo `.liquid` em `/blocks`, referenciado ou não).\n- Um theme block **não enxerga variáveis criadas fora dele** e **não recebe variáveis** como um `{% render %}` de snippet recebe. Ele lê seu `block`, a `section` pai e os objetos globais do Liquid.\n- Só static blocks aceitam parâmetros extras via `content_for \"block\"`.\n- Renderização segue a ordem do template JSON.",
+        "advanced": "Se você precisa compartilhar lógica com **passagem de variáveis**, isso continua sendo papel do `snippet`. Regra prática: snippet = função de apresentação chamada com argumentos; theme block = peça configurável pelo lojista no editor."
+      },
+      {
+        "title": "Decida: block de section ou theme block?",
+        "detail": "Use **block de section** (declarado no schema da section) quando a peça só existe numa section e nunca será reaproveitada — é mais simples. Use **theme block** quando: dois ou mais lugares usam a mesma peça, você precisa de aninhamento, ou apps precisam plugar dentro. Num tema novo, o caminho da Shopify é theme blocks por padrão."
+      },
+      {
+        "title": "Use o Horizon como tema de referência.",
+        "detail": "O Horizon é o tema de referência da Shopify pra essa arquitetura, e o código é aberto. Clone e leia: dá pra ver na prática como as sections são finas, como quase tudo mora em `/blocks` (grupos, textos, botões, cards de produto) e como os presets entregam estruturas prontas.",
+        "code": "shopify theme init meu-horizon --clone-url https://github.com/Shopify/horizon.git\ncd meu-horizon\nshopify theme dev --store minha-loja.myshopify.com",
+        "advanced": "Estudar o Horizon é o melhor atalho: leia primeiro a pasta `blocks/`, depois uma section curta, e só então os `snippets/`. Repare em como ele separa blocks de layout (grupos/colunas) de blocks de conteúdo (texto, imagem, botão)."
+      },
+      {
+        "title": "Valide com o Theme Check e o editor.",
+        "detail": "Rode o `shopify theme check` pra pegar erros de schema (tipo de block inexistente, preset inválido) e teste no theme editor: adicionar, mover, ocultar e remover blocks, inclusive dentro de blocks aninhados. Confirme que clicar num elemento na pré-visualização seleciona o block certo (é o `shopify_attributes` trabalhando).",
+        "code": "shopify theme check"
+      },
+      {
+        "title": "Projeto — monte uma seção de \"cards em colunas\" só com theme blocks.",
+        "detail": "Vai criar blocks de conteúdo, um block de coluna aninhável e uma section grade, e testar tudo no editor."
+      },
+      {
+        "title": "Projeto — passo 1: crie os blocks de conteúdo.",
+        "detail": "Em `/blocks`, crie `titulo.liquid`, `texto.liquid` e `botao.liquid`, cada um com `shopify_attributes`, settings próprias e um preset simples."
+      },
+      {
+        "title": "Projeto — passo 2: crie a coluna e a grade.",
+        "detail": "Crie `blocks/coluna.liquid` aceitando `@theme` (com um preset já contendo título + texto + botão) e `sections/grade.liquid` que aceita `@theme` e renderiza com `content_for \"blocks\"`."
+      },
+      {
+        "title": "Projeto — passo 3: adicione um static block e teste no editor.",
+        "detail": "Dentro da `coluna`, troque o botão do preset por um `content_for \"block\", type: \"botao\", id: \"cta\"` fixo. No editor: adicione 3 colunas, reordene, oculte o botão de uma delas e confirme que só essa instância muda."
+      }
+    ]
+  },
+  "categoryId": "themes",
+  "categoryLabel": "Temas (Storefronts)"
+}

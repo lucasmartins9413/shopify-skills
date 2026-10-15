@@ -1,0 +1,41 @@
+{
+  "id": "flags-imagens-e-listing",
+  "title": "Case Flags: imagens, vídeo e listing",
+  "desc": "Ícone, banners do admin, screenshots, vídeo demonstrativo, textos, categoria, preço e visibilidade na App Store.",
+  "plan": {
+    "objetivo": "Montar um listing que explique o app para o lojista e passe pela revisão. Resultado final: [listing do Flags](https://apps.shopify.com/flags-product-badges).",
+    "prereq": "App funcionando de ponta a ponta numa dev store, com flags de exemplo criadas.",
+    "tempo": "3h",
+    "doc": "https://shopify.dev/docs/apps/launch/app-store-review/app-listing-guidelines",
+    "steps": [
+      {
+        "title": "Prepare uma loja de demonstração bonita antes de capturar qualquer imagem.",
+        "detail": "Screenshots de tela vazia não vendem. Antes de capturar, a dev store recebeu produtos com fotos boas, flags dos presets (Oferta, Novo, Mais vendido, Black Friday) e o embed ativo no tema. As capturas da loja virtual mostram badges em cards de coleção e na página de produto; as do admin mostram o editor com preview e a lista de flags preenchida."
+      },
+      {
+        "title": "Imagens do próprio admin: banners da tela inicial.",
+        "detail": "Além das imagens do listing, o admin ganhou banners (`public/banner-home.jpg` e `public/banner-flag-app.jpg`) na tela inicial e na de planos. São arquivos estáticos servidos pelo próprio app.",
+        "advanced": "Cuidado com o peso: o `banner-flag-app.jpg` entrou com cerca de 1,7 MB. Comprimir (WebP ou JPG de qualidade 75–80) ajuda nos Core Web Vitals do admin, que contam para o selo Built for Shopify."
+      },
+      {
+        "title": "Siga as regras de imagem do listing.",
+        "detail": "- **Ícone:** quadrado (1200 × 1200 px), simples, sem texto pequeno e sem screenshot dentro.\n- **Screenshots:** em 16:9 (1600 × 900 px), mostrando o app em uso. Não use molduras de navegador nem dados pessoais de clientes.\n- **Imagem ou vídeo de destaque:** mostra o resultado principal (a badge na loja) logo de cara.\n\nOs tamanhos exatos e limites mudam de tempos em tempos; confira no próprio formulário do listing antes de exportar."
+      },
+      {
+        "title": "Grave um vídeo curto mostrando o fluxo inteiro.",
+        "detail": "Roteiro que funcionou: criar uma flag a partir de um preset → escolher a condição → ver o preview → salvar → abrir a loja e ver a badge no card e na página de produto. Sem música alta e sem enrolação. O mesmo hábito de gravar vídeo ajudou depois na revisão: cada problema apontado foi respondido com um vídeo de prova."
+      },
+      {
+        "title": "Escreva os textos pensando no lojista.",
+        "detail": "- **Título no listing:** *Selos de Oferta e Destaque* (pt-BR). Diz o que o app faz com as palavras que o lojista busca.\n- **Introdução:** \"Adicione etiquetas como 'Promoção', 'Novo' e 'Pouco estoque' aos produtos.\"\n- **Destaques (3):** presets e 8 formatos; exibição automática por tag, coleção, estoque baixo ou produto; preview em tempo real antes de salvar.\n- **Categoria:** Store design → Animation and effects, com as tags de datas sazonais (Black Friday, Natal etc.).\n- **Preços:** os mesmos do código (Free, Basic US$ 5, Pro US$ 12, 7 dias de trial).\n- **Instruções de teste para o revisor:** como ativar o embed no tema e onde ver a badge.",
+        "advanced": "Se o app for vendido fora do Brasil, tenha também o listing em inglês. O Flags saiu só em pt-BR, e a página da App Store avisa que não há suporte em inglês, o que corta boa parte do público."
+      },
+      {
+        "title": "Confira a visibilidade do app na App Store.",
+        "detail": "O padrão pode vir como **Limit visibility**: só acessa quem tem o link direto e o app não aparece nas buscas. Para aparecer: Distribution → Manage listing → **App Store visibility** → *Make fully visible*. Dá para mudar a qualquer momento, inclusive durante a revisão."
+      }
+    ]
+  },
+  "categoryId": "cases",
+  "categoryLabel": "Cases reais"
+}
