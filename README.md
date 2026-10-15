@@ -1,25 +1,25 @@
 # Shopify Dev Academy: skills
 
-Skills para estudar desenvolvimento Shopify com o seu agente de código (Claude Code e outros).
+Skills to learn Shopify development with your coding agent (Claude Code and others).
 
-## /aprender
+## /learn
 
-Aulas, perguntas e desafios práticos sobre temas, apps, Functions, checkout, B2B e SEO,
-seguindo o roadmap da Shopify Dev Academy. O progresso fica salvo na sua máquina, em
-`~/.aprender-shopify/`.
+Lessons, questions and hands-on challenges about themes, apps, Functions, checkout, B2B and
+SEO, following the Shopify Dev Academy roadmap. Your progress is saved on your machine, in
+`~/.shopify-learn/`.
 
-### Instalação
+### Install
 
 ```bash
-npx skills add lucasmartins9413/shopify-skills --skill aprender
+npx skills add lucasmartins9413/shopify-skills --skill learn
 ```
 
-### Uso
+### Usage
 
 ```
-/aprender              # continua de onde parou
-/aprender functions    # estuda um tópico
-/aprender primeiro-app # segue uma trilha
+/learn                # continue where you left off
+/learn functions      # study a topic
+/learn primeiro-app   # follow a track
 ```
 
-Precisa de Node.js (para o `npx`) e de um agente que suporte skills.
+Requires Node.js (for `npx`) and an agent that supports skills.
